@@ -172,48 +172,53 @@
 .logo-brand{
   filter: drop-shadow(0 0 10px rgba(99,102,241,0.18));
 }
-    .difference-section {
-  margin-top: 120px;
-  text-align: center;
-}
-
-.difference-sub {
-  color: #a0a6b8;
-  max-width: 650px;
-  margin: 20px auto 50px auto;
-  line-height: 1.6;
-}
-
-.difference-grid {
-  max-width: 800px;
-  margin: auto;
-}
-
-.diff-row {
-  display: grid;
+    .diff-head{
+  display:grid;
   grid-template-columns: 1fr 1fr;
-  padding: 18px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 12px 0 18px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 6px;
 }
 
-.diff-left {
-  color: #6b7280;
-  text-align: left;
-  padding-left: 20px;
+.diff-left-head{
+  color:#6b7280;
+  text-align:left;
+  padding-left:20px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.diff-right {
-  color: #ffffff;
-  text-align: left;
-  font-weight: 500;
-  padding-left: 20px;
+.diff-right-head{
+  text-align:left;
+  padding-left:20px;
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-.difference-footer {
-  margin-top: 40px;
-  font-size: 18px;
-  color: #d1d5db;
-  font-weight: 500;
+.brand{
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color:#ffffff;
+}
+
+.brand span{
+  color:#6366F1;
+  font-weight: 700;
+}
+
+.difference-callout{
+  max-width: 800px;
+  margin: 30px auto 0 auto;
+  padding: 18px 20px;
+  border: 1px solid rgba(99,102,241,0.25);
+  background: rgba(99,102,241,0.08);
+  border-radius: 14px;
+  color: #e5e7eb;
+  font-weight: 600;
+  line-height: 1.6;
 }
   </style>
 </head>
@@ -292,11 +297,6 @@
     <h3>AI Optimized Rewrite</h3>
     <p>Get a recruiter-ready, ATS-optimized resume version.</p>
   </div>
-
-      <div class="feature">
-        <h3>Instant PDF Export</h3>
-        <p>Download your optimized resume as a professional PDF.</p>
-      </div>
     </div>
     <div class="section difference-section">
   <h2>Built for Hiring Systems. Not Just Text Generation.</h2>
@@ -307,6 +307,31 @@
 
   <div class="difference-grid">
 
+    <!-- HEADERS -->
+    <div class="diff-head">
+      <div class="diff-left-head">OTHER AI TOOLS</div>
+      <div class="diff-right-head">
+
+        <!-- MINI LOGO -->
+        <svg width="18" height="18" viewBox="0 0 100 100">
+          <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
+          <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
+          <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
+                fill="none"
+                stroke="#6366F1"
+                stroke-width="8"
+                stroke-linecap="round"/>
+          <line x1="54" y1="54" x2="72" y2="72"
+                stroke="#6366F1"
+                stroke-width="8"
+                stroke-linecap="round"/>
+        </svg>
+
+        <span class="brand">Resume<span>AI</span></span>
+      </div>
+    </div>
+
+    <!-- ROWS -->
     <div class="diff-row">
       <div class="diff-left">Surface-level writing</div>
       <div class="diff-right">System-aware evaluation</div>
@@ -328,6 +353,13 @@
     </div>
 
   </div>
+
+  <!-- PREMIUM CALLOUT PANEL -->
+  <div class="difference-callout">
+    Designed to help you pass the first filter — before a human ever reads your resume.
+  </div>
+
+</div>
 
   <p class="difference-footer">
     Designed to help you pass the first filter — before a human ever reads your resume.
