@@ -249,6 +249,48 @@
   font-size: 26px; /* istersen 28 de olur */
   line-height: 1;
 }
+    .scroll-hint{
+  margin-top: 36px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  opacity:0.85;
+}
+
+.mouse{
+  width: 28px;
+  height: 44px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 18px;
+  position: relative;
+}
+
+.mouse::after{
+  content:"";
+  width: 4px;
+  height: 8px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.55);
+  position:absolute;
+  left:50%;
+  top:10px;
+  transform: translateX(-50%);
+  animation: wheel 1.3s infinite;
+}
+
+@keyframes wheel{
+  0% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+  60% { transform: translateX(-50%) translateY(10px); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(16px); opacity: 0; }
+}
+
+.scroll-text{
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
   </style>
 </head>
 
@@ -287,10 +329,14 @@
 
     <div class="price">
   <span class="old">$29</span>
-  <strong><span class="new-price">$19</span> — Limited Launch Offer</strong>
+  <strong><span class="new-price">$15</span> — Limited Launch Offer</strong>
 </div>
 
     <a href="#" class="btn">Unlock Lifetime Access</a>
+    <div class="scroll-hint" aria-hidden="true">
+  <div class="mouse"></div>
+  <div class="scroll-text">Scroll</div>
+</div>
   </div>
 
   <div class="section">
