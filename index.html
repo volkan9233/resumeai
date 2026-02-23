@@ -172,29 +172,40 @@
 .logo-brand{
   filter: drop-shadow(0 0 10px rgba(99,102,241,0.18));
 }
-    .diff-head{
+    /* === Difference grid (final) === */
+.difference-grid{
   display:grid;
   grid-template-columns: 1fr 1fr;
-  padding: 12px 0 18px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  margin-bottom: 6px;
+  max-width: 800px;
+  margin: 40px auto;
+  row-gap: 18px;
 }
 
 .diff-left-head{
   color:#6b7280;
-  text-align:left;
-  padding-left:20px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size:12px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
 }
 
 .diff-right-head{
-  text-align:left;
-  padding-left:20px;
   display:flex;
   align-items:center;
   gap:10px;
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+
+.diff-left{
+  color:#6b7280;
+}
+
+.diff-right{
+  color:#ffffff;
+  font-weight:500;
+}
 }
 
 .brand{
@@ -307,50 +318,37 @@
 
   <div class="difference-grid">
 
-    <!-- HEADERS -->
-    <div class="diff-head">
-      <div class="diff-left-head">OTHER AI TOOLS</div>
-      <div class="diff-right-head">
+  <div class="diff-left-head">OTHER AI TOOLS</div>
+  <div class="diff-right-head">
+    <svg width="18" height="18" viewBox="0 0 100 100">
+      <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
+      <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
+      <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
+            fill="none"
+            stroke="#6366F1"
+            stroke-width="8"
+            stroke-linecap="round"/>
+      <line x1="54" y1="54" x2="72" y2="72"
+            stroke="#6366F1"
+            stroke-width="8"
+            stroke-linecap="round"/>
+    </svg>
+    <span class="brand">Resume<span>AI</span></span>
+  </div>
 
-        <!-- MINI LOGO -->
-        <svg width="18" height="18" viewBox="0 0 100 100">
-          <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
-          <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
-          <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
-                fill="none"
-                stroke="#6366F1"
-                stroke-width="8"
-                stroke-linecap="round"/>
-          <line x1="54" y1="54" x2="72" y2="72"
-                stroke="#6366F1"
-                stroke-width="8"
-                stroke-linecap="round"/>
-        </svg>
+  <div class="diff-left">Surface-level writing</div>
+  <div class="diff-right">System-aware evaluation</div>
 
-        <span class="brand">Resume<span>AI</span></span>
-      </div>
-    </div>
+  <div class="diff-left">One-size-fits-all output</div>
+  <div class="diff-right">Role-specific alignment</div>
 
-    <!-- ROWS -->
-    <div class="diff-row">
-      <div class="diff-left">Surface-level writing</div>
-      <div class="diff-right">System-aware evaluation</div>
-    </div>
+  <div class="diff-left">Formatting-focused edits</div>
+  <div class="diff-right">Signal-focused optimization</div>
 
-    <div class="diff-row">
-      <div class="diff-left">One-size-fits-all output</div>
-      <div class="diff-right">Role-specific alignment</div>
-    </div>
+  <div class="diff-left">Text-first improvements</div>
+  <div class="diff-right">Hiring-filter readiness</div>
 
-    <div class="diff-row">
-      <div class="diff-left">Formatting-focused edits</div>
-      <div class="diff-right">Signal-focused optimization</div>
-    </div>
-
-    <div class="diff-row">
-      <div class="diff-left">Text-first improvements</div>
-      <div class="diff-right">Hiring-filter readiness</div>
-    </div>
+</div>
 
   </div>
 
