@@ -176,50 +176,54 @@
 .difference-grid{
   display:grid;
   grid-template-columns: 1fr 1fr;
-  max-width: 800px;
-  margin: 40px auto;
-  row-gap: 18px;
+  max-width: 900px;
+  margin: 50px auto;
+  row-gap: 20px;
 }
 
 .diff-left-head{
-  color:#6b7280;
-  font-size:12px;
-  letter-spacing:0.12em;
+  color:#ffffff; /* artık beyaz */
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:0.14em;
   text-transform:uppercase;
-  padding-bottom:10px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,0.12);
+  text-align:center;
 }
 
 .diff-right-head{
   display:flex;
   align-items:center;
+  justify-content:center; /* ortalar */
   gap:10px;
-  padding-bottom:10px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,0.12);
 }
 
 .diff-left{
   color:#6b7280;
+  text-align:center;
 }
 
 .diff-right{
   color:#ffffff;
   font-weight:500;
+  text-align:center;
 }
 }
 
 .brand{
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-size:16px;
+  font-weight:600;
+  letter-spacing:-0.2px;
   color:#ffffff;
 }
 
 .brand span{
   color:#6366F1;
-  font-weight: 700;
+  font-weight:700;
 }
-
 .difference-callout{
   max-width: 800px;
   margin: 30px auto 0 auto;
