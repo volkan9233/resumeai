@@ -126,6 +126,52 @@
       h1 { font-size: 34px; }
       .features { grid-template-columns: 1fr; }
     }
+    /* Headline highlight */
+.headline-accent{
+  background: linear-gradient(90deg, rgba(99,102,241,0.0), rgba(99,102,241,0.22), rgba(139,92,246,0.0));
+  padding: 0 10px;
+  border-radius: 14px;
+}
+
+/* Price emphasis */
+.price .old{
+  opacity: 0.35;
+  text-decoration-thickness: 2px;
+}
+.new-price{
+  color: #ffffff;
+  background: rgba(99,102,241,0.18);
+  border: 1px solid rgba(99,102,241,0.35);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+/* Button premium shine */
+.btn{
+  position: relative;
+  overflow: hidden;
+}
+.btn::after{
+  content:"";
+  position:absolute;
+  top:-60%;
+  left:-30%;
+  width: 30%;
+  height: 220%;
+  transform: rotate(25deg);
+  background: rgba(255,255,255,0.18);
+  filter: blur(2px);
+  transition: left 0.6s ease;
+}
+.btn:hover::after{
+  left: 120%;
+}
+
+/* Slight logo presence */
+.logo-brand{
+  filter: drop-shadow(0 0 10px rgba(99,102,241,0.18));
+}
   </style>
 </head>
 
@@ -156,16 +202,16 @@
   </div>
   <div class="logo-text">Resume<span>AI</span></div>
 </div>
-    <h1>Outperform Every Other Applicant.</h1>
+    <h1><span class="headline-accent">Outperform</span> Every Other Applicant.</h1>
     <p class="sub">
       Your resume isn’t bad. It’s just not optimized for modern ATS systems.
       ResumeAI analyzes job descriptions and rewrites your resume for maximum interview impact.
     </p>
 
     <div class="price">
-      <span class="old">$29</span>
-      <strong>$19 – Limited Launch Offer</strong>
-    </div>
+  <span class="old">$29</span>
+  <strong><span class="new-price">$19</span> — Limited Launch Offer</strong>
+</div>
 
     <a href="#" class="btn">Unlock Lifetime Access</a>
   </div>
