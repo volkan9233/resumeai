@@ -85,16 +85,19 @@
 
       <div class="sec">
         <h3>Missing Keywords</h3>
+        <div id="kwPreviewNote" style="display:none; opacity:.8; font-size:13px; margin:6px 0 10px 0;">
+  🔒 Preview shows only the first 5 keywords. Unlock to see the full list.
+</div>
         <ul id="missing"></ul>
       </div>
 
       <div class="sec">
-        <h3>Weak / Vague Phrases</h3>
+        <h3>Weak / Vague Phrases 🔒</h3>
         <ul id="weak"></ul>
       </div>
 
       <div class="sec">
-        <h3>Optimized Resume (ATS + Recruiter-ready)</h3>
+        <h3>Optimized Resume (ATS + Recruiter-ready) 🔒</h3>
         <pre id="optimized"></pre>
       </div>
     </div>
@@ -133,6 +136,9 @@ const isPreview = new URLSearchParams(location.search).get("preview") === "1";
 if (isPreview) {
   const b = document.getElementById("previewBanner");
   if (b) b.style.display = "block";
+
+  const kwNote = document.getElementById("kwPreviewNote");
+  if (kwNote) kwNote.style.display = "block";
 }
     document.getElementById('scorePill').textContent = `ATS Match Score: ${data.ats_score}%`;
 
