@@ -109,7 +109,7 @@ ${jd}
 let data;
 try {
   data = JSON.parse(text);
-} catch {
+} catch (e1) {
   // fallback: ilk { ile son } arasını alıp parse et
   const s = String(text);
   const start = s.indexOf("{");
