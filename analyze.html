@@ -112,7 +112,7 @@ async function run(){
     const r = await fetch("/api/analyze", {
       method:"POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ resume, job })
+      body: JSON.stringify({ resume, job, preview: new URLSearchParams(location.search).get("preview") === "1" })
     });
 
     const data = await r.json();
