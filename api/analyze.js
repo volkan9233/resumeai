@@ -5,7 +5,8 @@ module.exports = async function handler(req, res) {
     }
 
     const { cv, jd, preview, lang } = req.body || {};
-const targetLang = (typeof lang === "string" && lang) ? lang : "en";
+    const targetLang = (typeof lang === "string" && lang) ? lang : "en";
+
     if (!cv || !jd) {
       return res.status(400).json({ error: "cv and jd are required" });
     }
@@ -21,7 +22,6 @@ const targetLang = (typeof lang === "string" && lang) ? lang : "en";
     const system =
       "You are an ATS resume analyzer. Return ONLY valid JSON. No markdown. No extra text.";
 
-    // Daha dolu sonuç için net minimumlar
     const user = `
 Analyze the resume vs job description and return JSON in this exact schema:
 
@@ -44,13 +44,15 @@ HARD REQUIREMENTS (do NOT be brief):
 - optimized_cv MUST be a complete rewritten resume (not partial), ATS-friendly, bullet-based, achievement-focused, and aligned to the JD.
 - Keep claims truthful. Do not invent employers, degrees, titles, or metrics. If a metric is unknown, rewrite without numbers rather than guessing.
 - missing_keywords should be single words or short phrases (2–4 words max). No duplicates.
+
 JSON STRICTNESS:
-- The JSON KEYS must remain exactly as in the schema (English snake_case): ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
-- Only translate the VALUES (summary text, rewrites, optimized_cv text) into ${targetLang}.
+- The JSON KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
+- Only translate the VALUES into ${targetLang}. Do NOT translate keys.
 - Do not add extra keys. Do not add comments. Do not wrap in code fences.
 
 SCORING GUIDANCE:
 - ats_score is based on keyword overlap + seniority fit + impact metrics + structure + clarity.
+
 LANGUAGE REQUIREMENT:
 - Write ALL output fields (summary, rewrites, optimized_cv) in this target language: ${targetLang}.
 - Use native, professional HR tone for ${targetLang}. No slang, no awkward literal translations.
@@ -65,6 +67,7 @@ Before finalizing, ensure:
 2) No invented experience/metrics.
 3) ATS-friendly structure preserved.
 Return ONLY valid JSON. No markdown.
+
 INPUTS:
 
 RESUME:
@@ -84,8 +87,7 @@ ${jd}
         model,
         temperature: 0.3,
         response_format: { type: "json_object" },
-        // Dolu CV çıktısı için biraz alan bırakıyoruz
-        max_tokens: isPreview ? 1200 : 3200,
+        max_tokens: isPreview ? 900 : 1800, // timeout riskini düşür
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -106,33 +108,30 @@ ${jd}
     const parsed = JSON.parse(raw);
     const text = parsed?.choices?.[0]?.message?.content || "{}";
 
-let data;
-try {
-  data = JSON.parse(text);
-} catch (e1) {
-  // fallback: ilk { ile son } arasını alıp parse et
-  const s = String(text);
-  const start = s.indexOf("{");
-  const end = s.lastIndexOf("}");
-  if (start !== -1 && end !== -1 && end > start) {
+    let data;
     try {
-      data = JSON.parse(s.slice(start, end + 1));
-    } catch (e2) {
-      return res.status(500).json({
-        error: "Model did not return valid JSON",
-        model_output: s.slice(0, 2000),
-      });
-    }
-  } else {
-    return res.status(500).json({
-      error: "Model did not return valid JSON",
-      model_output: s.slice(0, 2000),
-    });
-  }
-}
+      data = JSON.parse(text);
+    } catch (e1) {
+      const s = String(text);
+      const start = s.indexOf("{");
+      const end = s.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        try {
+          data = JSON.parse(s.slice(start, end + 1));
+        } catch (e2) {
+          return res.status(500).json({
+            error: "Model did not return valid JSON",
+            model_output: s.slice(0, 2000),
+          });
+        }
+      } else {
+        return res.status(500).json({
+          error: "Model did not return valid JSON",
+          model_output: s.slice(0, 2000),
+        });
+      }
     }
 
-    // Küçük güvenlik: tipleri normalize et (UI boş kalmasın)
     const normalized = {
       ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
       missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
@@ -141,20 +140,17 @@ try {
       summary: typeof data.summary === "string" ? data.summary : "",
     };
 
-    // PREVIEW MODE: sadece küçük parça göster
     if (isPreview) {
-      const previewData = {
+      return res.status(200).json({
         ats_score: normalized.ats_score,
         summary: normalized.summary,
         missing_keywords: normalized.missing_keywords.slice(0, 5),
         weak_sentences: normalized.weak_sentences.slice(0, 2),
-        // optimized_cv deliberately omitted
-      };
-      return res.status(200).json(previewData);
+      });
     }
 
     return res.status(200).json(normalized);
   } catch (err) {
     return res.status(500).json({ error: "Server error", details: err?.message || String(err) });
   }
-}
+};
