@@ -281,12 +281,14 @@ function escapeHtml(str){
   const preview = qs.get("preview"); // varsa "1"
 
   const langs = [
-    ["en","EN"],
-    ["tr","TR"],
-    ["es","ES"],
-    ["ru","RU"],
-    ["zh","中文"]
-  ];
+  ["en","EN"],
+  ["tr","TR"],
+  ["es","ES"],
+  ["ru","RU"],
+  ["fr","FR"],
+  ["ar","AR"],
+  ["zh","中文"]
+];
 
   function buildHref(langCode){
     const p = new URLSearchParams();
