@@ -262,25 +262,35 @@ function escapeHtml(str){
     .replaceAll("'","&#039;");
 }
   (function(){
-  const langs = [["en","EN"],["tr","TR"],["es","ES"],["ru","RU"],["zh","中文"]];
   const bar = document.getElementById("langBar");
   if (!bar) return;
 
-  const url = new URL(window.location.href);
-  const current = url.searchParams.get("lang") || "en";
+  const qs = new URLSearchParams(window.location.search);
+  const current = qs.get("lang") || "en";
+  const preview = qs.get("preview"); // varsa "1"
+
+  const langs = [
+    ["en","EN"],
+    ["tr","TR"],
+    ["es","ES"],
+    ["ru","RU"],
+    ["zh","中文"]
+  ];
+
+  function buildHref(langCode){
+    const p = new URLSearchParams();
+    if (preview) p.set("preview", preview);  // preview=1 aynen korunur
+    p.set("lang", langCode);
+    return window.location.pathname + "?" + p.toString();
+  }
 
   bar.innerHTML = "";
-
   langs.forEach(([code,label])=>{
-    const u = new URL(window.location.href);
-    u.searchParams.set("lang", code); // preview=1 varsa otomatik kalır
-
     const a = document.createElement("a");
     a.className = "btn btn-ghost";
     a.style.cssText = (code === current) ? "opacity:1;font-weight:800;" : "opacity:.75;";
-    a.href = u.pathname + "?" + u.searchParams.toString();
+    a.setAttribute("href", buildHref(code));
     a.textContent = label;
-
     bar.appendChild(a);
   });
 })();
