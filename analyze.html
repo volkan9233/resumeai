@@ -50,6 +50,7 @@
       <div class="brand">Resume<span>AI</span></div>
       <a href="/index.html">← Back</a>
     </div>
+    <div id="langBar" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"></div>
 
     <h1>ATS Analysis</h1>
     <p>Paste your resume and the job description. We’ll return a structured analysis + optimized version.</p>
@@ -260,6 +261,24 @@ function escapeHtml(str){
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
+  (function(){
+  const langs = [
+    ["en","EN"], ["tr","TR"], ["es","ES"], ["ru","RU"], ["zh","中文"]
+  ];
+  const qs = new URLSearchParams(location.search);
+  const current = qs.get("lang") || "en";
+
+  const bar = document.getElementById("langBar");
+  if (!bar) return;
+
+  bar.innerHTML = langs.map(([code,label])=>{
+    const p = new URLSearchParams(location.search); // mevcut query kopyalanır
+    p.set("lang", code); // sadece dili değiştirir
+    const href = "?" + p.toString(); // preview=1 varsa aynen kalır
+    const activeStyle = code === current ? "opacity:1;font-weight:800;" : "opacity:.75;";
+    return `<a class="btn btn-ghost" style="${activeStyle}" href="${href}">${label}</a>`;
+  }).join("");
+})();
 </script>
 </body>
 </html>
