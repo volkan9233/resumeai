@@ -22,11 +22,11 @@ export default async function handler(req, res) {
 Analyze the resume vs job description and return JSON in this exact schema:
 
 {
-  "ats_score": number,                   
-  "missing_keywords": string[],          
-  "weak_sentences": [{"sentence": string, "rewrite": string}],  
-  "optimized_cv": string,                
-  "summary": string                      
+  "ats_score": number,
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "optimized_cv": string,
+  "summary": string
 }
 
 Rules:
@@ -34,8 +34,7 @@ Rules:
 - missing_keywords should be single words or short phrases.
 - weak_sentences should come from the resume text (or close paraphrase).
 - optimized_cv should be ATS-friendly, bullet-based, achievement-focused.
-
-NOW INPUTS:
+- Keep claims truthful. Do not invent experience.
 
 RESUME:
 ${cv}
@@ -44,34 +43,36 @@ JOB DESCRIPTION:
 ${jd}
 `.trim();
 
-    const openaiRes = await fetch("https://api.openai.com/v1/responses", {
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model,
-        input: [
-          { role: "system", content: system },
-          { role: "user", content: user }
-        ],
+        temperature: 0.3,
         response_format: { type: "json_object" },
-        temperature: 0.3
-      })
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
     });
 
-    const rawText = await openaiRes.text();
+    const raw = await openaiRes.text();
+
     if (!openaiRes.ok) {
-      return res.status(500).json({ error: "OpenAI error", details: rawText });
+      // OpenAI'nin döndürdüğü hatayı olduğu gibi gösterelim
+      return res.status(openaiRes.status).json({
+        error: "OpenAI error",
+        status: openaiRes.status,
+        details: raw.slice(0, 2000),
+      });
     }
 
-    const parsed = JSON.parse(rawText);
-
-    const text =
-      parsed.output_text ||
-      parsed.output?.[0]?.content?.[0]?.text ||
-      "";
+    const parsed = JSON.parse(raw);
+    const text = parsed?.choices?.[0]?.message?.content || "{}";
 
     let data;
     try {
@@ -79,23 +80,23 @@ ${jd}
     } catch {
       return res.status(500).json({
         error: "Model did not return valid JSON",
-        model_output: String(text).slice(0, 2000)
+        model_output: String(text).slice(0, 2000),
       });
     }
 
+    // PREVIEW MODE: optimize edilmiş CV'yi saklıyoruz
     if (isPreview) {
       const previewData = {
         ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
         summary: data.summary || "",
         missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords.slice(0, 5) : [],
-        weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences.slice(0, 2) : []
-        // optimized_cv deliberately omitted in preview
+        weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences.slice(0, 2) : [],
+        // optimized_cv deliberately omitted
       };
       return res.status(200).json(previewData);
     }
 
     return res.status(200).json(data);
-
   } catch (err) {
     return res.status(500).json({ error: "Server error", details: err?.message || String(err) });
   }
