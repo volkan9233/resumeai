@@ -301,7 +301,9 @@ function escapeHtml(str){
   langs.forEach(([code,label])=>{
     const a = document.createElement("a");
     a.className = "btn btn-ghost";
-    a.style.cssText = (code === current) ? "opacity:1;font-weight:800;" : "opacity:.75;";
+    a.style.cssText = (code === current)
+  ? "opacity:1;font-weight:800;padding:10px 12px;font-size:14px;border-radius:12px;"
+  : "opacity:.85;padding:10px 12px;font-size:14px;border-radius:12px;";
     a.setAttribute("href", buildHref(code));
     a.textContent = label;
     bar.appendChild(a);
