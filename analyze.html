@@ -153,13 +153,14 @@ if (isPreview) {
 
     const weak = document.getElementById('weak');
     weak.innerHTML = "";
-    (data.weak_phrases || []).forEach(k=>{
+    ((data.weak_phrases || data.weak_sentences || data.weak_vague_phrases || data.weaks || [])).forEach(k=>{
       const li = document.createElement('li');
-      li.textContent = k;
+      li.textContent = (typeof k === "string") ? k : ((k.sentence && k.rewrite) ? `${k.sentence} → ${k.rewrite}` : JSON.stringify(k));
       weak.appendChild(li);
     });
 
-    document.getElementById('optimized').textContent = data.optimized_resume || "";
+    document.getElementById('optimized').textContent =
+  data.optimized_resume || data.optimized_cv || data.optimizedResume || data.optimized || "";
     document.getElementById('out').style.display = "block";
     status.textContent = "Done.";
   }catch(e){
