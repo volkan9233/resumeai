@@ -262,22 +262,27 @@ function escapeHtml(str){
     .replaceAll("'","&#039;");
 }
   (function(){
-  const langs = [
-    ["en","EN"], ["tr","TR"], ["es","ES"], ["ru","RU"], ["zh","中文"]
-  ];
-  const qs = new URLSearchParams(location.search);
-  const current = qs.get("lang") || "en";
-
+  const langs = [["en","EN"],["tr","TR"],["es","ES"],["ru","RU"],["zh","中文"]];
   const bar = document.getElementById("langBar");
   if (!bar) return;
 
-  bar.innerHTML = langs.map(([code,label])=>{
-    const p = new URLSearchParams(location.search); // mevcut query kopyalanır
-    p.set("lang", code); // sadece dili değiştirir
-    const href = "?" + p.toString(); // preview=1 varsa aynen kalır
-    const activeStyle = code === current ? "opacity:1;font-weight:800;" : "opacity:.75;";
-    return `<a class="btn btn-ghost" style="${activeStyle}" href="${href}">${label}</a>`;
-  }).join("");
+  const url = new URL(window.location.href);
+  const current = url.searchParams.get("lang") || "en";
+
+  bar.innerHTML = "";
+
+  langs.forEach(([code,label])=>{
+    const u = new URL(window.location.href);
+    u.searchParams.set("lang", code); // preview=1 varsa otomatik kalır
+
+    const a = document.createElement("a");
+    a.className = "btn btn-ghost";
+    a.style.cssText = (code === current) ? "opacity:1;font-weight:800;" : "opacity:.75;";
+    a.href = u.pathname + "?" + u.searchParams.toString();
+    a.textContent = label;
+
+    bar.appendChild(a);
+  });
 })();
 </script>
 </body>
