@@ -108,15 +108,19 @@ async function run(){
   status.textContent = "Analyzing…";
   document.getElementById('out').style.display = "none";
 
-  try{
-    const r = await fetch("/api/analyze", {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ resume, job, preview: new URLSearchParams(location.search).get("preview") === "1" })
-    });
+  try {
+  const r = await fetch("/api/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cv: resume,
+      jd: job,
+      preview: new URLSearchParams(location.search).get("preview") === "1"
+    })
+  });
 
-    const data = await r.json();
-    if(!r.ok) throw new Error(data?.error || "Request failed");
+  const data = await r.json();
+  if (!r.ok) throw new Error(data?.error || "Request failed");
 
     document.getElementById('scorePill').textContent = `ATS Match Score: ${data.ats_score}%`;
 
