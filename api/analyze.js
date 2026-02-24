@@ -4,7 +4,8 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "POST required" });
     }
 
-    const { cv, jd, preview } = req.body || {};
+    const { cv, jd, preview, lang } = req.body || {};
+const targetLang = (typeof lang === "string" && lang) ? lang : "en";
     if (!cv || !jd) {
       return res.status(400).json({ error: "cv and jd are required" });
     }
@@ -46,7 +47,20 @@ HARD REQUIREMENTS (do NOT be brief):
 
 SCORING GUIDANCE:
 - ats_score is based on keyword overlap + seniority fit + impact metrics + structure + clarity.
+LANGUAGE REQUIREMENT:
+- Write ALL output fields (summary, rewrites, optimized_cv) in this target language: ${targetLang}.
+- Use native, professional HR tone for ${targetLang}. No slang, no awkward literal translations.
 
+TERMINOLOGY RULES:
+- Do NOT translate proper nouns and technical terms (React, Next.js, GA4, SQL, Core Web Vitals, TypeScript, Git, Vercel, AWS, etc.).
+- Keep bullet formatting and section headers consistent and ATS-friendly.
+
+QUALITY CHECK:
+Before finalizing, ensure:
+1) Sounds natural in ${targetLang} (native-level).
+2) No invented experience/metrics.
+3) ATS-friendly structure preserved.
+Return ONLY valid JSON. No markdown.
 INPUTS:
 
 RESUME:
