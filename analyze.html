@@ -127,14 +127,15 @@ async function run(){
 
   try {
   const r = await fetch("/api/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      cv: resume,
-      jd: job,
-      preview: new URLSearchParams(location.search).get("preview") === "1"
-    })
-  });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    cv: resume,
+    jd: job,
+    preview: new URLSearchParams(location.search).get("preview") === "1",
+    lang: new URLSearchParams(location.search).get("lang") || "en"
+  })
+});
 
   const data = await r.json();
 if (!r.ok) throw new Error(data?.error || "Request failed");
