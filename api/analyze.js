@@ -1,48 +1,50 @@
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
-      res.statusCode = 405;
-      return res.json({ error: "Method not allowed" });
+      return res.status(405).json({ error: "POST required" });
+    }
+
+    const { cv, jd, preview } = req.body || {};
+    if (!cv || !jd) {
+      return res.status(400).json({ error: "cv and jd are required" });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      res.statusCode = 500;
-      return res.json({ error: "Missing OPENAI_API_KEY on server" });
+      return res.status(500).json({ error: "OPENAI_API_KEY is missing on Vercel" });
     }
 
-    const { resume, job } = req.body || {};
-    if (!resume || !job) {
-      res.statusCode = 400;
-      return res.json({ error: "Missing resume or job" });
-    }
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const isPreview = !!preview;
 
-    const system = "You are an ATS and recruiter resume evaluator. Return STRICT JSON only (no markdown).";
+    const system = "You are an ATS resume analyzer. Return ONLY valid JSON. No markdown.";
     const user = `
-Resume text:
-${resume}
+Analyze the resume vs job description and return JSON in this exact schema:
 
-Job description:
-${job}
-
-Return JSON with this exact shape:
 {
-  "ats_score": number (0-100),
-  "missing_keywords": string[] (max 12),
-  "weak_phrases": string[] (max 8),
-  "optimized_resume": string
+  "ats_score": number,                   
+  "missing_keywords": string[],          
+  "weak_sentences": [{"sentence": string, "rewrite": string}],  
+  "optimized_cv": string,                
+  "summary": string                      
 }
 
 Rules:
-- ats_score must be realistic and consistent with your findings.
-- missing_keywords should be phrases from the job description that are absent or weakly represented in the resume.
-- weak_phrases should quote or paraphrase weak parts from the resume, short and actionable.
-- optimized_resume should be a clean, professional resume text (no tables), keeping truthful claims only.
-`;
+- ats_score is based on keyword overlap + seniority fit + impact metrics + structure.
+- missing_keywords should be single words or short phrases.
+- weak_sentences should come from the resume text (or close paraphrase).
+- optimized_cv should be ATS-friendly, bullet-based, achievement-focused.
 
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+NOW INPUTS:
 
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim();
+
+    const openaiRes = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -50,34 +52,51 @@ Rules:
       },
       body: JSON.stringify({
         model,
-        temperature: 0.3,
-        messages: [
+        input: [
           { role: "system", content: system },
           { role: "user", content: user }
         ],
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
+        temperature: 0.3
       })
     });
 
-    const raw = await resp.json();
-    if (!resp.ok) {
-      res.statusCode = resp.status;
-      return res.json({ error: raw?.error?.message || "OpenAI request failed", raw });
+    const rawText = await openaiRes.text();
+    if (!openaiRes.ok) {
+      return res.status(500).json({ error: "OpenAI error", details: rawText });
     }
 
-    const content = raw?.choices?.[0]?.message?.content || "{}";
-    let parsed;
+    const parsed = JSON.parse(rawText);
+
+    const text =
+      parsed.output_text ||
+      parsed.output?.[0]?.content?.[0]?.text ||
+      "";
+
+    let data;
     try {
-      parsed = JSON.parse(content);
+      data = JSON.parse(text);
     } catch {
-      res.statusCode = 500;
-      return res.json({ error: "Model did not return valid JSON", content });
+      return res.status(500).json({
+        error: "Model did not return valid JSON",
+        model_output: String(text).slice(0, 2000)
+      });
     }
 
-    res.statusCode = 200;
-    return res.json(parsed);
-  } catch (e) {
-    res.statusCode = 500;
-    return res.json({ error: e.message || String(e) });
+    if (isPreview) {
+      const previewData = {
+        ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
+        summary: data.summary || "",
+        missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords.slice(0, 5) : [],
+        weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences.slice(0, 2) : []
+        // optimized_cv deliberately omitted in preview
+      };
+      return res.status(200).json(previewData);
+    }
+
+    return res.status(200).json(data);
+
+  } catch (err) {
+    return res.status(500).json({ error: "Server error", details: err?.message || String(err) });
   }
-};
+}
