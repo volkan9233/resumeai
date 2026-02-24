@@ -44,6 +44,13 @@ HARD REQUIREMENTS (do NOT be brief):
 - optimized_cv MUST be a complete rewritten resume (not partial), ATS-friendly, bullet-based, achievement-focused, and aligned to the JD.
 - Keep claims truthful. Do not invent employers, degrees, titles, or metrics. If a metric is unknown, rewrite without numbers rather than guessing.
 - missing_keywords should be single words or short phrases (2–4 words max). No duplicates.
+GLOBAL ATS COMPATIBILITY:
+- Use standard section headers. If output language is not English, write headers as: Local Language (ENGLISH HEADER).
+  Example: DENEYİM (EXPERIENCE), BECERİLER (SKILLS), EĞİTİM (EDUCATION), PROFESYONEL ÖZET (SUMMARY).
+- For each role in EXPERIENCE, write 6–8 bullets.
+- Each bullet must follow: Action + Tool/Channel + Scope + Outcome.
+  If exact numbers are unknown, use metric-types without inventing (e.g., ROAS, CAC, CPL, CTR, conversion rate).
+- Include a "Core Skills" block with 18–28 keywords aligned to the JD.
 
 JSON STRICTNESS:
 - The JSON KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
