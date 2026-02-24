@@ -44,6 +44,10 @@ HARD REQUIREMENTS (do NOT be brief):
 - optimized_cv MUST be a complete rewritten resume (not partial), ATS-friendly, bullet-based, achievement-focused, and aligned to the JD.
 - Keep claims truthful. Do not invent employers, degrees, titles, or metrics. If a metric is unknown, rewrite without numbers rather than guessing.
 - missing_keywords should be single words or short phrases (2–4 words max). No duplicates.
+JSON STRICTNESS:
+- The JSON KEYS must remain exactly as in the schema (English snake_case): ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
+- Only translate the VALUES (summary text, rewrites, optimized_cv text) into ${targetLang}.
+- Do not add extra keys. Do not add comments. Do not wrap in code fences.
 
 SCORING GUIDANCE:
 - ats_score is based on keyword overlap + seniority fit + impact metrics + structure + clarity.
@@ -102,14 +106,30 @@ ${jd}
     const parsed = JSON.parse(raw);
     const text = parsed?.choices?.[0]?.message?.content || "{}";
 
-    let data;
+let data;
+try {
+  data = JSON.parse(text);
+} catch {
+  // fallback: ilk { ile son } arasını alıp parse et
+  const s = String(text);
+  const start = s.indexOf("{");
+  const end = s.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
     try {
-      data = JSON.parse(text);
-    } catch {
+      data = JSON.parse(s.slice(start, end + 1));
+    } catch (e2) {
       return res.status(500).json({
         error: "Model did not return valid JSON",
-        model_output: String(text).slice(0, 2000),
+        model_output: s.slice(0, 2000),
       });
+    }
+  } else {
+    return res.status(500).json({
+      error: "Model did not return valid JSON",
+      model_output: s.slice(0, 2000),
+    });
+  }
+}
     }
 
     // Küçük güvenlik: tipleri normalize et (UI boş kalmasın)
