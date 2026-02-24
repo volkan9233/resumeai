@@ -82,6 +82,12 @@
       <div class="row">
         <div class="pill" id="scorePill">ATS Match Score: —</div>
       </div>
+      <div class="actions" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+  <button class="btn" type="button" id="copyMissing">Copy Keywords</button>
+  <button class="btn" type="button" id="copyWeak">Copy Weak</button>
+  <button class="btn" type="button" id="copyOptimized">Copy Optimized</button>
+  <button class="btn btn-ghost" type="button" id="downloadPdf">Download PDF</button>
+</div>
 
       <div class="sec">
         <h3>Missing Keywords</h3>
@@ -182,6 +188,80 @@ if (isPreview) {
   }finally{
     btn.disabled = false;
   }
+}
+  function copyText(text){
+  if (!text) return alert("Nothing to copy.");
+  navigator.clipboard.writeText(text)
+    .then(()=> alert("Copied ✅"))
+    .catch(()=> alert("Copy failed (iOS sometimes blocks)."));
+}
+
+document.getElementById("copyMissing")?.addEventListener("click", ()=>{
+  const items = [...document.querySelectorAll("#missing li")].map(li=>li.textContent.trim()).filter(Boolean);
+  copyText(items.map(x=>"- " + x).join("\n"));
+});
+
+document.getElementById("copyWeak")?.addEventListener("click", ()=>{
+  const items = [...document.querySelectorAll("#weak li")].map(li=>li.textContent.trim()).filter(Boolean);
+  copyText(items.map(x=>"- " + x).join("\n"));
+});
+
+document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
+  const text = (document.getElementById("optimized")?.textContent || "").trim();
+  copyText(text);
+});
+
+document.getElementById("downloadPdf")?.addEventListener("click", ()=>{
+  const score = (document.getElementById("scorePill")?.textContent || "").trim();
+  const missing = [...document.querySelectorAll("#missing li")].map(li=>li.textContent.trim()).filter(Boolean);
+  const weak = [...document.querySelectorAll("#weak li")].map(li=>li.textContent.trim()).filter(Boolean);
+  const optimized = (document.getElementById("optimized")?.textContent || "").trim();
+
+  const html = `
+  <html><head><meta charset="utf-8"/><title>ResumeAI Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;padding:24px;color:#111}
+    h1{margin:0 0 6px}
+    .muted{color:#555;margin-bottom:14px}
+    .box{border:1px solid #ddd;padding:14px;border-radius:10px;margin:12px 0}
+    ul{margin:8px 0 0 18px}
+    pre{white-space:pre-wrap;border:1px solid #ddd;padding:12px;border-radius:10px}
+    .tag{display:inline-block;padding:6px 10px;border:1px solid #ddd;border-radius:999px;margin:8px 0}
+  </style></head>
+  <body>
+    <h1>ResumeAI Report</h1>
+    <div class="muted">Generated on ${new Date().toLocaleString()}</div>
+    <div class="tag">${escapeHtml(score || "ATS Match Score")}</div>
+
+    <div class="box"><h2>Missing Keywords</h2>
+      <ul>${missing.map(x=>`<li>${escapeHtml(x)}</li>`).join("") || "<li>(none)</li>"}</ul>
+    </div>
+
+    <div class="box"><h2>Weak / Vague Phrases</h2>
+      <ul>${weak.map(x=>`<li>${escapeHtml(x)}</li>`).join("") || "<li>(none)</li>"}</ul>
+    </div>
+
+    <div class="box"><h2>Optimized Resume</h2>
+      <pre>${escapeHtml(optimized || "(empty)")}</pre>
+    </div>
+
+    <div class="muted">resumeai.work</div>
+    <script>window.onload=()=>window.print();<\/script>
+  </body></html>`;
+
+  const w = window.open("", "_blank");
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+});
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 </script>
 </body>
