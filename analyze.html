@@ -138,8 +138,15 @@ const isPreview = new URLSearchParams(location.search).get("preview") === "1";
 if (isPreview) {
   const b = document.getElementById("previewBanner");
   if (b) b.style.display = "block";
+
   const kwNote = document.getElementById("kwPreviewNote");
   if (kwNote) kwNote.style.display = "block";
+
+  // 🔒 lock spanlarını burada açıyoruz
+  const lw = document.getElementById("lockWeak");
+  if (lw) lw.style.display = "inline";
+  const lo = document.getElementById("lockOpt");
+  if (lo) lo.style.display = "inline";
 }
     document.getElementById('scorePill').textContent = `ATS Match Score: ${data.ats_score}%`;
 
@@ -152,15 +159,22 @@ if (isPreview) {
     });
 
     const weak = document.getElementById('weak');
-    weak.innerHTML = "";
-    ((data.weak_phrases || data.weak_sentences || data.weak_vague_phrases || data.weaks || [])).forEach(k=>{
-      const li = document.createElement('li');
-      li.textContent = (typeof k === "string") ? k : ((k.sentence && k.rewrite) ? `${k.sentence} → ${k.rewrite}` : JSON.stringify(k));
-      weak.appendChild(li);
-    });
+weak.innerHTML = "";
 
-    document.getElementById('optimized').textContent =
-  data.optimized_resume || data.optimized_cv || data.optimizedResume || data.optimized || "";
+if (isPreview) {
+  weak.innerHTML = "<li>🔒 Preview: Weak phrases are locked. Unlock to see full rewrites.</li>";
+} else {
+  ((data.weak_phrases || data.weak_sentences || data.weak_vague_phrases || data.weaks || [])).forEach(k=>{
+    const li = document.createElement('li');
+    li.textContent = (typeof k === "string") ? k : ((k.sentence && k.rewrite) ? `${k.sentence} → ${k.rewrite}` : JSON.stringify(k));
+    weak.appendChild(li);
+  });
+}
+      
+
+   document.getElementById('optimized').textContent = isPreview
+  ? "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version."
+  : (data.optimized_resume || data.optimized_cv || data.optimizedResume || data.optimized || "");
     document.getElementById('out').style.display = "block";
     status.textContent = "Done.";
   }catch(e){
