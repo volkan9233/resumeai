@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ResumeAI – Analyze</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;font-family:Inter,system-ui,Arial;background:#0b0f19;color:#fff;}
+    .wrap{max-width:980px;margin:auto;padding:60px 20px;}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;}
+    .brand{font-weight:700;font-size:18px;letter-spacing:-0.3px;}
+    .brand span{color:#6366F1;}
+    a{color:#a0a6b8;text-decoration:none;}
+    h1{margin:10px 0 10px 0;font-size:34px;}
+    p{color:#a0a6b8;line-height:1.6;margin:0 0 28px 0;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+    textarea{
+      width:100%;min-height:260px;resize:vertical;
+      background:#111827;border:1px solid rgba(255,255,255,0.08);
+      color:#fff;border-radius:14px;padding:14px;font-size:14px;line-height:1.5;
+      outline:none;
+    }
+    textarea:focus{border-color:rgba(99,102,241,0.55);}
+    .actions{display:flex;gap:12px;align-items:center;margin-top:16px;}
+    button{
+      padding:14px 18px;border:0;border-radius:12px;
+      background:linear-gradient(135deg,#7b5cff,#5b3dff);
+      color:#fff;font-weight:700;font-size:15px;cursor:pointer;
+    }
+    button:disabled{opacity:0.6;cursor:not-allowed;}
+    .hint{color:#6b7280;font-size:13px;}
+    .out{margin-top:30px;background:#0f1524;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px;}
+    .row{display:flex;gap:16px;flex-wrap:wrap;}
+    .pill{background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.22);padding:8px 12px;border-radius:999px;color:#e5e7eb;font-weight:600;}
+    .sec{margin-top:16px;}
+    .sec h3{margin:0 0 10px 0;font-size:16px;}
+    ul{margin:0;padding-left:18px;color:#d1d5db;line-height:1.7;}
+    pre{
+      white-space:pre-wrap;word-wrap:break-word;
+      background:#0b0f19;border:1px solid rgba(255,255,255,0.06);
+      padding:14px;border-radius:14px;color:#e5e7eb;line-height:1.6;
+    }
+    @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">Resume<span>AI</span></div>
+      <a href="/index.html">← Back</a>
+    </div>
+
+    <h1>ATS Analysis</h1>
+    <p>Paste your resume and the job description. We’ll return a structured analysis + optimized version.</p>
+
+    <div class="grid">
+      <div>
+        <div class="hint" style="margin-bottom:8px;">Resume (paste text)</div>
+        <textarea id="resume" placeholder="Paste your resume here..."></textarea>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:8px;">Job description (paste text)</div>
+        <textarea id="job" placeholder="Paste the job description here..."></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btn" onclick="run()">Analyze</button>
+      <div class="hint" id="status"></div>
+    </div>
+
+    <div class="out" id="out" style="display:none;">
+      <div class="row">
+        <div class="pill" id="scorePill">ATS Match Score: —</div>
+      </div>
+
+      <div class="sec">
+        <h3>Missing Keywords</h3>
+        <ul id="missing"></ul>
+      </div>
+
+      <div class="sec">
+        <h3>Weak / Vague Phrases</h3>
+        <ul id="weak"></ul>
+      </div>
+
+      <div class="sec">
+        <h3>Optimized Resume (ATS + Recruiter-ready)</h3>
+        <pre id="optimized"></pre>
+      </div>
+    </div>
+  </div>
+
+<script>
+async function run(){
+  const resume = document.getElementById('resume').value.trim();
+  const job = document.getElementById('job').value.trim();
+  const btn = document.getElementById('btn');
+  const status = document.getElementById('status');
+
+  if(!resume || !job){
+    status.textContent = "Please paste both resume and job description.";
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = "Analyzing…";
+  document.getElementById('out').style.display = "none";
+
+  try{
+    const r = await fetch("/api/analyze", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ resume, job })
+    });
+
+    const data = await r.json();
+    if(!r.ok) throw new Error(data?.error || "Request failed");
+
+    document.getElementById('scorePill').textContent = `ATS Match Score: ${data.ats_score}%`;
+
+    const missing = document.getElementById('missing');
+    missing.innerHTML = "";
+    (data.missing_keywords || []).forEach(k=>{
+      const li = document.createElement('li');
+      li.textContent = k;
+      missing.appendChild(li);
+    });
+
+    const weak = document.getElementById('weak');
+    weak.innerHTML = "";
+    (data.weak_phrases || []).forEach(k=>{
+      const li = document.createElement('li');
+      li.textContent = k;
+      weak.appendChild(li);
+    });
+
+    document.getElementById('optimized').textContent = data.optimized_resume || "";
+    document.getElementById('out').style.display = "block";
+    status.textContent = "Done.";
+  }catch(e){
+    status.textContent = "Error: " + (e.message || e);
+  }finally{
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
