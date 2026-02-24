@@ -17,7 +17,10 @@ export default async function handler(req, res) {
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     const isPreview = !!preview;
 
-    const system = "You are an ATS resume analyzer. Return ONLY valid JSON. No markdown.";
+    const system =
+      "You are an ATS resume analyzer. Return ONLY valid JSON. No markdown. No extra text.";
+
+    // Daha dolu sonuç için net minimumlar
     const user = `
 Analyze the resume vs job description and return JSON in this exact schema:
 
@@ -29,12 +32,22 @@ Analyze the resume vs job description and return JSON in this exact schema:
   "summary": string
 }
 
-Rules:
-- ats_score is based on keyword overlap + seniority fit + impact metrics + structure.
-- missing_keywords should be single words or short phrases.
-- weak_sentences should come from the resume text (or close paraphrase).
-- optimized_cv should be ATS-friendly, bullet-based, achievement-focused.
-- Keep claims truthful. Do not invent experience.
+HARD REQUIREMENTS (do NOT be brief):
+- missing_keywords MUST include 25–40 items (unique, role-relevant).
+- weak_sentences MUST include 12–18 items (each from the resume text, with a stronger rewrite).
+- summary MUST be detailed (8–14 bullet lines) covering:
+  1) overall fit diagnosis
+  2) top 5 missing skills/keywords to add
+  3) biggest ATS/format risks
+  4) top 5 rewrite themes (impact/metrics/ownership)
+- optimized_cv MUST be a complete rewritten resume (not partial), ATS-friendly, bullet-based, achievement-focused, and aligned to the JD.
+- Keep claims truthful. Do not invent employers, degrees, titles, or metrics. If a metric is unknown, rewrite without numbers rather than guessing.
+- missing_keywords should be single words or short phrases (2–4 words max). No duplicates.
+
+SCORING GUIDANCE:
+- ats_score is based on keyword overlap + seniority fit + impact metrics + structure + clarity.
+
+INPUTS:
 
 RESUME:
 ${cv}
@@ -53,6 +66,8 @@ ${jd}
         model,
         temperature: 0.3,
         response_format: { type: "json_object" },
+        // Dolu CV çıktısı için biraz alan bırakıyoruz
+        max_tokens: isPreview ? 1200 : 3200,
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -63,7 +78,6 @@ ${jd}
     const raw = await openaiRes.text();
 
     if (!openaiRes.ok) {
-      // OpenAI'nin döndürdüğü hatayı olduğu gibi gösterelim
       return res.status(openaiRes.status).json({
         error: "OpenAI error",
         status: openaiRes.status,
@@ -84,19 +98,28 @@ ${jd}
       });
     }
 
-    // PREVIEW MODE: optimize edilmiş CV'yi saklıyoruz
+    // Küçük güvenlik: tipleri normalize et (UI boş kalmasın)
+    const normalized = {
+      ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
+      missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
+      weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences : [],
+      optimized_cv: typeof data.optimized_cv === "string" ? data.optimized_cv : "",
+      summary: typeof data.summary === "string" ? data.summary : "",
+    };
+
+    // PREVIEW MODE: sadece küçük parça göster
     if (isPreview) {
       const previewData = {
-        ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
-        summary: data.summary || "",
-        missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords.slice(0, 5) : [],
-        weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences.slice(0, 2) : [],
+        ats_score: normalized.ats_score,
+        summary: normalized.summary,
+        missing_keywords: normalized.missing_keywords.slice(0, 5),
+        weak_sentences: normalized.weak_sentences.slice(0, 2),
         // optimized_cv deliberately omitted
       };
       return res.status(200).json(previewData);
     }
 
-    return res.status(200).json(data);
+    return res.status(200).json(normalized);
   } catch (err) {
     return res.status(500).json({ error: "Server error", details: err?.message || String(err) });
   }
