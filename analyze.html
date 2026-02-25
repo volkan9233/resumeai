@@ -500,7 +500,51 @@ document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
 /* ---------- Downloads (uses your existing localStorage flow) ---------- */
 /* Burada senin mevcut buildCvDataFromOptimizedText fonksiyonun zaten var diye varsayıyorum.
    Eğer analyze.html içinde kullanıyorsan, senin dosyandaki hali aynen kalsın. */
+// ------- Downloads: make buttons work -------
 
+function saveCvDataToLocalStorage(cvData){
+  localStorage.setItem("resumeai_cvdata", JSON.stringify(cvData));
+}
+
+function goToCvPreview(mode){
+  window.location.href = `/cv.html#mode=${mode}`;
+}
+
+function getOptimizedTextClean(){
+  let optimized = (document.getElementById("optimized")?.textContent || "");
+  optimized = optimized.replace(/\n?\s*META\s*:[\s\S]*$/i, "");
+  optimized = optimized.replace(/\n?\s*META\s*\{[\s\S]*$/i, "");
+  return optimized.trim();
+}
+
+document.getElementById("downloadAts")?.addEventListener("click", ()=>{
+  const qs = new URLSearchParams(location.search);
+  const isPreview = qs.get("preview") === "1";
+  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+
+  const optimized = getOptimizedTextClean();
+  if (!optimized) return alert("Optimized CV is empty.");
+
+  // ⚠️ Senin dosyada zaten varsa, aynen onu kullan:
+  const cvData = buildCvDataFromOptimizedText(optimized);
+
+  saveCvDataToLocalStorage(cvData);
+  goToCvPreview("ats");
+});
+
+document.getElementById("downloadModern")?.addEventListener("click", ()=>{
+  const qs = new URLSearchParams(location.search);
+  const isPreview = qs.get("preview") === "1";
+  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+
+  const optimized = getOptimizedTextClean();
+  if (!optimized) return alert("Optimized CV is empty.");
+
+  const cvData = buildCvDataFromOptimizedText(optimized);
+
+  saveCvDataToLocalStorage(cvData);
+  goToCvPreview("design");
+});
 /* ---------- Lang bar renderer ---------- */
 (function(){
   const bar = document.getElementById("langBar");
