@@ -226,30 +226,38 @@ document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
 });
 
 function buildCvDataFromOptimizedText(optimizedText){
-  // Basit: Tek metni özet alanına koyuyoruz.
-  // Sonra istersen parser ile deneyim/skill ayırırız.
-  const firstLine = optimizedText.split("\n")[0]?.trim();
+  const clean = (optimizedText || "").trim();
+
+  // isim (ilk satır kısa ise)
+  const firstLine = clean.split("\n")[0]?.trim();
   const fullName = (firstLine && firstLine.length <= 40) ? firstLine : "Your Name";
 
   return {
     basics: {
       fullName,
-      title: "—",
+      title: "",
       location: "",
       phone: "",
       email: "",
       links: [],
       photoUrl: ""
     },
-    summary: optimizedText.slice(0, 500), // ilk 500 karakter özet gibi
+
+    // 🔥 en kritik: template’ler bunu okuyacak
+    rawOptimized: clean,
+
+    // template placeholder’ları boş kalmasın diye minimumlar
+    summary: "",
     skills: [],
     experience: [],
     projects: [],
     education: [],
     certificates: [],
     languages: [],
+
     meta: { accent: "#2B6CB0", includePhoto: false }
   };
+}
 }
 
 function saveCvDataToLocalStorage(cvData){
