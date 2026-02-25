@@ -501,6 +501,225 @@ document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
 /* Burada senin mevcut buildCvDataFromOptimizedText fonksiyonun zaten var diye varsayıyorum.
    Eğer analyze.html içinde kullanıyorsan, senin dosyandaki hali aynen kalsın. */
 // ------- Downloads: make buttons work -------
+  function buildCvDataFromOptimizedText(optimizedText){
+  let t = (optimizedText || "").trim();
+
+  // META çöplerini temizle (garanti)
+  t = t.replace(/\n?\s*META\s*:[\s\S]*$/i, "").replace(/\n?\s*META\s*\{[\s\S]*$/i, "").trim();
+
+  const lines = t.split("\n").map(x => x.trim()).filter(Boolean);
+
+  // Helpers
+  const getEmail = (s) => (s.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || "";
+  const getPhone = (s) => (s.match(/(\+?\d[\d\s().-]{8,}\d)/) || [])[0] || "";
+  const getUrls  = (s) => [...s.matchAll(/https?:\/\/[^\s)]+/g)].map(m=>m[0]);
+
+  const isHeader = (x) => {
+    const k = x.toUpperCase().replace(/[:]/g,"").trim();
+    const headers = [
+      "SUMMARY","PROFESSIONAL SUMMARY","PROFILE","ÖZET","PROFESYONEL ÖZET",
+      "SKILLS","CORE SKILLS","YETKİNLİKLER","BECERİLER",
+      "EXPERIENCE","WORK EXPERIENCE","EMPLOYMENT","DENEYİM","İŞ DENEYİMİ",
+      "EDUCATION","EĞİTİM",
+      "PROJECTS","PROJELER",
+      "CERTIFICATES","CERTIFICATIONS","SERTİFİKALAR",
+      "LANGUAGES","DİLLER",
+      "CONTACT","İLETİŞİM"
+    ];
+    return headers.includes(k);
+  };
+
+  const normHeaderKey = (x) => x.toUpperCase().replace(/[:]/g,"").trim();
+
+  // 1) Name + Title (ilk 2 satırdan)
+  const fullName = lines[0] && lines[0].length <= 60 ? lines[0] : "Your Name";
+
+  let title = "—";
+  for (let i=1; i<Math.min(lines.length,6); i++){
+    const s = lines[i];
+    if (!s) continue;
+    if (isHeader(s)) break;
+    if (s.includes("@") || s.includes("http")) continue;
+    if (s.length <= 60) { title = s; break; }
+  }
+
+  // 2) Contact
+  const email = getEmail(t);
+  const phone = getPhone(t);
+  const urls  = getUrls(t);
+
+  const links = [];
+  urls.slice(0,6).forEach(u=>{
+    const low = u.toLowerCase();
+    if (low.includes("linkedin")) links.push({label:"LinkedIn", url:u});
+    else if (low.includes("github")) links.push({label:"GitHub", url:u});
+    else if (low.includes("portfolio")) links.push({label:"Portfolio", url:u});
+    else links.push({label:"Link", url:u});
+  });
+
+  // 3) Section parse
+  const sections = {
+    SUMMARY: [],
+    SKILLS: [],
+    EXPERIENCE: [],
+    EDUCATION: [],
+    PROJECTS: [],
+    CERTIFICATES: [],
+    LANGUAGES: []
+  };
+
+  let cur = null;
+  for (const raw of lines){
+    if (isHeader(raw)){
+      const hk = normHeaderKey(raw);
+      if (hk.includes("SUMMARY") || hk.includes("ÖZET") || hk.includes("PROFILE")) cur = "SUMMARY";
+      else if (hk.includes("SKILLS") || hk.includes("YETKİNLİK") || hk.includes("BECERİ")) cur = "SKILLS";
+      else if (hk.includes("EXPERIENCE") || hk.includes("DENEYİM") || hk.includes("EMPLOY")) cur = "EXPERIENCE";
+      else if (hk.includes("EDUCATION") || hk.includes("EĞİTİM")) cur = "EDUCATION";
+      else if (hk.includes("PROJECTS") || hk.includes("PROJEL")) cur = "PROJECTS";
+      else if (hk.includes("CERT") || hk.includes("SERTİF")) cur = "CERTIFICATES";
+      else if (hk.includes("LANG") || hk.includes("DİLL")) cur = "LANGUAGES";
+      else cur = null;
+      continue;
+    }
+    if (!cur) continue;
+    sections[cur].push(raw);
+  }
+
+  // 4) Summary
+  const summary = sections.SUMMARY.join(" ").trim();
+
+  // 5) Skills
+  const skills = [];
+  const skillText = sections.SKILLS.join(" ");
+  if (skillText){
+    const parts = skillText.split(/•|,|;|\||\t/).map(x=>x.trim()).filter(Boolean);
+    const uniq = new Set();
+    for (const p of parts){
+      const name = p.replace(/^[-•]\s*/,"").trim();
+      if (!name || name.length > 40) continue;
+      const key = name.toLowerCase();
+      if (uniq.has(key)) continue;
+      uniq.add(key);
+      skills.push({name, level:""});
+      if (skills.length >= 28) break;
+    }
+  }
+
+  // 6) Experience
+  const experience = [];
+  const expLines = sections.EXPERIENCE;
+
+  function parseDateRange(s){
+    const m = s.match(/(\d{4}|\d{4}-\d{2})\s*[–-]\s*(Present|Günümüz|\d{4}|\d{4}-\d{2})/i);
+    if (!m) return {start:"", end:null};
+    const start = m[1];
+    const endRaw = m[2];
+    const end = /present|günümüz/i.test(endRaw) ? null : endRaw;
+    return {start, end};
+  }
+
+  let i = 0;
+  while (i < expLines.length){
+    const line1 = expLines[i] || "";
+    const line2 = expLines[i+1] || "";
+
+    const role = line1 && line1.length <= 80 ? line1 : "";
+    let company = "";
+    let start = "";
+    let end = null;
+
+    if (line2.includes("|") || parseDateRange(line2).start){
+      const parts = line2.split("|").map(x=>x.trim());
+      company = parts[0] || "";
+      const dr = parseDateRange(line2);
+      start = dr.start;
+      end = dr.end;
+      i += 2;
+    } else {
+      const tryOne = line1;
+      const p = tryOne.split("|").map(x=>x.trim());
+      if (p.length >= 2){
+        const left = p[0];
+        const dr = parseDateRange(tryOne);
+        const lc = left.split("—").map(x=>x.trim());
+        if (lc.length >= 2){
+          company = lc.slice(1).join(" — ");
+          start = dr.start;
+          end = dr.end;
+        }
+      }
+      i += 1;
+    }
+
+    const highlights = [];
+    while (i < expLines.length){
+      const l = expLines[i];
+      if (!l) { i++; continue; }
+      if (isHeader(l)) break;
+      if (!l.startsWith("-") && !l.startsWith("•") && highlights.length >= 4 && l.length <= 70) break;
+
+      if (l.startsWith("-") || l.startsWith("•")){
+        highlights.push(l.replace(/^[-•]\s*/,"").trim());
+      } else {
+        highlights.push(l.trim());
+      }
+      i++;
+      if (highlights.length >= 8) break;
+    }
+
+    if (role || company || highlights.length){
+      experience.push({
+        company: company || "",
+        position: role || "Role",
+        start,
+        end,
+        location: "",
+        highlights: highlights.length ? highlights : []
+      });
+    }
+  }
+
+  // 7) Education
+  const education = [];
+  if (sections.EDUCATION.length){
+    const school = sections.EDUCATION.find(x=>x.length <= 90) || "";
+    const degree = sections.EDUCATION[1] || "";
+    education.push({school, degree, start:"", end:""});
+  }
+
+  // 8) Projects
+  const projects = [];
+  if (sections.PROJECTS.length){
+    const name = sections.PROJECTS[0] || "Project";
+    const highlights = sections.PROJECTS.slice(1,6).map(x=>x.replace(/^[-•]\s*/,"").trim());
+    projects.push({name, tech: [], highlights});
+  }
+
+  // 9) Certificates / Languages
+  const certificates = (sections.CERTIFICATES || []).slice(0,10).map(x=>x.replace(/^[-•]\s*/,"").trim());
+  const languages = (sections.LANGUAGES || []).slice(0,10).map(x=>({name:x.replace(/^[-•]\s*/,"").trim(), level:""}));
+
+  return {
+    basics: {
+      fullName,
+      title,
+      location: "",
+      phone,
+      email,
+      links,
+      photoUrl: ""
+    },
+    summary,
+    skills,
+    experience,
+    projects,
+    education,
+    certificates,
+    languages,
+    meta: { accent: "#6366F1", includePhoto: false }
+  };
+}
 
 function saveCvDataToLocalStorage(cvData){
   localStorage.setItem("resumeai_cvdata", JSON.stringify(cvData));
