@@ -74,7 +74,16 @@ function educationBlocks(edu = []) {
 }
 
 export async function renderCV({ mode }) {
-  const cv = await (await fetch("./scripts/cvData.json")).json();
+  let cv = null;
+
+try {
+  const raw = localStorage.getItem("resumeai_cvdata");
+  if (raw) cv = JSON.parse(raw);
+} catch (e) {}
+
+if (!cv) {
+  cv = await (await fetch("./scripts/cvData.json")).json(); // fallback
+}
   const tplUrl = mode === "ats" ? "./templates/ats.html" : "./templates/modern.html";
   let tpl = await (await fetch(tplUrl)).text();
 
