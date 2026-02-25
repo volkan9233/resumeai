@@ -5,7 +5,11 @@
   <style>
     @page { size: A4; margin: 0; }
     body { margin:0; font-family: Arial, Helvetica, sans-serif; color:#111; }
-    .page { display:flex; height: 297mm; }
+    .page { display:flex; min-height: 297mm; height: auto; }
+
+@media print {
+  .page { height: auto; min-height: auto; }
+}
     .left { width: 72mm; padding: 14mm 10mm; background: #f5f6f7; }
     .right { flex:1; padding: 14mm 14mm; }
     h1 { font-size: 18pt; margin:0 0 2mm 0; }
