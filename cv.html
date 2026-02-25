@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CV - Önizleme</title>
+  <style>
+    body { margin:0; background:#0b0b0b; color:#fff; font-family: Arial, Helvetica, sans-serif; }
+    .bar{
+      position: sticky; top:0; z-index:10;
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      padding:10px 12px; background:#0b0b0b; border-bottom:1px solid #222;
+    }
+    .btn{ padding:10px 12px; background:#2b6cb0; color:#fff; border:0; border-radius:10px; font-weight:600; }
+    select{ padding:10px 12px; border-radius:10px; border:1px solid #333; background:#111; color:#fff; }
+    .wrap { display:flex; justify-content:center; padding:16px; }
+    /* A4 oranında preview */
+    #paper{
+      width: 210mm; min-height: 297mm;
+      background:#fff; color:#111;
+      box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    }
+
+    @media (max-width: 900px) {
+      #paper { width: 100%; min-height: auto; }
+    }
+
+    /* Yazdırırken sadece CV gelsin */
+    @media print {
+      body { background:#fff; }
+      .bar { display:none; }
+      .wrap { padding:0; }
+      #paper { box-shadow:none; width:auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <button class="btn" id="printBtn">PDF indir (Yazdır)</button>
+
+    <select id="mode">
+      <option value="design">Tasarım (Modern)</option>
+      <option value="ats">ATS (Sade)</option>
+    </select>
+
+    <span style="opacity:.85;font-size:14px;">Mod seç → PDF indir</span>
+  </div>
+
+  <div class="wrap">
+    <div id="paper"></div>
+  </div>
+
+  <script type="module">
+    import { renderCV } from "./scripts/render.js";
+
+    const paper = document.getElementById("paper");
+    const modeSelect = document.getElementById("mode");
+    const printBtn = document.getElementById("printBtn");
+
+    async function refresh() {
+      const mode = modeSelect.value;
+      const html = await renderCV({ mode });
+      paper.innerHTML = html;
+    }
+
+    modeSelect.addEventListener("change", refresh);
+    printBtn.addEventListener("click", () => window.print());
+
+    refresh();
+  </script>
+</body>
+</html>
