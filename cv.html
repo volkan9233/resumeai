@@ -33,6 +33,10 @@
       background:#fff; color:#111;
       box-shadow: 0 10px 30px rgba(0,0,0,.5);
     }
+    /* ✅ TEMPLATE CLIP FIX (screen + print) */
+#paper { height: auto !important; overflow: visible !important; }
+#paper .page { height: auto !important; min-height: 297mm !important; overflow: visible !important; }
+html, body { height: auto !important; overflow: auto !important; }
 
     @media (max-width: 900px) {
       #paper { width: 100%; min-height: auto; }
@@ -46,6 +50,8 @@
     height: auto !important;
     overflow: visible !important;
   }
+      #paper { height: auto !important; overflow: visible !important; }
+#paper .page { height: auto !important; min-height: 297mm !important; overflow: visible !important; }
 
   .bar { display:none !important; }
 
