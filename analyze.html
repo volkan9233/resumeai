@@ -67,6 +67,7 @@
       padding:14px;border-radius:14px;color:#e5e7eb;line-height:1.6;
     }
     @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -105,9 +106,13 @@
     </div>
 
     <div class="actions">
-      <button id="btn" onclick="run()">Analyze</button>
-      <div class="hint" id="status"></div>
-    </div>
+  <button id="btn" onclick="run()">Analyze</button>
+
+  <!-- ✅ BURAYA EKLE -->
+  <div id="spinner" style="display:none;width:18px;height:18px;border:3px solid rgba(255,255,255,.25);border-top-color:#6366F1;border-radius:999px;animation:spin .8s linear infinite;"></div>
+
+  <div class="hint" id="status"></div>
+</div>
 
     <div class="out" id="out" style="display:none;">
       <div class="row">
