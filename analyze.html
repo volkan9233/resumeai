@@ -173,6 +173,7 @@
       dlAts: "Download ATS PDF",
       dlModern: "Download Modern PDF",
       needBoth: "Please paste both resume and job description.",
+      langLabel: "Select language",
     },
     tr: {
       back: "← Geri",
@@ -194,6 +195,7 @@
       dlAts: "ATS PDF İndir",
       dlModern: "Modern PDF İndir",
       needBoth: "Lütfen hem CV hem iş ilanını yapıştırın.",
+      langLabel: "Dil seç",
     },
     es: {
       back: "← Volver",
@@ -215,6 +217,7 @@
       dlAts: "Descargar PDF ATS",
       dlModern: "Descargar PDF Moderno",
       needBoth: "Por favor pega el CV y la descripción.",
+      langLabel: "Seleccionar idioma",
     },
     ru: {
       back: "← Назад",
@@ -236,6 +239,7 @@
       dlAts: "Скачать ATS PDF",
       dlModern: "Скачать Modern PDF",
       needBoth: "Пожалуйста вставьте и резюме, и описание вакансии.",
+      langLabel: "Выберите язык",
     },
     fr: {
       back: "← Retour",
@@ -257,6 +261,7 @@
       dlAts: "Télécharger ATS PDF",
       dlModern: "Télécharger Modern PDF",
       needBoth: "Veuillez coller le CV et l’offre d’emploi.",
+      langLabel: "Choisir la langue",
     },
     ar: {
       back: "← رجوع",
@@ -278,6 +283,7 @@
       dlAts: "تحميل ATS PDF",
       dlModern: "تحميل Modern PDF",
       needBoth: "يرجى لصق السيرة ووصف الوظيفة.",
+      langLabel: "اختر اللغة",
     },
     zh: {
       back: "← 返回",
@@ -299,6 +305,7 @@
       dlAts: "下载 ATS PDF",
       dlModern: "下载 Modern PDF",
       needBoth: "请同时粘贴简历和职位描述。",
+      langLabel: "选择语言",
     }
   };
 
@@ -308,6 +315,7 @@
   const setPh   = (sel, val) => { const el = document.querySelector(sel); if (el) el.setAttribute("placeholder", val); };
 
   setText('.top a[href="/index.html"]', t.back);
+  setText("#langLabel", t.langLabel);
   setText("h1", t.title);
 
   const p = document.querySelector("h1 + p");
