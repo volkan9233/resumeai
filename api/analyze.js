@@ -89,9 +89,12 @@ GLOBAL ATS COMPATIBILITY:
 - Include a "Core Skills" block with 18–28 keywords aligned to the JD.
 
 JSON STRICTNESS:
-- The JSON KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
+- The JSON KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary, cv_data.
+- cv_data must follow the exact structure above and be complete enough to render a 1-page ATS resume and a 1-page modern resume.
+	•	- Translate cv_data text fields too (summary, skills names, highlights, section strings) into ${targetLang}, but keep proper nouns/tech terms unchanged.
 - Only translate the VALUES into ${targetLang}. Do NOT translate keys.
 - Do not add extra keys. Do not add comments. Do not wrap in code fences.
+
 
 SCORING GUIDANCE:
 - ats_score is based on keyword overlap + seniority fit + impact metrics + structure + clarity.
@@ -176,12 +179,13 @@ ${jd}
     }
 
     const normalized = {
-      ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
-      missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
-      weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences : [],
-      optimized_cv: typeof data.optimized_cv === "string" ? data.optimized_cv : "",
-      summary: typeof data.summary === "string" ? data.summary : "",
-    };
+  ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
+  missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
+  weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences : [],
+  optimized_cv: typeof data.optimized_cv === "string" ? data.optimized_cv : "",
+  summary: typeof data.summary === "string" ? data.summary : "",
+  cv_data: (data && typeof data.cv_data === "object" && data.cv_data) ? data.cv_data : null,
+};
 
     if (isPreview) {
       return res.status(200).json({
