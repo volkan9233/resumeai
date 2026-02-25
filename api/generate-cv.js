@@ -3,6 +3,10 @@ import path from "node:path";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
+export const config = {
+  api: { bodyParser: { sizeLimit: "4mb" } }
+};
+
 function escHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -105,16 +109,21 @@ export default async function handler(req, res) {
 
     const tplPath = path.join(process.cwd(), "templates", `${templateName}.html`);
     const tplRaw = await fs.readFile(tplPath, "utf8");
-
     const html = renderTemplate(tplRaw, cvData);
 
-    const executablePath = await chromium.executablePath();
+    // Sparticuz chromium önerilen ayarlar
+    chromium.setHeadlessMode = true;
+    chromium.setGraphicsMode = false;
 
     const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: chromium.headless
+      args: [
+        ...chromium.args,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--font-render-hinting=none"
+      ],
+      executablePath: await chromium.executablePath(),
+      headless: true
     });
 
     const page = await browser.newPage();
