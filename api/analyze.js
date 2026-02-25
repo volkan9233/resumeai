@@ -5,7 +5,6 @@ export default async function handler(req, res) {
     }
 
     const { cv, jd, preview, lang } = req.body || {};
-    const targetLang = (typeof lang === "string" && lang) ? lang : "en";
     const isPreview = !!preview;
 
     if (!cv || !jd) {
@@ -19,10 +18,30 @@ export default async function handler(req, res) {
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    const system =
-      "You are an ATS resume analyzer. Return ONLY valid JSON. No markdown. No extra text.";
+    // --- Language mapping (important) ---
+    const LANG_MAP = {
+      en: "English",
+      tr: "Turkish",
+      es: "Spanish",
+      ru: "Russian",
+      fr: "French",
+      ar: "Arabic",
+      zh: "Chinese (Simplified)",
+    };
 
-    // ✅ PREVIEW prompt (küçük çıktı)
+    const langCode = (typeof lang === "string" && lang.trim()) ? lang.trim().toLowerCase() : "en";
+    const outLang = LANG_MAP[langCode] || "English";
+
+    // ✅ Strong system instruction: one language only
+    const system = `
+You are an ATS resume analyzer.
+Return ONLY valid JSON. No markdown. No extra text.
+CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
+This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
+Do not add any extra keys.
+`.trim();
+
+    // ✅ PREVIEW prompt (small output)
     const previewUser = `
 Return JSON in this exact schema:
 
@@ -34,11 +53,12 @@ Return JSON in this exact schema:
 }
 
 REQUIREMENTS:
-- missing_keywords MUST include exactly 5 items (unique, role-relevant).
-- weak_sentences MUST include exactly 1 item (pick a real sentence from RESUME).
-- summary MUST be 4–6 bullet lines.
-- Output language for VALUES must be: ${targetLang}
+- missing_keywords MUST include exactly 5 items (unique, role-relevant) and MUST be written in ${outLang}.
+- weak_sentences MUST include exactly 1 item (pick a real sentence from RESUME). Both sentence and rewrite MUST be in ${outLang}.
+- summary MUST be 4–6 bullet lines in ${outLang}.
 - Do NOT add extra keys. Do NOT add optimized_cv.
+- Do NOT mix languages.
+- Proper nouns / technical terms (SQL, GA4, React, AWS, Git, etc.) may stay as-is.
 Return ONLY valid JSON.
 
 RESUME:
@@ -48,7 +68,7 @@ JOB DESCRIPTION:
 ${jd}
 `.trim();
 
-    // ✅ FULL prompt (senin ağır prompt’un – aynı mantık)
+    // ✅ FULL prompt (large output)
     const fullUser = `
 Analyze the resume vs job description and return JSON in this exact schema:
 
@@ -61,19 +81,21 @@ Analyze the resume vs job description and return JSON in this exact schema:
 }
 
 HARD REQUIREMENTS (do NOT be brief):
-- missing_keywords MUST include 25–40 items (unique, role-relevant).
-- weak_sentences MUST include 12–18 items (each from the resume text, with a stronger rewrite).
-- summary MUST be detailed (8–14 bullet lines) covering:
+- missing_keywords MUST include 25–40 items (unique, role-relevant) and MUST be written in ${outLang}.
+- weak_sentences MUST include 12–18 items (each from the resume text, with a stronger rewrite). Both sentence and rewrite MUST be in ${outLang}.
+- summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) overall fit diagnosis
   2) top 5 missing skills/keywords to add
   3) biggest ATS/format risks
   4) top 5 rewrite themes (impact/metrics/ownership)
-- optimized_cv MUST be a complete rewritten resume (ATS-friendly, bullet-based, achievement-focused, aligned to JD).
+- optimized_cv MUST be a complete rewritten resume (ATS-friendly, bullet-based, achievement-focused, aligned to JD) and MUST be written in ${outLang}.
 - Keep claims truthful. Do not invent employers, degrees, titles, or metrics.
+- Proper nouns / technical terms (SQL, GA4, React, AWS, Git, etc.) may stay as-is.
+- Do NOT mix languages.
 
 JSON STRICTNESS:
 - KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
-- Only translate VALUES into ${targetLang}. Do NOT translate keys.
+- Do NOT translate keys.
 - No extra keys. No comments. No code fences.
 
 Return ONLY valid JSON.
@@ -97,7 +119,6 @@ ${jd}
         model,
         temperature: 0.3,
         response_format: { type: "json_object" },
-        // ✅ Preview daha küçük, Full daha büyük
         max_tokens: isPreview ? 650 : 1800,
         messages: [
           { role: "system", content: system },
@@ -145,14 +166,14 @@ ${jd}
 
     // normalize
     const normalized = {
-      ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
-      missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
-      weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences : [],
-      summary: typeof data.summary === "string" ? data.summary : "",
-      ...(isPreview ? {} : { optimized_cv: typeof data.optimized_cv === "string" ? data.optimized_cv : "" }),
+      ats_score: Number.isFinite(data?.ats_score) ? data.ats_score : 0,
+      missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
+      weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
+      summary: typeof data?.summary === "string" ? data.summary : "",
+      ...(isPreview ? {} : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
     };
 
-    // ✅ Preview’de garanti 5 ve 1’e kırp
+    // ✅ Preview: guarantee small output
     if (isPreview) {
       return res.status(200).json({
         ats_score: normalized.ats_score,
