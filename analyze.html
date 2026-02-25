@@ -265,7 +265,14 @@ document.getElementById("downloadAts")?.addEventListener("click", ()=>{
   const isPreview = new URLSearchParams(location.search).get("preview") === "1";
   if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
 
-  const optimized = (document.getElementById("optimized")?.textContent || "").trim();
+  let optimized = (document.getElementById("optimized")?.textContent || "");
+
+// META: {...} gibi sonda gelen çöpleri temizle
+optimized = optimized.replace(/\n?\s*META\s*:[\s\S]*$/i, "");
+optimized = optimized.replace(/\n?\s*META\s*\{[\s\S]*$/i, "");
+
+// toparla
+optimized = optimized.trim();
   if (!optimized) return alert("Optimized CV is empty.");
 
   const cvData = buildCvDataFromOptimizedText(optimized);
