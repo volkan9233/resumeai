@@ -1,0 +1,54 @@
+{
+  "basics": {
+    "fullName": "Volkan Tunç",
+    "title": "Backend Developer",
+    "location": "İstanbul, Türkiye",
+    "phone": "+90 5xx xxx xx xx",
+    "email": "volkan@email.com",
+    "links": [
+      { "label": "LinkedIn", "url": "https://linkedin.com/in/..." },
+      { "label": "GitHub", "url": "https://github.com/..." }
+    ],
+    "photoUrl": ""
+  },
+  "summary": "Python ile backend geliştirme tarafında deneyimim var. REST API, PostgreSQL ve temel Docker süreçlerinde çalıştım.",
+  "skills": [
+    { "name": "Python", "level": "Orta" },
+    { "name": "FastAPI", "level": "Temel" },
+    { "name": "PostgreSQL", "level": "Orta" },
+    { "name": "Docker", "level": "Temel" }
+  ],
+  "experience": [
+    {
+      "company": "ABC Teknoloji",
+      "position": "Backend Developer (Junior)",
+      "start": "2023-01",
+      "end": null,
+      "location": "Remote",
+      "highlights": [
+        "FastAPI ile endpoint geliştirdim ve bug fix yaptım.",
+        "PostgreSQL sorguları yazdım, basit optimizasyonlar denedim.",
+        "Log inceleme ve hata analizi süreçlerinde destek verdim."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Sipariş Senkronizasyon Servisi",
+      "tech": ["FastAPI", "PostgreSQL", "Docker"],
+      "highlights": ["CRUD + webhook", "Docker Compose ile lokal kurulum"]
+    }
+  ],
+  "education": [
+    { "school": "… Üniversitesi", "degree": "Bilgisayar Mühendisliği", "start": "2018", "end": "2022" }
+  ],
+  "certificates": ["SQL Temelleri", "Python ile Uygulama Geliştirme"],
+  "languages": [
+    { "name": "Türkçe", "level": "Ana dil" },
+    { "name": "İngilizce", "level": "B1-B2" }
+  ],
+  "meta": {
+    "accent": "#2B6CB0",
+    "includePhoto": false
+  }
+}
