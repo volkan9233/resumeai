@@ -27,17 +27,31 @@
 
     /* Yazdırırken sadece CV gelsin */
     @media print {
-  body { background:#fff; }
-  .bar { display:none; }
-  .wrap { padding:0; }
+  /* iOS/Safari fix: sayfa kesilmesin */
+  html, body {
+    background:#fff;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .bar { display:none !important; }
+
+  .wrap {
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
 
   #paper{
-    box-shadow:none;
-    width:auto;
+    box-shadow:none !important;
+    width:auto !important;
     height:auto !important;
     min-height:auto !important;
-    overflow:visible !important;
+    overflow: visible !important;
   }
+
+  @page { size: A4; margin: 0; }
 
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
