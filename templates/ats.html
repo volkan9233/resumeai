@@ -3,17 +3,74 @@
 <head>
   <meta charset="utf-8" />
   <style>
-    @page { size: A4; margin: 18mm; }
-    body { font-family: Arial, Helvetica, sans-serif; color:#111; font-size: 11pt; line-height:1.35; }
-    h1 { font-size: 20pt; margin:0 0 2mm 0; }
-    .title { font-size: 11pt; margin:0 0 3mm 0; }
-    .contact { margin:0 0 6mm 0; }
-    h2 { font-size: 12pt; margin:6mm 0 2mm 0; border-bottom: 1px solid #ddd; padding-bottom:1mm;}
-    ul { margin: 1mm 0 0 5mm; padding:0; }
-    li { margin: 0 0 1mm 0; }
-    .item { margin: 0 0 3mm 0; }
-    .row { display:flex; justify-content: space-between; gap: 8mm; }
-    .muted { color:#444; }
+    @page { size: A4; margin: 16mm; } /* 18mm biraz geniş kalıyorsa 16mm daha premium durur */
+
+:root{
+  --text:#111;
+  --muted:#444;
+  --rule:#e6e6e6;
+}
+
+html, body { height: 100%; }
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  font-size: 11pt;
+  line-height: 1.42;
+  letter-spacing: 0.1px;
+}
+
+/* Header */
+h1{
+  font-size: 22pt;
+  margin: 0 0 2mm 0;
+  letter-spacing: -0.3px;
+}
+.title{
+  font-size: 11.5pt;
+  margin: 0 0 2.5mm 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+.contact{
+  margin: 0 0 7mm 0;
+  color: var(--muted);
+  font-size: 10.5pt;
+  line-height: 1.35;
+}
+.contact a{ color: var(--muted); text-decoration: none; }
+
+/* Section titles */
+h2{
+  font-size: 11.5pt;
+  margin: 7mm 0 2.5mm 0;
+  padding-bottom: 1.2mm;
+  border-bottom: 1px solid var(--rule);
+  letter-spacing: 0.2px;
+}
+
+/* Lists */
+ul{
+  margin: 1.5mm 0 0 5mm;
+  padding: 0;
+}
+li{
+  margin: 0 0 1.2mm 0;
+}
+
+/* Blocks */
+.item{
+  margin: 0 0 3.5mm 0;
+}
+.row{
+  display:flex;
+  justify-content: space-between;
+  gap: 8mm;
+}
+.muted{ color: var(--muted); }
+
+/* Print stability */
+*{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   </style>
 </head>
 <body>
