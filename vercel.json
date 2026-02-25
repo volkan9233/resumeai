@@ -1,8 +1,0 @@
-{
-  "functions": {
-    "api/generate-cv.js": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 30
-    }
-  }
-}
