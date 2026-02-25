@@ -68,9 +68,14 @@
     }
 
     modeSelect.addEventListener("change", refresh);
-    printBtn.addEventListener("click", () => window.print());
+printBtn.addEventListener("click", () => window.print());
 
-    refresh();
+// analyze sayfasından gelen modu uygula: /cv.html#mode=ats veya #mode=design
+const hash = (location.hash || "");
+if (hash.includes("mode=ats")) modeSelect.value = "ats";
+if (hash.includes("mode=design")) modeSelect.value = "design";
+
+refresh();
   </script>
 </body>
 </html>
