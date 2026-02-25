@@ -372,13 +372,27 @@ async function run(){
     try { data = JSON.parse(rawText); } catch {}
 
     if (!r.ok) {
-      if (isPreview) {
-        status.textContent = "Preview temporarily unavailable. Please try again in 10 seconds.";
-        return;
-      }
-      const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
-      throw new Error(msg);
+  // Rate limit (429)
+  if (r.status === 429) {
+    const sec = Number(data?.retry_after_seconds || 0);
+    if (isPreview) {
+      const min = Math.max(1, Math.ceil(sec / 60));
+      status.textContent = `Preview limit: please wait ${min} minute(s) and try again.`;
+      return;
+    } else {
+      status.textContent = `Please wait ${sec}s and try again.`;
+      return;
     }
+  }
+
+  if (isPreview) {
+    status.textContent = "Preview temporarily unavailable. Please try again in 10 seconds.";
+    return;
+  }
+
+  const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
+  throw new Error(msg);
+}
 
     // preview banner / locks
     if (isPreview) {
