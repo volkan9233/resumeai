@@ -30,7 +30,42 @@ Analyze the resume vs job description and return JSON in this exact schema:
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "optimized_cv": string,
-  "summary": string
+  "summary": string,
+  "cv_data": {
+    "basics": {
+      "fullName": string,
+      "title": string,
+      "location": string,
+      "phone": string,
+      "email": string,
+      "links": [{"label": string, "url": string}],
+      "photoUrl": string
+    },
+    "summary": string,
+    "skills": [{"name": string, "level": string}],
+    "experience": [{
+      "company": string,
+      "position": string,
+      "start": string,
+      "end": string|null,
+      "location": string,
+      "highlights": string[]
+    }],
+    "projects": [{
+      "name": string,
+      "tech": string[],
+      "highlights": string[]
+    }],
+    "education": [{
+      "school": string,
+      "degree": string,
+      "start": string,
+      "end": string
+    }],
+    "certificates": string[],
+    "languages": [{"name": string, "level": string}],
+    "meta": { "accent": string, "includePhoto": boolean }
+  }
 }
 
 HARD REQUIREMENTS (do NOT be brief):
