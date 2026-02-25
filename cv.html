@@ -27,11 +27,15 @@
 
     /* Yazdırırken sadece CV gelsin */
     @media print {
-      body { background:#fff; }
-      .bar { display:none; }
-      .wrap { padding:0; }
-      #paper { box-shadow:none; width:auto; }
-    }
+  body { background:#fff; }
+  .bar { display:none; }
+  .wrap { padding:0; }
+  #paper { box-shadow:none; width:auto; }
+
+  /* ekstra stabilite */
+  @page { size: A4; margin: 0; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
   </style>
 </head>
 <body>
