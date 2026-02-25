@@ -5,11 +5,7 @@
   <style>
     @page { size: A4; margin: 0; }
     body { margin:0; font-family: Arial, Helvetica, sans-serif; color:#111; }
-    .page { display:flex; min-height: 297mm; height: auto; }
-
-@media print {
-  .page { height: auto; min-height: auto; }
-}
+    .page { display:flex; height: 297mm; }
     .left { width: 72mm; padding: 14mm 10mm; background: #f5f6f7; }
     .right { flex:1; padding: 14mm 14mm; }
     h1 { font-size: 18pt; margin:0 0 2mm 0; }
@@ -39,7 +35,7 @@
       </div>
 
       <div class="section">
-        <div class="h">İletişim</div>
+        <div class="h">{{t_contact}}</div>
         <div class="muted">{{location}}</div>
         <div class="muted">{{phone}}</div>
         <div class="muted">{{email}}</div>
@@ -47,12 +43,12 @@
       </div>
 
       <div class="section">
-        <div class="h">Yetkinlikler</div>
+        <div class="h">{{t_skills}}</div>
         {{skillsChips}}
       </div>
 
       <div class="section">
-        <div class="h">Diller</div>
+        <div class="h">{{t_languages}}</div>
         <ul>{{langList}}</ul>
       </div>
     </aside>
@@ -62,27 +58,27 @@
       <div class="role">{{title}}</div>
 
       <div class="section">
-        <div class="h">Özet</div>
+        <div class="h">{{t_summary}}</div>
         <div>{{summary}}</div>
       </div>
 
       <div class="section">
-        <div class="h">İş Deneyimi</div>
+        <div class="h">{{t_experience}}</div>
         {{experienceBlocks}}
       </div>
 
       <div class="section">
-        <div class="h">Projeler</div>
+        <div class="h">{{t_projects}}</div>
         {{projectBlocks}}
       </div>
 
       <div class="section">
-        <div class="h">Eğitim</div>
+        <div class="h">{{t_education}}</div>
         {{educationBlocks}}
       </div>
 
       <div class="section">
-        <div class="h">Sertifikalar</div>
+        <div class="h">{{t_certificates}}</div>
         <ul>{{certList}}</ul>
       </div>
     </main>
