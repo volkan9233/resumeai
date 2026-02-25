@@ -145,20 +145,6 @@ try { data = JSON.parse(rawText); } catch {}
 
 if (!r.ok) {
   const isPreview = new URLSearchParams(location.search).get("preview") === "1";
-
-  // Preview modda API hata verirse, ekrana JSON basma → sakin mesaj göster
-  if (isPreview) {
-    document.getElementById("status").textContent =
-      "Preview is temporarily busy. Please try again in 10 seconds.";
-    document.getElementById("btn").disabled = false;
-    return; // burada çık
-  }
-
-  // Full modda eski davranış aynen kalsın
-  if (!r.ok) {
-  const isPreview = new URLSearchParams(location.search).get("preview") === "1";
-
-  // Preview modda: JSON gibi hata mesajını ekrana BASMA
   if (isPreview) {
     status.textContent = "Preview temporarily unavailable. Please try again in 10 seconds.";
     return;
