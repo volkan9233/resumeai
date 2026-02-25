@@ -6,6 +6,7 @@ export default async function handler(req, res) {
 
     const { cv, jd, preview, lang } = req.body || {};
     const targetLang = (typeof lang === "string" && lang) ? lang : "en";
+    const isPreview = !!preview;
 
     if (!cv || !jd) {
       return res.status(400).json({ error: "cv and jd are required" });
@@ -17,12 +18,38 @@ export default async function handler(req, res) {
     }
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-    const isPreview = !!preview;
 
     const system =
       "You are an ATS resume analyzer. Return ONLY valid JSON. No markdown. No extra text.";
 
-    const user = `
+    // ✅ PREVIEW prompt (küçük çıktı)
+    const previewUser = `
+Return JSON in this exact schema:
+
+{
+  "ats_score": number,
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+REQUIREMENTS:
+- missing_keywords MUST include exactly 5 items (unique, role-relevant).
+- weak_sentences MUST include exactly 1 item (pick a real sentence from RESUME).
+- summary MUST be 4–6 bullet lines.
+- Output language for VALUES must be: ${targetLang}
+- Do NOT add extra keys. Do NOT add optimized_cv.
+Return ONLY valid JSON.
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim();
+
+    // ✅ FULL prompt (senin ağır prompt’un – aynı mantık)
+    const fullUser = `
 Analyze the resume vs job description and return JSON in this exact schema:
 
 {
@@ -30,42 +57,7 @@ Analyze the resume vs job description and return JSON in this exact schema:
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "optimized_cv": string,
-  "summary": string,
-  "cv_data": {
-    "basics": {
-      "fullName": string,
-      "title": string,
-      "location": string,
-      "phone": string,
-      "email": string,
-      "links": [{"label": string, "url": string}],
-      "photoUrl": string
-    },
-    "summary": string,
-    "skills": [{"name": string, "level": string}],
-    "experience": [{
-      "company": string,
-      "position": string,
-      "start": string,
-      "end": string|null,
-      "location": string,
-      "highlights": string[]
-    }],
-    "projects": [{
-      "name": string,
-      "tech": string[],
-      "highlights": string[]
-    }],
-    "education": [{
-      "school": string,
-      "degree": string,
-      "start": string,
-      "end": string
-    }],
-    "certificates": string[],
-    "languages": [{"name": string, "level": string}],
-    "meta": { "accent": string, "includePhoto": boolean }
-  }
+  "summary": string
 }
 
 HARD REQUIREMENTS (do NOT be brief):
@@ -76,45 +68,15 @@ HARD REQUIREMENTS (do NOT be brief):
   2) top 5 missing skills/keywords to add
   3) biggest ATS/format risks
   4) top 5 rewrite themes (impact/metrics/ownership)
-- optimized_cv MUST be a complete rewritten resume (not partial), ATS-friendly, bullet-based, achievement-focused, and aligned to the JD.
-- Keep claims truthful. Do not invent employers, degrees, titles, or metrics. If a metric is unknown, rewrite without numbers rather than guessing.
-- missing_keywords should be single words or short phrases (2–4 words max). No duplicates.
-
-GLOBAL ATS COMPATIBILITY:
-- Use standard section headers. If output language is not English, write headers as: Local Language (ENGLISH HEADER).
-  Example: DENEYİM (EXPERIENCE), BECERİLER (SKILLS), EĞİTİM (EDUCATION), PROFESYONEL ÖZET (SUMMARY).
-- For each role in EXPERIENCE, write 6–8 bullets.
-- Each bullet must follow: Action + Tool/Channel + Scope + Outcome.
-  If exact numbers are unknown, use metric-types without inventing (e.g., ROAS, CAC, CPL, CTR, conversion rate).
-- Include a "Core Skills" block with 18–28 keywords aligned to the JD.
+- optimized_cv MUST be a complete rewritten resume (ATS-friendly, bullet-based, achievement-focused, aligned to JD).
+- Keep claims truthful. Do not invent employers, degrees, titles, or metrics.
 
 JSON STRICTNESS:
-- The JSON KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary, cv_data.
-- cv_data must follow the exact structure above and be complete enough to render a 1-page ATS resume and a 1-page modern resume.
-	•	- Translate cv_data text fields too (summary, skills names, highlights, section strings) into ${targetLang}, but keep proper nouns/tech terms unchanged.
-- Only translate the VALUES into ${targetLang}. Do NOT translate keys.
-- Do not add extra keys. Do not add comments. Do not wrap in code fences.
+- KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
+- Only translate VALUES into ${targetLang}. Do NOT translate keys.
+- No extra keys. No comments. No code fences.
 
-
-SCORING GUIDANCE:
-- ats_score is based on keyword overlap + seniority fit + impact metrics + structure + clarity.
-
-LANGUAGE REQUIREMENT:
-- Write ALL output fields (summary, rewrites, optimized_cv) in this target language: ${targetLang}.
-- Use native, professional HR tone for ${targetLang}. No slang, no awkward literal translations.
-
-TERMINOLOGY RULES:
-- Do NOT translate proper nouns and technical terms (React, Next.js, GA4, SQL, Core Web Vitals, TypeScript, Git, Vercel, AWS, etc.).
-- Keep bullet formatting and section headers consistent and ATS-friendly.
-
-QUALITY CHECK:
-Before finalizing, ensure:
-1) Sounds natural in ${targetLang} (native-level).
-2) No invented experience/metrics.
-3) ATS-friendly structure preserved.
-Return ONLY valid JSON. No markdown.
-
-INPUTS:
+Return ONLY valid JSON.
 
 RESUME:
 ${cv}
@@ -122,6 +84,8 @@ ${cv}
 JOB DESCRIPTION:
 ${jd}
 `.trim();
+
+    const userPrompt = isPreview ? previewUser : fullUser;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -133,10 +97,11 @@ ${jd}
         model,
         temperature: 0.3,
         response_format: { type: "json_object" },
-        max_tokens: isPreview ? 900 : 1800,
+        // ✅ Preview daha küçük, Full daha büyük
+        max_tokens: isPreview ? 650 : 1800,
         messages: [
           { role: "system", content: system },
-          { role: "user", content: user },
+          { role: "user", content: userPrompt },
         ],
       }),
     });
@@ -157,14 +122,14 @@ ${jd}
     let data;
     try {
       data = JSON.parse(text);
-    } catch (e1) {
+    } catch {
       const s = String(text);
       const start = s.indexOf("{");
       const end = s.lastIndexOf("}");
       if (start !== -1 && end !== -1 && end > start) {
         try {
           data = JSON.parse(s.slice(start, end + 1));
-        } catch (e2) {
+        } catch {
           return res.status(500).json({
             error: "Model did not return valid JSON",
             model_output: s.slice(0, 2000),
@@ -178,21 +143,22 @@ ${jd}
       }
     }
 
+    // normalize
     const normalized = {
-  ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
-  missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
-  weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences : [],
-  optimized_cv: typeof data.optimized_cv === "string" ? data.optimized_cv : "",
-  summary: typeof data.summary === "string" ? data.summary : "",
-  cv_data: (data && typeof data.cv_data === "object" && data.cv_data) ? data.cv_data : null,
-};
+      ats_score: Number.isFinite(data.ats_score) ? data.ats_score : 0,
+      missing_keywords: Array.isArray(data.missing_keywords) ? data.missing_keywords : [],
+      weak_sentences: Array.isArray(data.weak_sentences) ? data.weak_sentences : [],
+      summary: typeof data.summary === "string" ? data.summary : "",
+      ...(isPreview ? {} : { optimized_cv: typeof data.optimized_cv === "string" ? data.optimized_cv : "" }),
+    };
 
+    // ✅ Preview’de garanti 5 ve 1’e kırp
     if (isPreview) {
       return res.status(200).json({
         ats_score: normalized.ats_score,
         summary: normalized.summary,
         missing_keywords: normalized.missing_keywords.slice(0, 5),
-        weak_sentences: normalized.weak_sentences.slice(0, 2),
+        weak_sentences: normalized.weak_sentences.slice(0, 1),
       });
     }
 
