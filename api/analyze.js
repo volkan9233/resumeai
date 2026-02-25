@@ -1,3 +1,23 @@
+const RL = globalThis.__resumeai_rl || (globalThis.__resumeai_rl = new Map());
+
+function rateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  const item = RL.get(key) || { count: 0, reset: now + windowMs };
+  if (now > item.reset) {
+    item.count = 0;
+    item.reset = now + windowMs;
+  }
+  item.count += 1;
+  RL.set(key, item);
+  return { ok: item.count <= limit, reset: item.reset };
+}
+
+function getClientIp(req){
+  const xf = req.headers["x-forwarded-for"];
+  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -6,6 +26,23 @@ export default async function handler(req, res) {
 
     const { cv, jd, preview, lang } = req.body || {};
     const isPreview = !!preview;
+
+    // ✅ Rate limit
+    const ip = getClientIp(req);
+    const key = `${ip}:${isPreview ? "preview" : "full"}`;
+
+    // Try: 10 dakikada 1 | Full: 1 dakikada 3
+    const limit = isPreview ? 1 : 3;
+    const windowMs = isPreview ? 10 * 60 * 1000 : 60 * 1000;
+
+    const { ok, reset } = rateLimit(key, limit, windowMs);
+    if (!ok) {
+      const retrySec = Math.ceil((reset - Date.now()) / 1000);
+      return res.status(429).json({
+        error: "Too many requests",
+        retry_after_seconds: retrySec
+      });
+    }
 
     if (!cv || !jd) {
       return res.status(400).json({ error: "cv and jd are required" });
@@ -164,7 +201,6 @@ ${jd}
       }
     }
 
-    // normalize
     const normalized = {
       ats_score: Number.isFinite(data?.ats_score) ? data.ats_score : 0,
       missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
@@ -173,7 +209,6 @@ ${jd}
       ...(isPreview ? {} : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
     };
 
-    // ✅ Preview: guarantee small output
     if (isPreview) {
       return res.status(200).json({
         ats_score: normalized.ats_score,
