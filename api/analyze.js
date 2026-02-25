@@ -1,21 +1,58 @@
-const RL = globalThis.__resumeai_rl || (globalThis.__resumeai_rl = new Map());
+import { Redis } from "@upstash/redis";
 
-function rateLimit(key, limit, windowMs) {
-  const now = Date.now();
-  const item = RL.get(key) || { count: 0, reset: now + windowMs };
-  if (now > item.reset) {
-    item.count = 0;
-    item.reset = now + windowMs;
-  }
-  item.count += 1;
-  RL.set(key, item);
-  return { ok: item.count <= limit, reset: item.reset };
+/**
+ * Rate limit (Redis / Upstash / Vercel KV)
+ * - Preview: 3 requests / 10 minutes
+ * - Full:    3 requests / 1 minute
+ *
+ * Uses fixed-window bucketing:
+ * key = resumeai:rl:{mode}:{ip}:{bucket}
+ * value = INCR count, EXPIRE windowSec+5
+ */
+
+function getRedis() {
+  const url =
+    process.env.KV_REST_API_URL ||
+    process.env.UPSTASH_REDIS_REST_URL;
+
+  const token =
+    process.env.KV_REST_API_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) return null;
+
+  return new Redis({ url, token });
 }
 
-function getClientIp(req){
+function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
   return req.socket?.remoteAddress || "unknown";
+}
+
+async function checkRateLimit({ redis, ip, mode, limit, windowSec }) {
+  const nowMs = Date.now();
+  const nowSec = Math.floor(nowMs / 1000);
+  const bucket = Math.floor(nowSec / windowSec);
+
+  const key = `resumeai:rl:${mode}:${ip}:${bucket}`;
+
+  // atomic increment
+  const count = await redis.incr(key);
+
+  // first hit => set expiry (window + small buffer)
+  if (count === 1) {
+    await redis.expire(key, windowSec + 5);
+  }
+
+  const bucketEndSec = (bucket + 1) * windowSec;
+  const retryAfter = Math.max(1, bucketEndSec - nowSec);
+
+  return {
+    ok: count <= limit,
+    retry_after_seconds: retryAfter,
+    count,
+  };
 }
 
 export default async function handler(req, res) {
@@ -27,25 +64,32 @@ export default async function handler(req, res) {
     const { cv, jd, preview, lang } = req.body || {};
     const isPreview = !!preview;
 
-    // ✅ Rate limit
-    const ip = getClientIp(req);
-    const key = `${ip}:${isPreview ? "preview" : "full"}`;
+    if (!cv || !jd) {
+      return res.status(400).json({ error: "cv and jd are required" });
+    }
 
-    // Try: 10 dakikada 1 | Full: 1 dakikada 3
-    const limit = isPreview ? 1 : 3;
-    const windowMs = isPreview ? 10 * 60 * 1000 : 60 * 1000;
-
-    const { ok, reset } = rateLimit(key, limit, windowMs);
-    if (!ok) {
-      const retrySec = Math.ceil((reset - Date.now()) / 1000);
-      return res.status(429).json({
-        error: "Too many requests",
-        retry_after_seconds: retrySec
+    // ✅ Redis rate limit (B)
+    const redis = getRedis();
+    if (!redis) {
+      return res.status(500).json({
+        error:
+          "Rate limit Redis is not configured. Set KV_REST_API_URL + KV_REST_API_TOKEN (Vercel KV) or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (Upstash).",
       });
     }
 
-    if (!cv || !jd) {
-      return res.status(400).json({ error: "cv and jd are required" });
+    const ip = getClientIp(req);
+    const mode = isPreview ? "preview" : "full";
+
+    // Preview: 10 dk 3 | Full: 1 dk 3
+    const limit = 3;
+    const windowSec = isPreview ? 10 * 60 : 60;
+
+    const rl = await checkRateLimit({ redis, ip, mode, limit, windowSec });
+    if (!rl.ok) {
+      return res.status(429).json({
+        error: "Too many requests",
+        retry_after_seconds: rl.retry_after_seconds,
+      });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -55,7 +99,7 @@ export default async function handler(req, res) {
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    // --- Language mapping (important) ---
+    // --- Language mapping ---
     const LANG_MAP = {
       en: "English",
       tr: "Turkish",
@@ -66,7 +110,8 @@ export default async function handler(req, res) {
       zh: "Chinese (Simplified)",
     };
 
-    const langCode = (typeof lang === "string" && lang.trim()) ? lang.trim().toLowerCase() : "en";
+    const langCode =
+      typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
     const outLang = LANG_MAP[langCode] || "English";
 
     // ✅ Strong system instruction: one language only
@@ -209,6 +254,7 @@ ${jd}
       ...(isPreview ? {} : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
     };
 
+    // ✅ Preview: guarantee small output
     if (isPreview) {
       return res.status(200).json({
         ats_score: normalized.ats_score,
