@@ -356,6 +356,8 @@ async function run(){
   const job = document.getElementById('job').value.trim();
   const btn = document.getElementById('btn');
   const status = document.getElementById('status');
+  const spinner = document.getElementById("spinner");
+const loadingText = document.getElementById("loadingText");
 
   const qs = new URLSearchParams(location.search);
   const isPreview = qs.get("preview") === "1";
@@ -367,9 +369,11 @@ async function run(){
   }
 
   btn.disabled = true;
-  status.textContent = "Analyzing…";
-  document.getElementById('out').style.display = "none";
+status.textContent = ""; // ister boş bırak
+document.getElementById('out').style.display = "none";
 
+if (loadingText) loadingText.textContent = "Analyzing…"; // istersen i18n’den bağlarız
+if (spinner) spinner.style.display = "inline-flex";
   try {
     const r = await fetch("/api/analyze", {
       method: "POST",
@@ -465,8 +469,9 @@ async function run(){
   } catch(e){
     status.textContent = "Error: " + (e.message || e);
   } finally{
-    btn.disabled = false;
-  }
+  btn.disabled = false;
+  if (spinner) spinner.style.display = "none";
+}
 }
 
 /* ---------- Copy helpers ---------- */
