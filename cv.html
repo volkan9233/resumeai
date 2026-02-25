@@ -30,10 +30,10 @@
   body { background:#fff; }
   .bar { display:none; }
   .wrap { padding:0; }
-  #paper { box-shadow:none; width:auto; }
 
-  /* ekstra stabilite */
-  @page { size: A4; margin: 0; }
+  /* Template içindeki @page ayarları (ATS: 18mm, Modern: 0) bozulmasın */
+  #paper { box-shadow:none; }
+
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
   </style>
