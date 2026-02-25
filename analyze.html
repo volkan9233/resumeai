@@ -443,11 +443,11 @@ function buildCvDataFromOptimizedText(optimizedText){
   const certificates = (sections.CERTIFICATES || []).slice(0,10).map(x=>x.replace(/^[-•]\s*/,"").trim());
   const languages = (sections.LANGUAGES || []).slice(0,10).map(x=>({name:x.replace(/^[-•]\s*/,"").trim(), level:""}));
 
-  return {
+    return {
     basics: {
       fullName,
       title,
-      location: "",              // istersen sonra parse ederiz
+      location: "",
       phone,
       email,
       links,
@@ -462,7 +462,7 @@ function buildCvDataFromOptimizedText(optimizedText){
     languages,
     meta: { accent: "#6366F1", includePhoto: false }
   };
-  }
+} // <-- BU SATIR OLMAK ZORUNDA
 
 function saveCvDataToLocalStorage(cvData){
   localStorage.setItem("resumeai_cvdata", JSON.stringify(cvData));
