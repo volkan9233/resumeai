@@ -179,7 +179,10 @@ window.onerror = function (msg, src, line, col) {
       { method: "GET", credentials: "include" }
     );
 
-    if (!r.ok) throw new Error("confirm failed");
+    if (!r.ok) {
+  const t = await r.text();
+  throw new Error("confirm failed: " + t);
+}
 
     localStorage.setItem("resumeai_unlocked", "1");
     history.replaceState({}, "", "/analyze.html");
