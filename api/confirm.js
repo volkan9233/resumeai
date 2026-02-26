@@ -14,6 +14,25 @@ function sign(payloadJson, secret) {
   return `${data}.${sig}`;
 }
 
+function setSessionCookie(res, token) {
+  const isProd = process.env.NODE_ENV === "production";
+
+  const cookieParts = [
+    `resumeai_session=${encodeURIComponent(token)}`,
+    "Path=/",
+    `Max-Age=${365 * 24 * 60 * 60}`,
+    "SameSite=Lax",
+    "HttpOnly",
+    "Domain=.resumeai.work",
+  ];
+  if (isProd) cookieParts.push("Secure");
+
+  res.setHeader("Set-Cookie", cookieParts.join("; "));
+  // ✅ cache kapat (iOS)
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+}
+
 export default async function handler(req, res) {
   try {
     const appSecret = process.env.APP_SECRET;
@@ -22,9 +41,25 @@ export default async function handler(req, res) {
     const { order_id, email } = req.query || {};
     if (!email) return res.status(400).json({ error: "email required" });
 
+    // ✅ FORCE TEST (gerçek ödeme olmadan FULL denemek için)
+    if (req.query.force === "1") {
+      const k = process.env.FORCE_UNLOCK_KEY || "";
+      if (!k) return res.status(401).json({ error: "FORCE_UNLOCK_KEY missing" });
+      if (req.query.key !== k) return res.status(401).json({ error: "Bad force key" });
+
+      const ehash_force = sha256(String(email).trim().toLowerCase());
+      const tokenPayload = JSON.stringify({
+        e: ehash_force,
+        exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
+      });
+      const token = sign(tokenPayload, appSecret);
+      setSessionCookie(res, token);
+      return res.status(200).json({ ok: true, forced: true });
+    }
+
     const ehash = sha256(String(email).trim().toLowerCase());
 
-    // 1) order_id varsa: redis'te kayıtlıysa eşleşmeli (kayıt yoksa bloklama)
+    // 1) order opsiyonel: redis’te varsa eşleşmeli
     if (order_id) {
       const saved = await redis.get(`resumeai:paid:order:${order_id}`);
       if (saved && String(saved) !== ehash) {
@@ -38,25 +73,16 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Not paid" });
     }
 
-    // 3) token üret (1 yıl)
+    // 3) token üret
     const tokenPayload = JSON.stringify({
       e: ehash,
       exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
     });
     const token = sign(tokenPayload, appSecret);
 
-    // 4) cookie set (HOST-ONLY: Domain koymuyoruz → Safari/edge case daha stabil)
-    const isProd = process.env.NODE_ENV === "production";
-    const parts = [
-      `resumeai_session=${encodeURIComponent(token)}`,
-      "Path=/",
-      `Max-Age=${365 * 24 * 60 * 60}`,
-      "SameSite=Lax",
-      "HttpOnly",
-    ];
-    if (isProd) parts.push("Secure");
+    // 4) cookie set
+    setSessionCookie(res, token);
 
-    res.setHeader("Set-Cookie", parts.join("; "));
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: "Confirm error", details: e?.message || String(e) });
