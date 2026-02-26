@@ -470,23 +470,23 @@
   const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
   if (!unlocked) return;
 
-  // Lemon checkout linkini bulan "Unlock" butonlarını gizle
-  const links = document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]');
-  links.forEach(a => { a.style.display = "none"; });
+  // 1) Unlock butonlarını gizle
+  const unlockLinks = document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]');
+  unlockLinks.forEach(a => { a.style.display = "none"; });
 
-  // İstersen "Try Free Preview" yanında Analyze butonu ekle
-  // (Zaten kullanıcı full'e gidebilsin diye)
-  const previewBtn = document.querySelector('a[href^="/analyze.html?preview=1"]');
-  if (previewBtn) {
-    // Eğer zaten eklenmiş bir Analyze yoksa ekle
-    const already = document.querySelector('a[href="/analyze.html"]');
-    if (!already) {
-      const a = document.createElement("a");
-      a.href = "/analyze.html";
-      a.className = previewBtn.className; // aynı style
-      a.textContent = "Go to Analyze";
-      previewBtn.parentNode.insertBefore(a, previewBtn.nextSibling);
-    }
+  // 2) Hero'daki "Go to Analyze" butonunu göster
+  const heroAnalyze = document.getElementById("analyzeBtnHero");
+  if (heroAnalyze) heroAnalyze.style.display = "inline-block";
+
+  // 3) (Opsiyonel) alttaki guarantee bölümüne de Analyze butonu ekle
+  const guarantee = document.querySelector(".guarantee");
+  if (guarantee && !document.getElementById("analyzeBtnGuarantee")) {
+    const a = document.createElement("a");
+    a.id = "analyzeBtnGuarantee";
+    a.href = "/analyze.html";
+    a.className = "btn";
+    a.textContent = "Go to Analyze";
+    guarantee.appendChild(a);
   }
 })();
 </script>
