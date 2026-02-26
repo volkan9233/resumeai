@@ -62,6 +62,12 @@ export default async function handler(req, res) {
 const sessionOk = verifySession(req);      // ✅ cookie var mı?
 const requestedPreview = !!preview;        // client preview istedi mi?
 const isPreview = requestedPreview || !sessionOk; // ✅ session yoksa full verme!
+    console.log("ANALYZE FLAGS", {
+  requestedPreview,
+  sessionOk,
+  isPreview,
+  hasCookie: !!req.headers.cookie,
+});
 
     // ✅ Upstash Rate limit
     const ip = getClientIp(req);
