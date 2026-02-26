@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
+import crypto from "crypto";
 
 const redis = Redis.fromEnv();
 
@@ -21,6 +22,33 @@ function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
   return req.socket?.remoteAddress || "unknown";
+}
+function verifySession(req) {
+  const appSecret = process.env.APP_SECRET;
+  if (!appSecret) return false;
+
+  const cookie = req.headers.cookie || "";
+  const m = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
+  if (!m) return false;
+
+  const token = decodeURIComponent(m[1]);
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+
+  const [data, sig] = parts;
+  const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
+  if (sig !== expected) return false;
+
+  let payload;
+  try {
+    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
+    payload = JSON.parse(payloadJson);
+  } catch {
+    return false;
+  }
+
+  if (!payload?.exp || Date.now() > payload.exp) return false;
+  return true;
 }
 
 export default async function handler(req, res) {
