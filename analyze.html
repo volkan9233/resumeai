@@ -439,6 +439,102 @@ document.addEventListener("DOMContentLoaded", () => {
     bar.appendChild(a);
   });
 })();
+  /* =======================
+   Copy helpers
+======================= */
+function copyText(text){
+  if (!text) return alert("Nothing to copy.");
+  navigator.clipboard.writeText(text)
+    .then(()=> alert("Copied ✅"))
+    .catch(()=> alert("Copy failed (iOS sometimes blocks)."));
+}
+
+document.getElementById("copyMissing")?.addEventListener("click", ()=>{
+  const items = [...document.querySelectorAll("#missing li")]
+    .map(li=>li.textContent.trim()).filter(Boolean);
+  copyText(items.map(x=>"- " + x).join("\n"));
+});
+
+document.getElementById("copyWeak")?.addEventListener("click", ()=>{
+  const items = [...document.querySelectorAll("#weak li")]
+    .map(li=>li.textContent.trim()).filter(Boolean);
+  copyText(items.map(x=>"- " + x).join("\n"));
+});
+
+document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
+  const text = (document.getElementById("optimized")?.textContent || "").trim();
+  copyText(text);
+});
+
+/* =======================
+   Downloads (localStorage -> cv.html)
+   Not: cv.html senin beklediğin format "resumeai_cvdata"
+======================= */
+function getOptimizedTextClean(){
+  let optimized = (document.getElementById("optimized")?.textContent || "");
+  optimized = optimized.replace(/\n?\s*META\s*:[\s\S]*$/i, "");
+  optimized = optimized.replace(/\n?\s*META\s*\{[\s\S]*$/i, "");
+  return optimized.trim();
+}
+
+/* Minimal parser: boş kalmasın diye.
+   (İstersen sonra eski uzun parser’ını geri koyarız.) */
+function buildCvDataFromOptimizedText(optimizedText){
+  const t = (optimizedText || "").trim();
+  return {
+    basics: {
+      fullName: "Your Name",
+      title: "",
+      location: "",
+      phone: "",
+      email: "",
+      links: [],
+      photoUrl: ""
+    },
+    summary: "",
+    skills: [],
+    experience: [],
+    projects: [],
+    education: [],
+    certificates: [],
+    languages: [],
+    raw: t,
+    meta: { accent: "#6366F1", includePhoto: false }
+  };
+}
+
+function saveCvDataToLocalStorage(cvData){
+  localStorage.setItem("resumeai_cvdata", JSON.stringify(cvData));
+}
+function goToCvPreview(mode){
+  window.location.href = `/cv.html#mode=${mode}`;
+}
+
+document.getElementById("downloadAts")?.addEventListener("click", ()=>{
+  const qs = new URLSearchParams(location.search);
+  const isPreview = qs.get("preview") === "1";
+  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+
+  const optimized = getOptimizedTextClean();
+  if (!optimized) return alert("Optimized CV is empty.");
+
+  const cvData = buildCvDataFromOptimizedText(optimized);
+  saveCvDataToLocalStorage(cvData);
+  goToCvPreview("ats");
+});
+
+document.getElementById("downloadModern")?.addEventListener("click", ()=>{
+  const qs = new URLSearchParams(location.search);
+  const isPreview = qs.get("preview") === "1";
+  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+
+  const optimized = getOptimizedTextClean();
+  if (!optimized) return alert("Optimized CV is empty.");
+
+  const cvData = buildCvDataFromOptimizedText(optimized);
+  saveCvDataToLocalStorage(cvData);
+  goToCvPreview("design");
+});
 </script>
 </body>
 </html>
