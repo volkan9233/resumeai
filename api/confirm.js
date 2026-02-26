@@ -21,6 +21,26 @@ export default async function handler(req, res) {
 
     const { order_id, email } = req.query || {};
     if (!email) return res.status(400).json({ error: "email required" });
+    // ✅ TEMP TEST BYPASS (remove/disable later)
+if (req.query.force === "1" && process.env.FORCE_UNLOCK_KEY) {
+  if (req.query.key !== process.env.FORCE_UNLOCK_KEY) {
+    return res.status(401).json({ error: "Bad force key" });
+  }
+
+  const ehash_force = sha256(String(email).trim().toLowerCase());
+
+  const tokenPayload = JSON.stringify({
+    e: ehash_force,
+    exp: Date.now() + 365 * 24 * 60 * 60 * 1000
+  });
+  const token = sign(tokenPayload, appSecret);
+
+  res.setHeader("Set-Cookie", [
+    `resumeai_session=${token}; Path=/; Max-Age=${365 * 24 * 60 * 60}; Secure; SameSite=Lax; HttpOnly`
+  ]);
+
+  return res.status(200).json({ ok: true, forced: true });
+}
 
     const ehash = sha256(String(email).trim().toLowerCase());
 
