@@ -44,13 +44,13 @@ if (req.query.force === "1" && process.env.FORCE_UNLOCK_KEY) {
 
     const ehash = sha256(String(email).trim().toLowerCase());
 
-    // 1) Eğer order_id geliyorsa onu da kontrol edelim (daha sağlam)
     if (order_id) {
-      const saved = await redis.get(`resumeai:paid:order:${order_id}`);
-      if (!saved || String(saved) !== ehash) {
-        return res.status(401).json({ error: "Order not recognized" });
-      }
-    }
+  const saved = await redis.get(`resumeai:paid:order:${order_id}`);
+  // order eşleşmiyorsa sadece WARN geç, email paid'e bak
+  if (saved && String(saved) !== ehash) {
+    return res.status(401).json({ error: "Order not recognized" });
+  }
+}
 
     // 2) Email satın aldı mı?
     const paid = await redis.get(`resumeai:paid:email:${ehash}`);
