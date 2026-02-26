@@ -464,6 +464,7 @@ document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
   copyText(text);
 });
 
+<script>
 /* =======================
    Downloads (localStorage -> cv.html)
 ======================= */
@@ -478,8 +479,8 @@ function buildCvDataFromOptimizedText(optimizedText){
   const text = String(optimizedText || "").replace(/\r/g, "").trim();
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-  // --- helpers ---
   const norm = (s) => String(s || "").trim();
+
   const isHeading = (l) => {
     const u = l.toUpperCase().replace(/[:：]$/, "").trim();
     const H = new Set([
@@ -524,38 +525,43 @@ function buildCvDataFromOptimizedText(optimizedText){
   };
 
   const pickLocation = () => {
-    // naive: a line containing comma city/country and not heading/bullet
-    for (const l of lines.slice(0, 8)) {
+    for (const l of lines.slice(0, 10)) {
       if (isHeading(l) || isBullet(l)) continue;
       if (/[A-Za-zÇĞİÖŞÜçğıöşü]+,\s*[A-Za-zÇĞİÖŞÜçğıöşü]+/.test(l)) return l;
     }
     return "";
   };
 
-  // --- sectionize ---
-  const sections = { contact: [], summary: [], skills: [], experience: [], projects: [], education: [], certificates: [], languages: [], other: [] };
+  // sectionize
+  const sections = {
+    contact: [],
+    summary: [],
+    skills: [],
+    experience: [],
+    projects: [],
+    education: [],
+    certificates: [],
+    languages: [],
+    other: []
+  };
 
   let cur = "other";
-  for (let i=0; i<lines.length; i++){
-    const l = lines[i];
-
+  for (const l of lines) {
     if (isHeading(l)) {
       cur = headingKey(l);
       continue;
     }
-
     sections[cur].push(l);
   }
 
-  // --- basics ---
+  // basics: fullName/title
   let fullName = "";
   let title = "";
 
-  // Heuristic: first 1-3 non-heading lines at top often contain name/title
-  // Name: first line if it looks like "First Last" (no @, no |, not a bullet)
-  for (const l of lines.slice(0, 6)) {
+  for (const l of lines.slice(0, 8)) {
     if (isHeading(l) || isBullet(l)) continue;
     if (/@/.test(l)) continue;
+
     if (!fullName && /^[A-Za-zÇĞİÖŞÜçğıöşü]+(?:\s+[A-Za-zÇĞİÖŞÜçğıöşü'.-]+){1,3}$/.test(l)) {
       fullName = l;
       continue;
@@ -570,108 +576,71 @@ function buildCvDataFromOptimizedText(optimizedText){
   const phone = pickPhone();
   const location = pickLocation();
 
-  // --- summary ---
-  const summaryLines = sections.summary.length ? sections.summary : [];
-  const summary = summaryLines
+  // summary
+  const summary = (sections.summary || [])
     .map(l => isBullet(l) ? stripBullet(l) : l)
     .join("\n")
     .trim();
 
-  // --- skills ---
-  // Accept bullets or comma-separated lines
+  // skills
   let skills = [];
-  const skillLines = sections.skills;
-
-  if (skillLines.length) {
-    for (const l of skillLines) {
-      if (isBullet(l)) {
-        skills.push(stripBullet(l));
-      } else if (l.includes(",")) {
-        l.split(",").map(s => s.trim()).filter(Boolean).forEach(s => skills.push(s));
-      } else {
-        // single token/phrase line
-        skills.push(l);
-      }
-    }
+  for (const l of (sections.skills || [])) {
+    if (isBullet(l)) skills.push(stripBullet(l));
+    else if (l.includes(",")) l.split(",").map(x => x.trim()).filter(Boolean).forEach(x => skills.push(x));
+    else skills.push(l);
   }
-
   skills = [...new Set(skills.map(norm).filter(Boolean))];
 
-  // --- experience parser ---
-  // pattern:
-  // Role
-  // Company | 2021 – Present
-  // - bullet
-  // next role...
-  const experience = [];
-  const expLines = sections.experience;
-
+  // experience parser
   function parseDateRange(s){
-    // "2021 – Present" or "2018 - 2021"
-    const t = s.replace(/\u2013|\u2014/g, "-").replace(/\s+/g, " ").trim();
+    const t = String(s || "").replace(/\u2013|\u2014/g, "-").replace(/\s+/g, " ").trim();
     const m = t.match(/(\b\d{4}\b|\b[A-Za-z]{3,9}\s+\d{4}\b)\s*-\s*(Present|\b\d{4}\b|\b[A-Za-z]{3,9}\s+\d{4}\b)/i);
     if (!m) return { start:"", end:"" };
     return { start:m[1], end:m[2] };
   }
 
+  const experience = [];
+  const expLines = sections.experience || [];
   let i = 0;
+
   while (i < expLines.length) {
-    // find a probable role line (non-bullet, not too long)
-    let roleLine = expLines[i];
+    const roleLine = expLines[i];
     if (isBullet(roleLine) || isHeading(roleLine)) { i++; continue; }
 
-    // candidate role
     const role = roleLine;
-    let company = "";
-    let start = "";
-    let end = "";
-    let bullets = [];
+    let company = "", start = "", end = "";
+    const bullets = [];
 
-    // next line might be "Company | dates" or "Company — dates"
     const next = expLines[i+1] || "";
     const next2 = expLines[i+2] || "";
 
-    const sepLine = next;
-    const sepNorm = sepLine.replace(/\u2013|\u2014/g, "-");
-
-    if (sepLine && !isBullet(sepLine) && (sepLine.includes("|") || sepLine.includes(" - ") || /\b\d{4}\b/.test(sepLine))) {
-      // try split by |
-      if (sepLine.includes("|")) {
-        const [cPart, dPart] = sepLine.split("|").map(s => s.trim());
+    if (next && !isBullet(next) && (next.includes("|") || /\b\d{4}\b/.test(next))) {
+      if (next.includes("|")) {
+        const [cPart, dPart] = next.split("|").map(s => s.trim());
         company = cPart || "";
         const dr = parseDateRange(dPart || "");
         start = dr.start; end = dr.end;
       } else {
-        // try last " - " piece as date range
-        const dr = parseDateRange(sepNorm);
+        const dr = parseDateRange(next);
         start = dr.start; end = dr.end;
-        company = sepLine.replace(/(\b\d{4}\b.*)$/,"").trim();
+        company = next.replace(/(\b\d{4}\b.*)$/,"").trim();
       }
       i += 2;
-    } else if (next && !isBullet(next) && next2 && !isBullet(next2) && (next2.includes("|") || /\b\d{4}\b/.test(next2))) {
-      // sometimes:
-      // Role
-      // Company
-      // 2021 – Present
+    } else if (next && !isBullet(next) && next2 && !isBullet(next2) && /\b\d{4}\b/.test(next2)) {
       company = next.trim();
       const dr = parseDateRange(next2);
       start = dr.start; end = dr.end;
       i += 3;
     } else {
-      // fallback: no company line
       i += 1;
     }
 
-    // collect bullets until next probable role/heading
     while (i < expLines.length) {
       const l = expLines[i];
       if (isHeading(l)) break;
 
-      // stop when a new role starts: non-bullet + next line looks like company/date
       const nl = expLines[i+1] || "";
-      if (!isBullet(l) && !isHeading(l) && nl && !isBullet(nl) && (nl.includes("|") || /\b\d{4}\b/.test(nl))) {
-        break;
-      }
+      if (!isBullet(l) && nl && !isBullet(nl) && (nl.includes("|") || /\b\d{4}\b/.test(nl))) break;
 
       if (isBullet(l)) bullets.push(stripBullet(l));
       i++;
@@ -684,16 +653,15 @@ function buildCvDataFromOptimizedText(optimizedText){
         start: start || "",
         end: end || "",
         location: "",
-        bullets: bullets.filter(Boolean),
+        bullets: bullets.filter(Boolean)
       });
     }
   }
 
-  // --- projects ---
+  // projects
   const projects = [];
-  const projLines = sections.projects;
+  const projLines = sections.projects || [];
   if (projLines.length) {
-    // simple: each non-bullet line starts a project, bullets follow
     let curP = null;
     for (const l of projLines) {
       if (!isBullet(l)) {
@@ -706,42 +674,37 @@ function buildCvDataFromOptimizedText(optimizedText){
     if (curP) projects.push(curP);
   }
 
-  // --- education ---
+  // education
   const education = [];
-  const eduLines = sections.education;
+  const eduLines = sections.education || [];
   if (eduLines.length) {
-    // try split "School | Degree | dates"
     let curE = null;
     for (const l of eduLines) {
       if (isBullet(l)) continue;
-      if (!curE) {
-        curE = { school: l, degree: "", start: "", end: "", details: [] };
+
+      if (!curE) curE = { school: l, degree: "", start: "", end: "", details: [] };
+      else if (/\b(19|20)\d{2}\b/.test(l) && !curE.start) {
+        const dr = parseDateRange(l);
+        curE.start = dr.start; curE.end = dr.end;
+      } else if (!curE.degree && l.length <= 80) {
+        curE.degree = l;
       } else {
-        // if line has year range, treat as dates/detail
-        if (/\b(19|20)\d{2}\b/.test(l) && !curE.start) {
-          const dr = parseDateRange(l);
-          curE.start = dr.start; curE.end = dr.end;
-        } else if (!curE.degree && l.length <= 80) {
-          curE.degree = l;
-        } else {
-          curE.details.push(l);
-        }
+        curE.details.push(l);
       }
     }
     if (curE) education.push(curE);
   }
 
-  // --- certificates ---
+  // certificates
   const certificates = [];
-  const certLines = sections.certificates;
+  const certLines = sections.certificates || [];
   for (const l of certLines) {
-    if (isBullet(l)) certificates.push({ name: stripBullet(l), issuer: "", year: "" });
-    else certificates.push({ name: l, issuer: "", year: "" });
+    certificates.push({ name: isBullet(l) ? stripBullet(l) : l, issuer: "", year: "" });
   }
 
-  // --- languages ---
+  // languages
   let languages = [];
-  const langLines = sections.languages;
+  const langLines = sections.languages || [];
   for (const l of langLines) {
     if (isBullet(l)) languages.push(stripBullet(l));
     else if (l.includes(",")) l.split(",").map(x=>x.trim()).filter(Boolean).forEach(x=>languages.push(x));
@@ -749,10 +712,10 @@ function buildCvDataFromOptimizedText(optimizedText){
   }
   languages = [...new Set(languages.map(norm).filter(Boolean))];
 
-  // fallback name/title from email prefix if name missing
+  // fallback name from email prefix
   if (!fullName && email) {
     const p = email.split("@")[0].replace(/[._-]+/g, " ").trim();
-    if (p && p.length <= 40) fullName = p.split(" ").map(w=>w ? (w[0].toUpperCase()+w.slice(1)) : "").join(" ");
+    if (p && p.length <= 40) fullName = p.split(" ").map(w => w ? (w[0].toUpperCase()+w.slice(1)) : "").join(" ");
   }
 
   return {
@@ -766,12 +729,12 @@ function buildCvDataFromOptimizedText(optimizedText){
       photoUrl: ""
     },
     summary: summary || "",
-    skills: skills,
-    experience: experience,
-    projects: projects,
-    education: education,
-    certificates: certificates,
-    languages: languages,
+    skills,
+    experience,
+    projects,
+    education,
+    certificates,
+    languages,
     raw: text,
     meta: { accent: "#6366F1", includePhoto: false }
   };
@@ -780,6 +743,7 @@ function buildCvDataFromOptimizedText(optimizedText){
 function saveCvDataToLocalStorage(cvData){
   localStorage.setItem("resumeai_cvdata", JSON.stringify(cvData));
 }
+
 function goToCvPreview(mode){
   window.location.href = `/cv.html#mode=${mode}`;
 }
