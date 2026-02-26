@@ -24,7 +24,7 @@ export default async function handler(req, res) {
 
     const ehash = sha256(String(email).trim().toLowerCase());
 
-    // 1) (Opsiyonel) order_id kontrolü: varsa ve redis'te kayıtlıysa eşleşmeli
+    // 1) order_id varsa: redis'te kayıtlıysa eşleşmeli (kayıt yoksa bloklama)
     if (order_id) {
       const saved = await redis.get(`resumeai:paid:order:${order_id}`);
       if (saved && String(saved) !== ehash) {
@@ -32,39 +32,33 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2) Email satın aldı mı?
+    // 2) email paid mi?
     const paid = await redis.get(`resumeai:paid:email:${ehash}`);
     if (String(paid) !== "1") {
       return res.status(401).json({ error: "Not paid" });
     }
 
-    // 3) 1 yıl geçerli session token üret
+    // 3) token üret (1 yıl)
     const tokenPayload = JSON.stringify({
       e: ehash,
       exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
     });
     const token = sign(tokenPayload, appSecret);
 
-    // 4) Cookie set
+    // 4) cookie set (HOST-ONLY: Domain koymuyoruz → Safari/edge case daha stabil)
     const isProd = process.env.NODE_ENV === "production";
-
-    const cookieParts = [
+    const parts = [
       `resumeai_session=${encodeURIComponent(token)}`,
       "Path=/",
       `Max-Age=${365 * 24 * 60 * 60}`,
       "SameSite=Lax",
       "HttpOnly",
-      "Domain=.resumeai.work",
     ];
+    if (isProd) parts.push("Secure");
 
-    if (isProd) cookieParts.push("Secure");
-
-    res.setHeader("Set-Cookie", cookieParts.join("; "));
-
+    res.setHeader("Set-Cookie", parts.join("; "));
     return res.status(200).json({ ok: true });
   } catch (e) {
-    return res
-      .status(500)
-      .json({ error: "Confirm error", details: e?.message || String(e) });
+    return res.status(500).json({ error: "Confirm error", details: e?.message || String(e) });
   }
 }
