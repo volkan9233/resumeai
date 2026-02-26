@@ -152,10 +152,28 @@
   // ✅ Lemon dönüşünde unlock
 (function(){
   const qs = new URLSearchParams(location.search);
-  if (qs.get("paid") === "1") {
+  (async function(){
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("paid") !== "1") return;
+
+  const order_id = qs.get("order_id") || "";
+  const email = qs.get("email") || "";
+  if (!email) return; // email yoksa confirm yapma
+
+  try {
+    const r = await fetch(`/api/confirm?order_id=${encodeURIComponent(order_id)}&email=${encodeURIComponent(email)}`, {
+      method: "GET",
+      credentials: "include"
+    });
+    if (!r.ok) throw new Error("confirm failed");
+
+    // İstersen sadece UI için local flag kalsın
     localStorage.setItem("resumeai_unlocked", "1");
-    // istersen URL'i temizle:
-    // history.replaceState({}, "", location.pathname + location.hash);
+
+    // URL temizle
+    history.replaceState({}, "", "/analyze.html");
+  } catch(e) {
+    console.warn(e);
   }
 })();
 /* ---------- Global i18n strings (FULL mode only) ---------- */
