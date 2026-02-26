@@ -10,9 +10,10 @@ function verifySession(req) {
   if (!m) return false;
 
   const token = decodeURIComponent(m[1]);
-  const [data, sig] = token.split(".");
-  if (!data || !sig) return false;
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
 
+  const [data, sig] = parts;
   const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
   if (sig !== expected) return false;
 
@@ -27,6 +28,10 @@ function verifySession(req) {
 }
 
 export default function handler(req, res) {
+  // ✅ iOS/Safari 304 cache'i bitir
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+
   const ok = verifySession(req);
   return res.status(200).json({ unlocked: ok });
 }
