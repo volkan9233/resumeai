@@ -1,18 +1,23 @@
-const RL = globalThis.__resumeai_rl || (globalThis.__resumeai_rl = new Map());
+import { Redis } from "@upstash/redis";
+import { Ratelimit } from "@upstash/ratelimit";
 
-function rateLimit(key, limit, windowMs) {
-  const now = Date.now();
-  const item = RL.get(key) || { count: 0, reset: now + windowMs };
-  if (now > item.reset) {
-    item.count = 0;
-    item.reset = now + windowMs;
-  }
-  item.count += 1;
-  RL.set(key, item);
-  return { ok: item.count <= limit, reset: item.reset };
-}
+const redis = Redis.fromEnv();
 
-function getClientIp(req){
+// Preview: 10 dakika / 3
+const rlPreview = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(3, "10 m"),
+  prefix: "resumeai:rl:preview",
+});
+
+// Full: 1 dakika / 3
+const rlFull = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(3, "1 m"),
+  prefix: "resumeai:rl:full",
+});
+
+function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
   return req.socket?.remoteAddress || "unknown";
@@ -27,20 +32,17 @@ export default async function handler(req, res) {
     const { cv, jd, preview, lang } = req.body || {};
     const isPreview = !!preview;
 
-    // ✅ Rate limit
+    // ✅ Upstash Rate limit
     const ip = getClientIp(req);
-    const key = `${ip}:${isPreview ? "preview" : "full"}`;
+    const limiter = isPreview ? rlPreview : rlFull;
 
-    // Try: 10 dakikada 1 | Full: 1 dakikada 3
-    const limit = isPreview ? 1 : 3;
-    const windowMs = isPreview ? 10 * 60 * 1000 : 60 * 1000;
+    const { success, reset } = await limiter.limit(ip);
 
-    const { ok, reset } = rateLimit(key, limit, windowMs);
-    if (!ok) {
-      const retrySec = Math.ceil((reset - Date.now()) / 1000);
+    if (!success) {
+      const retrySec = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
       return res.status(429).json({
         error: "Too many requests",
-        retry_after_seconds: retrySec
+        retry_after_seconds: retrySec,
       });
     }
 
@@ -66,7 +68,8 @@ export default async function handler(req, res) {
       zh: "Chinese (Simplified)",
     };
 
-    const langCode = (typeof lang === "string" && lang.trim()) ? lang.trim().toLowerCase() : "en";
+    const langCode =
+      typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
     const outLang = LANG_MAP[langCode] || "English";
 
     // ✅ Strong system instruction: one language only
@@ -206,7 +209,9 @@ ${jd}
       missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
       weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
       summary: typeof data?.summary === "string" ? data.summary : "",
-      ...(isPreview ? {} : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
+      ...(isPreview
+        ? {}
+        : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
     };
 
     if (isPreview) {
@@ -220,6 +225,8 @@ ${jd}
 
     return res.status(200).json(normalized);
   } catch (err) {
-    return res.status(500).json({ error: "Server error", details: err?.message || String(err) });
+    return res
+      .status(500)
+      .json({ error: "Server error", details: err?.message || String(err) });
   }
 }
