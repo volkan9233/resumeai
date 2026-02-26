@@ -47,7 +47,7 @@ export default async function handler(req, res) {
 
     // Cookie (frontend bunu okuyamaz ama /api/analyze okuyabilir)
     res.setHeader("Set-Cookie", [
-      `resumeai_session=${token}; Path=/; Max-Age=${365 * 24 * 60 * 60}; Secure; SameSite=Lax`
+      `resumeai_session=${token}; Path=/; Max-Age=${365 * 24 * 60 * 60}; Secure; SameSite=Lax; HttpOnly`
     ]);
 
     return res.status(200).json({ ok: true });
