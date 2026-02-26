@@ -154,21 +154,38 @@ window.onerror = function (msg, src, line, col) {
   if (s) s.textContent = "JS ERROR: " + msg + " (line " + line + ")";
 };
   // ✅ Lemon dönüşünde unlock
-(function(){
-  const qs = new URLSearchParams(location.search);
-  (async function(){
+// ✅ Lemon dönüşünde confirm + unlock
+window.onerror = function (msg, src, line, col) {
+  const s = document.getElementById("status");
+  if (s) s.textContent = "JS ERROR: " + msg + " (line " + line + ")";
+};
+
+(async function(){
   const qs = new URLSearchParams(location.search);
   if (qs.get("paid") !== "1") return;
 
   const order_id = qs.get("order_id") || "";
   const email = qs.get("email") || "";
-  if (!email) return; // email yoksa confirm yapma
+  if (!email) return;
 
   try {
     const r = await fetch(`/api/confirm?order_id=${encodeURIComponent(order_id)}&email=${encodeURIComponent(email)}`, {
       method: "GET",
       credentials: "include"
     });
+    if (!r.ok) throw new Error("confirm failed");
+
+    // UI için
+    localStorage.setItem("resumeai_unlocked", "1");
+
+    // URL temizle (query'leri kaldır)
+    history.replaceState({}, "", "/analyze.html");
+  } catch(e) {
+    console.warn(e);
+    const s = document.getElementById("status");
+    if (s) s.textContent = "Confirm error. Check /api/confirm logs.";
+  }
+})();
     if (!r.ok) throw new Error("confirm failed");
 
     // İstersen sadece UI için local flag kalsın
