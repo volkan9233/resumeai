@@ -163,7 +163,21 @@ window.onerror = function (msg, src, line, col) {
 };
 
 /* =======================
+   Unlock state from server
+======================= */
+async function fetchUnlockState() {
+  try {
+    const r = await fetch("/api/me", { method: "GET", credentials: "include" });
+    const j = await r.json().catch(() => ({}));
+    window.__unlocked = !!j.unlocked;
+  } catch {
+    window.__unlocked = false;
+  }
+}
+
+/* =======================
    Lemon paid=1 => confirm
+   IMPORTANT: after 200 → full navigation to apply cookie reliably
 ======================= */
 (async function confirmIfPaid() {
   try {
@@ -180,12 +194,15 @@ window.onerror = function (msg, src, line, col) {
     );
 
     if (!r.ok) {
-  const t = await r.text();
-  throw new Error("confirm failed: " + t);
-}
+      const t = await r.text();
+      throw new Error("confirm failed: " + t);
+    }
 
+    // UX: localStorage sadece UI içindir; gerçek unlock server cookie ile
     localStorage.setItem("resumeai_unlocked", "1");
-    history.replaceState({}, "", "/analyze.html");
+
+    // 🔥 CRITICAL: cookie'yi garanti kullanmak için tam sayfa yönlendirme
+    window.location.replace("/analyze.html");
   } catch (e) {
     console.warn(e);
     const s = document.getElementById("status");
@@ -199,54 +216,10 @@ window.onerror = function (msg, src, line, col) {
 (function applyAnalyzeI18n(){
   const qs = new URLSearchParams(location.search);
   const lang = (qs.get("lang") || "en").toLowerCase();
-  const isPreview = qs.get("preview") === "1";
-  if (isPreview) return;
 
   const I18N = {
-    en: {
-      back: "← Back",
-      title: "ATS Analysis",
-      subtitle: "Paste your resume and the job description. We’ll return a structured analysis + optimized version.",
-      resumeHint: "Resume (paste text)",
-      resumePh: "Paste your resume here...",
-      jobHint: "Job description (paste text)",
-      jobPh: "Paste the job description here...",
-      analyze: "Analyze",
-      done: "Done.",
-      scoreLabel: "ATS Match Score:",
-      missing: "Missing Keywords",
-      weak: "Weak / Vague Phrases",
-      optimized: "Optimized Resume (ATS + Recruiter-ready)",
-      copyKw: "Copy Keywords",
-      copyWeak: "Copy Weak",
-      copyOpt: "Copy Optimized",
-      dlAts: "Download ATS PDF",
-      dlModern: "Download Modern PDF",
-      needBoth: "Please paste both resume and job description.",
-      langLabel: "Select language",
-    },
-    tr: {
-      back: "← Geri",
-      title: "ATS Analizi",
-      subtitle: "CV’nizi ve iş ilanını yapıştırın. Yapılandırılmış analiz + optimize edilmiş CV döndürelim.",
-      resumeHint: "CV (metin yapıştır)",
-      resumePh: "CV’nizi buraya yapıştırın...",
-      jobHint: "İş ilanı (metin yapıştır)",
-      jobPh: "İş ilanını buraya yapıştırın...",
-      analyze: "Analiz Et",
-      done: "Tamamlandı.",
-      scoreLabel: "ATS Uyum Skoru:",
-      missing: "Eksik Anahtar Kelimeler",
-      weak: "Zayıf / Belirsiz İfadeler",
-      optimized: "Optimize CV (ATS + Recruiter-ready)",
-      copyKw: "Kelimeleri Kopyala",
-      copyWeak: "Zayıfları Kopyala",
-      copyOpt: "Optimizeyi Kopyala",
-      dlAts: "ATS PDF İndir",
-      dlModern: "Modern PDF İndir",
-      needBoth: "Lütfen hem CV hem iş ilanını yapıştırın.",
-      langLabel: "Dil seç",
-    },
+    en: { back:"← Back", title:"ATS Analysis", subtitle:"Paste your resume and the job description. We’ll return a structured analysis + optimized version.", resumeHint:"Resume (paste text)", resumePh:"Paste your resume here...", jobHint:"Job description (paste text)", jobPh:"Paste the job description here...", analyze:"Analyze", done:"Done.", scoreLabel:"ATS Match Score:", missing:"Missing Keywords", weak:"Weak / Vague Phrases", optimized:"Optimized Resume (ATS + Recruiter-ready)", copyKw:"Copy Keywords", copyWeak:"Copy Weak", copyOpt:"Copy Optimized", dlAts:"Download ATS PDF", dlModern:"Download Modern PDF", needBoth:"Please paste both resume and job description.", langLabel:"Select language" },
+    tr: { back:"← Geri", title:"ATS Analizi", subtitle:"CV’nizi ve iş ilanını yapıştırın. Yapılandırılmış analiz + optimize edilmiş CV döndürelim.", resumeHint:"CV (metin yapıştır)", resumePh:"CV’nizi buraya yapıştırın...", jobHint:"İş ilanı (metin yapıştır)", jobPh:"İş ilanını buraya yapıştırın...", analyze:"Analiz Et", done:"Tamamlandı.", scoreLabel:"ATS Uyum Skoru:", missing:"Eksik Anahtar Kelimeler", weak:"Zayıf / Belirsiz İfadeler", optimized:"Optimize CV (ATS + Recruiter-ready)", copyKw:"Kelimeleri Kopyala", copyWeak:"Zayıfları Kopyala", copyOpt:"Optimizeyi Kopyala", dlAts:"ATS PDF İndir", dlModern:"Modern PDF İndir", needBoth:"Lütfen hem CV hem iş ilanını yapıştırın.", langLabel:"Dil seç" },
     es: { back:"← Volver", title:"Análisis ATS", subtitle:"Pega tu CV y la descripción del puesto. Devolveremos un análisis estructurado + CV optimizado.", resumeHint:"CV (pegar texto)", resumePh:"Pega tu CV aquí...", jobHint:"Descripción del puesto (pegar texto)", jobPh:"Pega la descripción del puesto aquí...", analyze:"Analizar", done:"Listo.", scoreLabel:"Puntuación ATS:", missing:"Palabras clave faltantes", weak:"Frases débiles / vagas", optimized:"CV optimizado (ATS + listo para reclutador)", copyKw:"Copiar keywords", copyWeak:"Copiar débiles", copyOpt:"Copiar optimizado", dlAts:"Descargar PDF ATS", dlModern:"Descargar PDF Moderno", needBoth:"Por favor pega el CV y la descripción.", langLabel:"Seleccionar idioma" },
     ru: { back:"← Назад", title:"ATS Анализ", subtitle:"Вставьте резюме и описание вакансии. Вернём структурированный анализ + оптимизированное резюме.", resumeHint:"Резюме (вставьте текст)", resumePh:"Вставьте резюме здесь...", jobHint:"Описание вакансии (вставьте текст)", jobPh:"Вставьте описание вакансии здесь...", analyze:"Анализировать", done:"Готово.", scoreLabel:"ATS Совпадение:", missing:"Недостающие ключевые слова", weak:"Слабые / расплывчатые формулировки", optimized:"Оптимизированное резюме (ATS + recruiter-ready)", copyKw:"Копировать ключевые", copyWeak:"Копировать слабые", copyOpt:"Копировать оптим.", dlAts:"Скачать ATS PDF", dlModern:"Скачать Modern PDF", needBoth:"Пожалуйста вставьте и резюме, и описание вакансии.", langLabel:"Выберите язык" },
     fr: { back:"← Retour", title:"Analyse ATS", subtitle:"Collez votre CV et l’offre d’emploi. Nous renverrons une analyse structurée + un CV optimisé.", resumeHint:"CV (coller le texte)", resumePh:"Collez votre CV ici...", jobHint:"Offre d’emploi (coller le texte)", jobPh:"Collez l’offre d’emploi ici...", analyze:"Analyser", done:"Terminé.", scoreLabel:"Score ATS :", missing:"Mots-clés manquants", weak:"Phrases faibles / vagues", optimized:"CV optimisé (ATS + recruiter-ready)", copyKw:"Copier mots-clés", copyWeak:"Copier faibles", copyOpt:"Copier optimisé", dlAts:"Télécharger ATS PDF", dlModern:"Télécharger Modern PDF", needBoth:"Veuillez coller le CV et l’offre d’emploi.", langLabel:"Choisir la langue" },
@@ -292,6 +265,32 @@ window.onerror = function (msg, src, line, col) {
 })();
 
 /* =======================
+   Preview UI sync with server
+======================= */
+async function syncPreviewUI() {
+  await fetchUnlockState();
+
+  const forcedPreview = new URLSearchParams(location.search).get("preview") === "1";
+  const isPreview = forcedPreview || !window.__unlocked;
+
+  // Banner / Locks UI
+  const banner = document.getElementById("previewBanner");
+  const kwNote = document.getElementById("kwPreviewNote");
+  const lw = document.getElementById("lockWeak");
+  const lo = document.getElementById("lockOpt");
+
+  if (banner) banner.style.display = isPreview ? "block" : "none";
+  if (kwNote) kwNote.style.display = isPreview ? "block" : "none";
+  if (lw) lw.style.display = isPreview ? "inline" : "none";
+  if (lo) lo.style.display = isPreview ? "inline" : "none";
+
+  window.__isPreview = isPreview;
+
+  const s = document.getElementById("status");
+  if (s) s.textContent = isPreview ? "Preview Mode 🔒" : "Full Mode ✅";
+}
+
+/* =======================
    run()
 ======================= */
 async function run(){
@@ -302,8 +301,10 @@ async function run(){
   const spinner = document.getElementById("spinner");
 
   const qs = new URLSearchParams(location.search);
-  const isPreview = qs.get("preview") === "1";
   const lang = qs.get("lang") || "en";
+
+  // 🔥 preview server-state driven (forced by ?preview=1 OR locked)
+  const isPreview = !!window.__isPreview;
 
   if(!resume || !job){
     status.textContent = window.__needBoth || "Please paste both resume and job description.";
@@ -341,14 +342,6 @@ async function run(){
       }
       const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
       throw new Error(msg);
-    }
-
-    // preview banner / locks
-    if (isPreview) {
-      document.getElementById("previewBanner")?.style && (document.getElementById("previewBanner").style.display = "block");
-      document.getElementById("kwPreviewNote")?.style && (document.getElementById("kwPreviewNote").style.display = "block");
-      const lw = document.getElementById("lockWeak"); if (lw) lw.style.display = "inline";
-      const lo = document.getElementById("lockOpt");  if (lo) lo.style.display = "inline";
     }
 
     // SCORE
@@ -397,9 +390,10 @@ async function run(){
 }
 
 /* =======================
-   Bind button click
+   Bind button click + init
 ======================= */
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await syncPreviewUI();
   const btn = document.getElementById("btn");
   if (!btn) return;
   btn.addEventListener("click", () => {
@@ -410,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* =======================
-   Lang bar renderer
+   Lang bar renderer (keep preview param if present)
 ======================= */
 (function(){
   const bar = document.getElementById("langBar");
@@ -442,7 +436,8 @@ document.addEventListener("DOMContentLoaded", () => {
     bar.appendChild(a);
   });
 })();
-  /* =======================
+
+/* =======================
    Copy helpers
 ======================= */
 function copyText(text){
@@ -471,7 +466,6 @@ document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
 
 /* =======================
    Downloads (localStorage -> cv.html)
-   Not: cv.html senin beklediğin format "resumeai_cvdata"
 ======================= */
 function getOptimizedTextClean(){
   let optimized = (document.getElementById("optimized")?.textContent || "");
@@ -480,20 +474,10 @@ function getOptimizedTextClean(){
   return optimized.trim();
 }
 
-/* Minimal parser: boş kalmasın diye.
-   (İstersen sonra eski uzun parser’ını geri koyarız.) */
 function buildCvDataFromOptimizedText(optimizedText){
   const t = (optimizedText || "").trim();
   return {
-    basics: {
-      fullName: "Your Name",
-      title: "",
-      location: "",
-      phone: "",
-      email: "",
-      links: [],
-      photoUrl: ""
-    },
+    basics: { fullName: "Your Name", title: "", location: "", phone: "", email: "", links: [], photoUrl: "" },
     summary: "",
     skills: [],
     experience: [],
@@ -514,9 +498,7 @@ function goToCvPreview(mode){
 }
 
 document.getElementById("downloadAts")?.addEventListener("click", ()=>{
-  const qs = new URLSearchParams(location.search);
-  const isPreview = qs.get("preview") === "1";
-  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+  if (window.__isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
 
   const optimized = getOptimizedTextClean();
   if (!optimized) return alert("Optimized CV is empty.");
@@ -527,9 +509,7 @@ document.getElementById("downloadAts")?.addEventListener("click", ()=>{
 });
 
 document.getElementById("downloadModern")?.addEventListener("click", ()=>{
-  const qs = new URLSearchParams(location.search);
-  const isPreview = qs.get("preview") === "1";
-  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+  if (window.__isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
 
   const optimized = getOptimizedTextClean();
   if (!optimized) return alert("Optimized CV is empty.");
