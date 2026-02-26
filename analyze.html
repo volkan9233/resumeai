@@ -149,76 +149,54 @@
   </div>
 
 <script>
-  // ✅ PROBE: JS yükleniyor mu?
-const __s = document.getElementById("status");
-if (__s) __s.textContent = "JS LOADED ✅";
-console.log("JS LOADED ✅", new Date().toISOString());
-window.__JS_LOADED = true;
-  // ✅ Button bind (onclick yok)
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("btn");
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    const s = document.getElementById("status");
-    if (s) s.textContent = "CLICK ✅ running...";
-    run();
-  });
-});
-window.onerror = function (msg, src, line, col) {
+/* =======================
+   PROBE + global error
+======================= */
+(function () {
   const s = document.getElementById("status");
-  if (s) s.textContent = "JS ERROR: " + msg + " (line " + line + ")";
-};
-  // ✅ Lemon dönüşünde unlock
-// ✅ Lemon dönüşünde confirm + unlock
+  if (s) s.textContent = "JS LOADED ✅";
+  console.log("JS LOADED ✅", new Date().toISOString());
+})();
 window.onerror = function (msg, src, line, col) {
   const s = document.getElementById("status");
   if (s) s.textContent = "JS ERROR: " + msg + " (line " + line + ")";
 };
 
-(async function(){
-  const qs = new URLSearchParams(location.search);
-  if (qs.get("paid") !== "1") return;
-
-  const order_id = qs.get("order_id") || "";
-  const email = qs.get("email") || "";
-  if (!email) return;
-
+/* =======================
+   Lemon paid=1 => confirm
+======================= */
+(async function confirmIfPaid() {
   try {
-    const r = await fetch(`/api/confirm?order_id=${encodeURIComponent(order_id)}&email=${encodeURIComponent(email)}`, {
-      method: "GET",
-      credentials: "include"
-    });
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("paid") !== "1") return;
+
+    const order_id = qs.get("order_id") || "";
+    const email = qs.get("email") || "";
+    if (!email) return;
+
+    const r = await fetch(
+      `/api/confirm?order_id=${encodeURIComponent(order_id)}&email=${encodeURIComponent(email)}`,
+      { method: "GET", credentials: "include" }
+    );
+
     if (!r.ok) throw new Error("confirm failed");
 
-    // UI için
     localStorage.setItem("resumeai_unlocked", "1");
-
-    // URL temizle (query'leri kaldır)
     history.replaceState({}, "", "/analyze.html");
-  } catch(e) {
+  } catch (e) {
     console.warn(e);
     const s = document.getElementById("status");
     if (s) s.textContent = "Confirm error. Check /api/confirm logs.";
   }
 })();
-    if (!r.ok) throw new Error("confirm failed");
 
-    // İstersen sadece UI için local flag kalsın
-    localStorage.setItem("resumeai_unlocked", "1");
-
-    // URL temizle
-    history.replaceState({}, "", "/analyze.html");
-  } catch(e) {
-    console.warn(e);
-  }
-})();
-/* ---------- Global i18n strings (FULL mode only) ---------- */
+/* =======================
+   i18n (FULL only)
+======================= */
 (function applyAnalyzeI18n(){
   const qs = new URLSearchParams(location.search);
   const lang = (qs.get("lang") || "en").toLowerCase();
   const isPreview = qs.get("preview") === "1";
-
-  // Sadece FULL modda çevir (preview=1 ise dokunma)
   if (isPreview) return;
 
   const I18N = {
@@ -266,116 +244,11 @@ window.onerror = function (msg, src, line, col) {
       needBoth: "Lütfen hem CV hem iş ilanını yapıştırın.",
       langLabel: "Dil seç",
     },
-    es: {
-      back: "← Volver",
-      title: "Análisis ATS",
-      subtitle: "Pega tu CV y la descripción del puesto. Devolveremos un análisis estructurado + CV optimizado.",
-      resumeHint: "CV (pegar texto)",
-      resumePh: "Pega tu CV aquí...",
-      jobHint: "Descripción del puesto (pegar texto)",
-      jobPh: "Pega la descripción del puesto aquí...",
-      analyze: "Analizar",
-      done: "Listo.",
-      scoreLabel: "Puntuación ATS:",
-      missing: "Palabras clave faltantes",
-      weak: "Frases débiles / vagas",
-      optimized: "CV optimizado (ATS + listo para reclutador)",
-      copyKw: "Copiar keywords",
-      copyWeak: "Copiar débiles",
-      copyOpt: "Copiar optimizado",
-      dlAts: "Descargar PDF ATS",
-      dlModern: "Descargar PDF Moderno",
-      needBoth: "Por favor pega el CV y la descripción.",
-      langLabel: "Seleccionar idioma",
-    },
-    ru: {
-      back: "← Назад",
-      title: "ATS Анализ",
-      subtitle: "Вставьте резюме и описание вакансии. Вернём структурированный анализ + оптимизированное резюме.",
-      resumeHint: "Резюме (вставьте текст)",
-      resumePh: "Вставьте резюме здесь...",
-      jobHint: "Описание вакансии (вставьте текст)",
-      jobPh: "Вставьте описание вакансии здесь...",
-      analyze: "Анализировать",
-      done: "Готово.",
-      scoreLabel: "ATS Совпадение:",
-      missing: "Недостающие ключевые слова",
-      weak: "Слабые / расплывчатые формулировки",
-      optimized: "Оптимизированное резюме (ATS + recruiter-ready)",
-      copyKw: "Копировать ключевые",
-      copyWeak: "Копировать слабые",
-      copyOpt: "Копировать оптим.",
-      dlAts: "Скачать ATS PDF",
-      dlModern: "Скачать Modern PDF",
-      needBoth: "Пожалуйста вставьте и резюме, и описание вакансии.",
-      langLabel: "Выберите язык",
-    },
-    fr: {
-      back: "← Retour",
-      title: "Analyse ATS",
-      subtitle: "Collez votre CV et l’offre d’emploi. Nous renverrons une analyse structurée + un CV optimisé.",
-      resumeHint: "CV (coller le texte)",
-      resumePh: "Collez votre CV ici...",
-      jobHint: "Offre d’emploi (coller le texte)",
-      jobPh: "Collez l’offre d’emploi ici...",
-      analyze: "Analyser",
-      done: "Terminé.",
-      scoreLabel: "Score ATS :",
-      missing: "Mots-clés manquants",
-      weak: "Phrases faibles / vagues",
-      optimized: "CV optimisé (ATS + recruiter-ready)",
-      copyKw: "Copier mots-clés",
-      copyWeak: "Copier faibles",
-      copyOpt: "Copier optimisé",
-      dlAts: "Télécharger ATS PDF",
-      dlModern: "Télécharger Modern PDF",
-      needBoth: "Veuillez coller le CV et l’offre d’emploi.",
-      langLabel: "Choisir la langue",
-    },
-    ar: {
-      back: "← رجوع",
-      title: "تحليل ATS",
-      subtitle: "الصق السيرة الذاتية ووصف الوظيفة. سنعيد تحليلاً منظماً + سيرة محسّنة.",
-      resumeHint: "السيرة الذاتية (الصق النص)",
-      resumePh: "الصق السيرة الذاتية هنا...",
-      jobHint: "وصف الوظيفة (الصق النص)",
-      jobPh: "الصق وصف الوظيفة هنا...",
-      analyze: "تحليل",
-      done: "تم.",
-      scoreLabel: "درجة توافق ATS:",
-      missing: "الكلمات المفتاحية الناقصة",
-      weak: "عبارات ضعيفة / غير واضحة",
-      optimized: "سيرة محسّنة (ATS + جاهزة للتوظيف)",
-      copyKw: "نسخ الكلمات",
-      copyWeak: "نسخ الضعيفة",
-      copyOpt: "نسخ المحسّنة",
-      dlAts: "تحميل ATS PDF",
-      dlModern: "تحميل Modern PDF",
-      needBoth: "يرجى لصق السيرة ووصف الوظيفة.",
-      langLabel: "اختر اللغة",
-    },
-    zh: {
-      back: "← 返回",
-      title: "ATS 分析",
-      subtitle: "粘贴简历与职位描述，我们将返回结构化分析 + 优化后的简历。",
-      resumeHint: "简历（粘贴文本）",
-      resumePh: "在这里粘贴你的简历...",
-      jobHint: "职位描述（粘贴文本）",
-      jobPh: "在这里粘贴职位描述...",
-      analyze: "分析",
-      done: "完成。",
-      scoreLabel: "ATS 匹配度：",
-      missing: "缺失关键词",
-      weak: "薄弱/模糊表述",
-      optimized: "优化简历（ATS + 招聘可用）",
-      copyKw: "复制关键词",
-      copyWeak: "复制薄弱项",
-      copyOpt: "复制优化简历",
-      dlAts: "下载 ATS PDF",
-      dlModern: "下载 Modern PDF",
-      needBoth: "请同时粘贴简历和职位描述。",
-      langLabel: "选择语言",
-    }
+    es: { back:"← Volver", title:"Análisis ATS", subtitle:"Pega tu CV y la descripción del puesto. Devolveremos un análisis estructurado + CV optimizado.", resumeHint:"CV (pegar texto)", resumePh:"Pega tu CV aquí...", jobHint:"Descripción del puesto (pegar texto)", jobPh:"Pega la descripción del puesto aquí...", analyze:"Analizar", done:"Listo.", scoreLabel:"Puntuación ATS:", missing:"Palabras clave faltantes", weak:"Frases débiles / vagas", optimized:"CV optimizado (ATS + listo para reclutador)", copyKw:"Copiar keywords", copyWeak:"Copiar débiles", copyOpt:"Copiar optimizado", dlAts:"Descargar PDF ATS", dlModern:"Descargar PDF Moderno", needBoth:"Por favor pega el CV y la descripción.", langLabel:"Seleccionar idioma" },
+    ru: { back:"← Назад", title:"ATS Анализ", subtitle:"Вставьте резюме и описание вакансии. Вернём структурированный анализ + оптимизированное резюме.", resumeHint:"Резюме (вставьте текст)", resumePh:"Вставьте резюме здесь...", jobHint:"Описание вакансии (вставьте текст)", jobPh:"Вставьте описание вакансии здесь...", analyze:"Анализировать", done:"Готово.", scoreLabel:"ATS Совпадение:", missing:"Недостающие ключевые слова", weak:"Слабые / расплывчатые формулировки", optimized:"Оптимизированное резюме (ATS + recruiter-ready)", copyKw:"Копировать ключевые", copyWeak:"Копировать слабые", copyOpt:"Копировать оптим.", dlAts:"Скачать ATS PDF", dlModern:"Скачать Modern PDF", needBoth:"Пожалуйста вставьте и резюме, и описание вакансии.", langLabel:"Выберите язык" },
+    fr: { back:"← Retour", title:"Analyse ATS", subtitle:"Collez votre CV et l’offre d’emploi. Nous renverrons une analyse structurée + un CV optimisé.", resumeHint:"CV (coller le texte)", resumePh:"Collez votre CV ici...", jobHint:"Offre d’emploi (coller le texte)", jobPh:"Collez l’offre d’emploi ici...", analyze:"Analyser", done:"Terminé.", scoreLabel:"Score ATS :", missing:"Mots-clés manquants", weak:"Phrases faibles / vagues", optimized:"CV optimisé (ATS + recruiter-ready)", copyKw:"Copier mots-clés", copyWeak:"Copier faibles", copyOpt:"Copier optimisé", dlAts:"Télécharger ATS PDF", dlModern:"Télécharger Modern PDF", needBoth:"Veuillez coller le CV et l’offre d’emploi.", langLabel:"Choisir la langue" },
+    ar: { back:"← رجوع", title:"تحليل ATS", subtitle:"الصق السيرة الذاتية ووصف الوظيفة. سنعيد تحليلاً منظماً + سيرة محسّنة.", resumeHint:"السيرة الذاتية (الصق النص)", resumePh:"الصق السيرة الذاتية هنا...", jobHint:"وصف الوظيفة (الصق النص)", jobPh:"الصق وصف الوظيفة هنا...", analyze:"تحليل", done:"تم.", scoreLabel:"درجة توافق ATS:", missing:"الكلمات المفتاحية الناقصة", weak:"عبارات ضعيفة / غير واضحة", optimized:"سيرة محسّنة (ATS + جاهزة للتوظيف)", copyKw:"نسخ الكلمات", copyWeak:"نسخ الضعيفة", copyOpt:"نسخ المحسّنة", dlAts:"تحميل ATS PDF", dlModern:"تحميل Modern PDF", needBoth:"يرجى لصق السيرة ووصف الوظيفة.", langLabel:"اختر اللغة" },
+    zh: { back:"← 返回", title:"ATS 分析", subtitle:"粘贴简历与职位描述，我们将返回结构化分析 + 优化后的简历。", resumeHint:"简历（粘贴文本）", resumePh:"在这里粘贴你的简历...", jobHint:"职位描述（粘贴文本）", jobPh:"在这里粘贴职位描述...", analyze:"分析", done:"完成。", scoreLabel:"ATS 匹配度：", missing:"缺失关键词", weak:"薄弱/模糊表述", optimized:"优化简历（ATS + 招聘可用）", copyKw:"复制关键词", copyWeak:"复制薄弱项", copyOpt:"复制优化简历", dlAts:"下载 ATS PDF", dlModern:"下载 Modern PDF", needBoth:"请同时粘贴简历和职位描述。", langLabel:"选择语言" }
   };
 
   const t = I18N[lang] || I18N.en;
@@ -412,16 +285,18 @@ window.onerror = function (msg, src, line, col) {
 
   window.__scoreLabel = t.scoreLabel;
   window.__needBoth = t.needBoth;
+  window.__doneText = t.done;
 })();
 
-/* ---------- Analyze logic ---------- */
+/* =======================
+   run()
+======================= */
 async function run(){
   const resume = document.getElementById('resume').value.trim();
   const job = document.getElementById('job').value.trim();
   const btn = document.getElementById('btn');
   const status = document.getElementById('status');
   const spinner = document.getElementById("spinner");
-const loadingText = document.getElementById("loadingText");
 
   const qs = new URLSearchParams(location.search);
   const isPreview = qs.get("preview") === "1";
@@ -433,21 +308,16 @@ const loadingText = document.getElementById("loadingText");
   }
 
   btn.disabled = true;
-status.textContent = ""; // ister boş bırak
-document.getElementById('out').style.display = "none";
+  status.textContent = "";
+  document.getElementById('out').style.display = "none";
+  if (spinner) spinner.style.display = "inline-flex";
 
-if (loadingText) loadingText.textContent = "Analyzing…"; // istersen i18n’den bağlarız
-if (spinner) spinner.style.display = "inline-flex";
   try {
     const r = await fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cv: resume,
-        jd: job,
-        preview: isPreview,
-        lang
-      })
+      credentials: "include",
+      body: JSON.stringify({ cv: resume, jd: job, preview: isPreview, lang })
     });
 
     const rawText = await r.text();
@@ -455,41 +325,30 @@ if (spinner) spinner.style.display = "inline-flex";
     try { data = JSON.parse(rawText); } catch {}
 
     if (!r.ok) {
-  // Rate limit (429)
-  if (r.status === 429) {
-    const sec = Number(data?.retry_after_seconds || 0);
-    if (isPreview) {
-      const min = Math.max(1, Math.ceil(sec / 60));
-      status.textContent = `Preview limit: please wait ${min} minute(s) and try again.`;
-      return;
-    } else {
-      status.textContent = `Please wait ${sec}s and try again.`;
-      return;
+      if (r.status === 429) {
+        const sec = Number(data?.retry_after_seconds || 0);
+        if (isPreview) {
+          const min = Math.max(1, Math.ceil(sec / 60));
+          status.textContent = `Preview limit: please wait ${min} minute(s) and try again.`;
+          return;
+        } else {
+          status.textContent = `Please wait ${sec}s and try again.`;
+          return;
+        }
+      }
+      const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
+      throw new Error(msg);
     }
-  }
-
-  if (isPreview) {
-    status.textContent = "Preview temporarily unavailable. Please try again in 10 seconds.";
-    return;
-  }
-
-  const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
-  throw new Error(msg);
-}
 
     // preview banner / locks
     if (isPreview) {
-      const b = document.getElementById("previewBanner");
-      if (b) b.style.display = "block";
-      const kwNote = document.getElementById("kwPreviewNote");
-      if (kwNote) kwNote.style.display = "block";
-      const lw = document.getElementById("lockWeak");
-      if (lw) lw.style.display = "inline";
-      const lo = document.getElementById("lockOpt");
-      if (lo) lo.style.display = "inline";
+      document.getElementById("previewBanner")?.style && (document.getElementById("previewBanner").style.display = "block");
+      document.getElementById("kwPreviewNote")?.style && (document.getElementById("kwPreviewNote").style.display = "block");
+      const lw = document.getElementById("lockWeak"); if (lw) lw.style.display = "inline";
+      const lo = document.getElementById("lockOpt");  if (lo) lo.style.display = "inline";
     }
 
-    // SCORE pill (pretty)
+    // SCORE
     const pill = document.getElementById('scorePill');
     const score = Number(data.ats_score || 0);
     const label = window.__scoreLabel || "ATS Match Score:";
@@ -514,11 +373,7 @@ if (spinner) spinner.style.display = "inline-flex";
     } else {
       (data.weak_sentences || []).forEach(it=>{
         const li = document.createElement('li');
-        if (it && typeof it === "object" && it.sentence && it.rewrite) {
-          li.textContent = `${it.sentence} → ${it.rewrite}`;
-        } else {
-          li.textContent = String(it);
-        }
+        li.textContent = (it && it.sentence && it.rewrite) ? `${it.sentence} → ${it.rewrite}` : String(it);
         weak.appendChild(li);
       });
     }
@@ -533,302 +388,27 @@ if (spinner) spinner.style.display = "inline-flex";
   } catch(e){
     status.textContent = "Error: " + (e.message || e);
   } finally{
-  btn.disabled = false;
-  if (spinner) spinner.style.display = "none";
-}
-}
-
-/* ---------- Copy helpers ---------- */
-function copyText(text){
-  if (!text) return alert("Nothing to copy.");
-  navigator.clipboard.writeText(text)
-    .then(()=> alert("Copied ✅"))
-    .catch(()=> alert("Copy failed (iOS sometimes blocks)."));
-}
-
-document.getElementById("copyMissing")?.addEventListener("click", ()=>{
-  const items = [...document.querySelectorAll("#missing li")].map(li=>li.textContent.trim()).filter(Boolean);
-  copyText(items.map(x=>"- " + x).join("\n"));
-});
-
-document.getElementById("copyWeak")?.addEventListener("click", ()=>{
-  const items = [...document.querySelectorAll("#weak li")].map(li=>li.textContent.trim()).filter(Boolean);
-  copyText(items.map(x=>"- " + x).join("\n"));
-});
-
-document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
-  const text = (document.getElementById("optimized")?.textContent || "").trim();
-  copyText(text);
-});
-
-/* ---------- Downloads (uses your existing localStorage flow) ---------- */
-/* Burada senin mevcut buildCvDataFromOptimizedText fonksiyonun zaten var diye varsayıyorum.
-   Eğer analyze.html içinde kullanıyorsan, senin dosyandaki hali aynen kalsın. */
-// ------- Downloads: make buttons work -------
-  function buildCvDataFromOptimizedText(optimizedText){
-  let t = (optimizedText || "").trim();
-
-  // META çöplerini temizle (garanti)
-  t = t.replace(/\n?\s*META\s*:[\s\S]*$/i, "").replace(/\n?\s*META\s*\{[\s\S]*$/i, "").trim();
-
-  const lines = t.split("\n").map(x => x.trim()).filter(Boolean);
-
-  // Helpers
-  const getEmail = (s) => (s.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || "";
-  const getPhone = (s) => (s.match(/(\+?\d[\d\s().-]{8,}\d)/) || [])[0] || "";
-  const getUrls  = (s) => [...s.matchAll(/https?:\/\/[^\s)]+/g)].map(m=>m[0]);
-
-  const isHeader = (x) => {
-    const k = x.toUpperCase().replace(/[:]/g,"").trim();
-    const headers = [
-      "SUMMARY","PROFESSIONAL SUMMARY","PROFILE","ÖZET","PROFESYONEL ÖZET",
-      "SKILLS","CORE SKILLS","YETKİNLİKLER","BECERİLER",
-      "EXPERIENCE","WORK EXPERIENCE","EMPLOYMENT","DENEYİM","İŞ DENEYİMİ",
-      "EDUCATION","EĞİTİM",
-      "PROJECTS","PROJELER",
-      "CERTIFICATES","CERTIFICATIONS","SERTİFİKALAR",
-      "LANGUAGES","DİLLER",
-      "CONTACT","İLETİŞİM"
-    ];
-    return headers.includes(k);
-  };
-
-  const normHeaderKey = (x) => x.toUpperCase().replace(/[:]/g,"").trim();
-
-  // 1) Name + Title (ilk 2 satırdan)
-  const fullName = lines[0] && lines[0].length <= 60 ? lines[0] : "Your Name";
-
-  let title = "—";
-  for (let i=1; i<Math.min(lines.length,6); i++){
-    const s = lines[i];
-    if (!s) continue;
-    if (isHeader(s)) break;
-    if (s.includes("@") || s.includes("http")) continue;
-    if (s.length <= 60) { title = s; break; }
+    btn.disabled = false;
+    if (spinner) spinner.style.display = "none";
   }
+}
 
-  // 2) Contact
-  const email = getEmail(t);
-  const phone = getPhone(t);
-  const urls  = getUrls(t);
-
-  const links = [];
-  urls.slice(0,6).forEach(u=>{
-    const low = u.toLowerCase();
-    if (low.includes("linkedin")) links.push({label:"LinkedIn", url:u});
-    else if (low.includes("github")) links.push({label:"GitHub", url:u});
-    else if (low.includes("portfolio")) links.push({label:"Portfolio", url:u});
-    else links.push({label:"Link", url:u});
+/* =======================
+   Bind button click
+======================= */
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const s = document.getElementById("status");
+    if (s) s.textContent = "CLICK ✅ running...";
+    run();
   });
-
-  // 3) Section parse
-  const sections = {
-    SUMMARY: [],
-    SKILLS: [],
-    EXPERIENCE: [],
-    EDUCATION: [],
-    PROJECTS: [],
-    CERTIFICATES: [],
-    LANGUAGES: []
-  };
-
-  let cur = null;
-  for (const raw of lines){
-    if (isHeader(raw)){
-      const hk = normHeaderKey(raw);
-      if (hk.includes("SUMMARY") || hk.includes("ÖZET") || hk.includes("PROFILE")) cur = "SUMMARY";
-      else if (hk.includes("SKILLS") || hk.includes("YETKİNLİK") || hk.includes("BECERİ")) cur = "SKILLS";
-      else if (hk.includes("EXPERIENCE") || hk.includes("DENEYİM") || hk.includes("EMPLOY")) cur = "EXPERIENCE";
-      else if (hk.includes("EDUCATION") || hk.includes("EĞİTİM")) cur = "EDUCATION";
-      else if (hk.includes("PROJECTS") || hk.includes("PROJEL")) cur = "PROJECTS";
-      else if (hk.includes("CERT") || hk.includes("SERTİF")) cur = "CERTIFICATES";
-      else if (hk.includes("LANG") || hk.includes("DİLL")) cur = "LANGUAGES";
-      else cur = null;
-      continue;
-    }
-    if (!cur) continue;
-    sections[cur].push(raw);
-  }
-
-  // 4) Summary
-  const summary = sections.SUMMARY.join(" ").trim();
-
-  // 5) Skills
-  const skills = [];
-  const skillText = sections.SKILLS.join(" ");
-  if (skillText){
-    const parts = skillText.split(/•|,|;|\||\t/).map(x=>x.trim()).filter(Boolean);
-    const uniq = new Set();
-    for (const p of parts){
-      const name = p.replace(/^[-•]\s*/,"").trim();
-      if (!name || name.length > 40) continue;
-      const key = name.toLowerCase();
-      if (uniq.has(key)) continue;
-      uniq.add(key);
-      skills.push({name, level:""});
-      if (skills.length >= 28) break;
-    }
-  }
-
-  // 6) Experience
-  const experience = [];
-  const expLines = sections.EXPERIENCE;
-
-  function parseDateRange(s){
-    const m = s.match(/(\d{4}|\d{4}-\d{2})\s*[–-]\s*(Present|Günümüz|\d{4}|\d{4}-\d{2})/i);
-    if (!m) return {start:"", end:null};
-    const start = m[1];
-    const endRaw = m[2];
-    const end = /present|günümüz/i.test(endRaw) ? null : endRaw;
-    return {start, end};
-  }
-
-  let i = 0;
-  while (i < expLines.length){
-    const line1 = expLines[i] || "";
-    const line2 = expLines[i+1] || "";
-
-    const role = line1 && line1.length <= 80 ? line1 : "";
-    let company = "";
-    let start = "";
-    let end = null;
-
-    if (line2.includes("|") || parseDateRange(line2).start){
-      const parts = line2.split("|").map(x=>x.trim());
-      company = parts[0] || "";
-      const dr = parseDateRange(line2);
-      start = dr.start;
-      end = dr.end;
-      i += 2;
-    } else {
-      const tryOne = line1;
-      const p = tryOne.split("|").map(x=>x.trim());
-      if (p.length >= 2){
-        const left = p[0];
-        const dr = parseDateRange(tryOne);
-        const lc = left.split("—").map(x=>x.trim());
-        if (lc.length >= 2){
-          company = lc.slice(1).join(" — ");
-          start = dr.start;
-          end = dr.end;
-        }
-      }
-      i += 1;
-    }
-
-    const highlights = [];
-    while (i < expLines.length){
-      const l = expLines[i];
-      if (!l) { i++; continue; }
-      if (isHeader(l)) break;
-      if (!l.startsWith("-") && !l.startsWith("•") && highlights.length >= 4 && l.length <= 70) break;
-
-      if (l.startsWith("-") || l.startsWith("•")){
-        highlights.push(l.replace(/^[-•]\s*/,"").trim());
-      } else {
-        highlights.push(l.trim());
-      }
-      i++;
-      if (highlights.length >= 8) break;
-    }
-
-    if (role || company || highlights.length){
-      experience.push({
-        company: company || "",
-        position: role || "Role",
-        start,
-        end,
-        location: "",
-        highlights: highlights.length ? highlights : []
-      });
-    }
-  }
-
-  // 7) Education
-  const education = [];
-  if (sections.EDUCATION.length){
-    const school = sections.EDUCATION.find(x=>x.length <= 90) || "";
-    const degree = sections.EDUCATION[1] || "";
-    education.push({school, degree, start:"", end:""});
-  }
-
-  // 8) Projects
-  const projects = [];
-  if (sections.PROJECTS.length){
-    const name = sections.PROJECTS[0] || "Project";
-    const highlights = sections.PROJECTS.slice(1,6).map(x=>x.replace(/^[-•]\s*/,"").trim());
-    projects.push({name, tech: [], highlights});
-  }
-
-  // 9) Certificates / Languages
-  const certificates = (sections.CERTIFICATES || []).slice(0,10).map(x=>x.replace(/^[-•]\s*/,"").trim());
-  const languages = (sections.LANGUAGES || []).slice(0,10).map(x=>({name:x.replace(/^[-•]\s*/,"").trim(), level:""}));
-
-  return {
-    basics: {
-      fullName,
-      title,
-      location: "",
-      phone,
-      email,
-      links,
-      photoUrl: ""
-    },
-    summary,
-    skills,
-    experience,
-    projects,
-    education,
-    certificates,
-    languages,
-    meta: { accent: "#6366F1", includePhoto: false }
-  };
-}
-
-function saveCvDataToLocalStorage(cvData){
-  localStorage.setItem("resumeai_cvdata", JSON.stringify(cvData));
-}
-
-function goToCvPreview(mode){
-  window.location.href = `/cv.html#mode=${mode}`;
-}
-
-function getOptimizedTextClean(){
-  let optimized = (document.getElementById("optimized")?.textContent || "");
-  optimized = optimized.replace(/\n?\s*META\s*:[\s\S]*$/i, "");
-  optimized = optimized.replace(/\n?\s*META\s*\{[\s\S]*$/i, "");
-  return optimized.trim();
-}
-
-document.getElementById("downloadAts")?.addEventListener("click", ()=>{
-  const qs = new URLSearchParams(location.search);
-  const isPreview = qs.get("preview") === "1";
-  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
-
-  const optimized = getOptimizedTextClean();
-  if (!optimized) return alert("Optimized CV is empty.");
-
-  // ⚠️ Senin dosyada zaten varsa, aynen onu kullan:
-  const cvData = buildCvDataFromOptimizedText(optimized);
-
-  saveCvDataToLocalStorage(cvData);
-  goToCvPreview("ats");
 });
 
-document.getElementById("downloadModern")?.addEventListener("click", ()=>{
-  const qs = new URLSearchParams(location.search);
-  const isPreview = qs.get("preview") === "1";
-  if (isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
-
-  const optimized = getOptimizedTextClean();
-  if (!optimized) return alert("Optimized CV is empty.");
-
-  const cvData = buildCvDataFromOptimizedText(optimized);
-
-  saveCvDataToLocalStorage(cvData);
-  goToCvPreview("design");
-});
-/* ---------- Lang bar renderer ---------- */
+/* =======================
+   Lang bar renderer
+======================= */
 (function(){
   const bar = document.getElementById("langBar");
   if (!bar) return;
@@ -838,13 +418,7 @@ document.getElementById("downloadModern")?.addEventListener("click", ()=>{
   const preview = qs.get("preview"); // varsa "1"
 
   const langs = [
-    ["en","EN"],
-    ["tr","TR"],
-    ["es","ES"],
-    ["ru","RU"],
-    ["fr","FR"],
-    ["ar","AR"],
-    ["zh","中文"]
+    ["en","EN"],["tr","TR"],["es","ES"],["ru","RU"],["fr","FR"],["ar","AR"],["zh","中文"]
   ];
 
   function buildHref(langCode){
@@ -857,11 +431,10 @@ document.getElementById("downloadModern")?.addEventListener("click", ()=>{
   bar.innerHTML = "";
   langs.forEach(([code,label])=>{
     const a = document.createElement("a");
-    a.className = "btn btn-ghost";
     a.style.cssText = (code === current)
       ? "opacity:1;font-weight:900;padding:10px 12px;font-size:14px;border-radius:12px;background:rgba(109,94,252,.95);color:#fff;border:1px solid rgba(255,255,255,.18);"
       : "opacity:.85;padding:10px 12px;font-size:14px;border-radius:12px;background:transparent;color:#cbd5e1;border:1px solid rgba(255,255,255,.22);";
-    a.setAttribute("href", buildHref(code));
+    a.href = buildHref(code);
     a.textContent = label;
     bar.appendChild(a);
   });
