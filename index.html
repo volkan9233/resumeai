@@ -471,23 +471,12 @@
   if (!unlocked) return;
 
   // 1) Unlock butonlarını gizle
-  const unlockLinks = document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]');
-  unlockLinks.forEach(a => { a.style.display = "none"; });
+  const links = document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]');
+  links.forEach(a => { a.style.display = "none"; });
 
-  // 2) Hero'daki "Go to Analyze" butonunu göster
+  // 2) Hero’daki Go to Analyze butonunu göster
   const heroAnalyze = document.getElementById("analyzeBtnHero");
   if (heroAnalyze) heroAnalyze.style.display = "inline-block";
-
-  // 3) (Opsiyonel) alttaki guarantee bölümüne de Analyze butonu ekle
-  const guarantee = document.querySelector(".guarantee");
-  if (guarantee && !document.getElementById("analyzeBtnGuarantee")) {
-    const a = document.createElement("a");
-    a.id = "analyzeBtnGuarantee";
-    a.href = "/analyze.html";
-    a.className = "btn";
-    a.textContent = "Go to Analyze";
-    guarantee.appendChild(a);
-  }
 })();
 </script>
   
