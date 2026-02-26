@@ -21,36 +21,16 @@ export default async function handler(req, res) {
 
     const { order_id, email } = req.query || {};
     if (!email) return res.status(400).json({ error: "email required" });
-    // ✅ TEMP TEST BYPASS (remove/disable later)
-if (req.query.force === "1" && process.env.FORCE_UNLOCK_KEY) {
-  if (req.query.key !== process.env.FORCE_UNLOCK_KEY) {
-    return res.status(401).json({ error: "Bad force key" });
-  }
-
-  const ehash_force = sha256(String(email).trim().toLowerCase());
-
-  const tokenPayload = JSON.stringify({
-    e: ehash_force,
-    exp: Date.now() + 365 * 24 * 60 * 60 * 1000
-  });
-  const token = sign(tokenPayload, appSecret);
-
-  res.setHeader("Set-Cookie", [
-    `resumeai_session=${token}; Path=/; Max-Age=${365 * 24 * 60 * 60}; Secure; SameSite=Lax; HttpOnly`
-  ]);
-
-  return res.status(200).json({ ok: true, forced: true });
-}
 
     const ehash = sha256(String(email).trim().toLowerCase());
 
+    // 1) (Opsiyonel) order_id kontrolü: varsa ve redis'te kayıtlıysa eşleşmeli
     if (order_id) {
-  const saved = await redis.get(`resumeai:paid:order:${order_id}`);
-  // order eşleşmiyorsa sadece WARN geç, email paid'e bak
-  if (saved && String(saved) !== ehash) {
-    return res.status(401).json({ error: "Order not recognized" });
-  }
-}
+      const saved = await redis.get(`resumeai:paid:order:${order_id}`);
+      if (saved && String(saved) !== ehash) {
+        return res.status(401).json({ error: "Order not recognized" });
+      }
+    }
 
     // 2) Email satın aldı mı?
     const paid = await redis.get(`resumeai:paid:email:${ehash}`);
@@ -61,28 +41,30 @@ if (req.query.force === "1" && process.env.FORCE_UNLOCK_KEY) {
     // 3) 1 yıl geçerli session token üret
     const tokenPayload = JSON.stringify({
       e: ehash,
-      exp: Date.now() + 365 * 24 * 60 * 60 * 1000
+      exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
     });
     const token = sign(tokenPayload, appSecret);
 
-    // Cookie (frontend bunu okuyamaz ama /api/analyze okuyabilir)
+    // 4) Cookie set
     const isProd = process.env.NODE_ENV === "production";
 
-const cookieParts = [
-  `resumeai_session=${encodeURIComponent(token)}`,
-  "Path=/",
-  `Max-Age=${365 * 24 * 60 * 60}`,
-  "SameSite=Lax",
-  "HttpOnly",
-  "Domain=.resumeai.work",
-];
+    const cookieParts = [
+      `resumeai_session=${encodeURIComponent(token)}`,
+      "Path=/",
+      `Max-Age=${365 * 24 * 60 * 60}`,
+      "SameSite=Lax",
+      "HttpOnly",
+      "Domain=.resumeai.work",
+    ];
 
-if (isProd) cookieParts.push("Secure");
+    if (isProd) cookieParts.push("Secure");
 
-res.setHeader("Set-Cookie", cookieParts.join("; "));
+    res.setHeader("Set-Cookie", cookieParts.join("; "));
 
     return res.status(200).json({ ok: true });
   } catch (e) {
-    return res.status(500).json({ error: "Confirm error", details: e?.message || String(e) });
+    return res
+      .status(500)
+      .json({ error: "Confirm error", details: e?.message || String(e) });
   }
 }
