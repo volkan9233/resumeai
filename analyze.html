@@ -149,6 +149,10 @@
   </div>
 
 <script>
+window.onerror = function (msg, src, line, col) {
+  const s = document.getElementById("status");
+  if (s) s.textContent = "JS ERROR: " + msg + " (line " + line + ")";
+};
   // ✅ Lemon dönüşünde unlock
 (function(){
   const qs = new URLSearchParams(location.search);
