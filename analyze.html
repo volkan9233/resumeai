@@ -149,6 +149,15 @@
   </div>
 
 <script>
+  // ✅ Lemon dönüşünde unlock
+(function(){
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("paid") === "1") {
+    localStorage.setItem("resumeai_unlocked", "1");
+    // istersen URL'i temizle:
+    // history.replaceState({}, "", location.pathname + location.hash);
+  }
+})();
 /* ---------- Global i18n strings (FULL mode only) ---------- */
 (function applyAnalyzeI18n(){
   const qs = new URLSearchParams(location.search);
