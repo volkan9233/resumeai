@@ -95,6 +95,9 @@ html, body { height: auto !important; overflow: auto !important; }
 
   <script type="module">
     import { renderCV } from "./scripts/render.js";
+    const qs = new URLSearchParams(location.search);
+const lang = (qs.get("lang") || "en").toLowerCase();
+window.__cv_lang = lang;
 
     const paper = document.getElementById("paper");
     const modeSelect = document.getElementById("mode");
