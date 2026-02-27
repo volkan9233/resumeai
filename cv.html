@@ -105,7 +105,7 @@ window.__cv_lang = lang;
 
     async function refresh() {
       const mode = modeSelect.value;
-      const html = await renderCV({ mode });
+      const html = await renderCV({ mode, lang });
       paper.innerHTML = html;
     }
 
