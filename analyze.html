@@ -545,13 +545,28 @@ function buildCvDataFromOptimizedText(optimizedText){
   };
 
   let cur = "other";
-  for (const l of lines) {
-    if (isHeading(l)) {
-      cur = headingKey(l);
+for (const l of lines) {
+  // 1) Normal başlık satırı: "SKILLS"
+  if (isHeading(l)) {
+    cur = headingKey(l);
+    continue;
+  }
+
+  // 2) Inline başlık: "SKILLS: SEO, PPC, GA4"  veya "SUMMARY: ...."
+  const m = l.match(/^(.{2,40}?)[\s]*[:：][\s]*(.+)$/);
+  if (m) {
+    const head = m[1].trim();
+    const rest = m[2].trim();
+
+    if (isHeading(head)) {
+      cur = headingKey(head);
+      if (rest) sections[cur].push(rest);
       continue;
     }
-    sections[cur].push(l);
   }
+
+  sections[cur].push(l);
+}
 
   // basics: fullName/title
   let fullName = "";
