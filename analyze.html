@@ -744,7 +744,9 @@ function saveCvDataToLocalStorage(cvData){
 }
 
 function goToCvPreview(mode){
-  window.location.href = `/cv.html#mode=${mode}`;
+  const qs = new URLSearchParams(location.search);
+  const lang = (qs.get("lang") || "en").toLowerCase();
+  window.location.href = `/cv.html?lang=${encodeURIComponent(lang)}#mode=${mode}`;
 }
 
 document.getElementById("downloadAts")?.addEventListener("click", ()=>{
