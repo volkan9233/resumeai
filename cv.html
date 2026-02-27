@@ -98,6 +98,7 @@ html, body { height: auto !important; overflow: auto !important; }
     const qs = new URLSearchParams(location.search);
 const lang = (qs.get("lang") || "en").toLowerCase();
 window.__cv_lang = lang;
+    document.documentElement.lang = lang;
 
     const paper = document.getElementById("paper");
     const modeSelect = document.getElementById("mode");
