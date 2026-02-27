@@ -18,60 +18,135 @@ function linksBlocks(links = []) {
     .join("");
 }
 
+/* =========================
+   ✅ FIX: accept string OR object arrays
+   - skills: ["SEO"] OR [{name:"SEO",level:""}]
+   - languages/certs: ["EN"] OR [{name:"EN",level:"B2"}]
+========================= */
 function listItems(items = []) {
-  return (items || []).map(x => `<li>${escHtml(x)}</li>`).join("");
+  return (items || [])
+    .map(x => {
+      if (typeof x === "string") return x;
+      return x?.name || x?.label || x?.title || "";
+    })
+    .map(v => String(v || "").trim())
+    .filter(Boolean)
+    .map(v => `<li>${escHtml(v)}</li>`)
+    .join("");
 }
 
 function skillsList(skills = []) {
   return (skills || [])
+    .map(s => {
+      if (typeof s === "string") return { name: s, level: "" };
+      return { name: s?.name || "", level: s?.level || "" };
+    })
+    .map(s => ({ name: String(s.name || "").trim(), level: String(s.level || "").trim() }))
+    .filter(s => s.name)
     .map(s => `<li>${escHtml(s.name)}${s.level ? ` (${escHtml(s.level)})` : ""}</li>`)
     .join("");
 }
 
 function skillsChips(skills = []) {
   return (skills || [])
+    .map(s => {
+      if (typeof s === "string") return { name: s, level: "" };
+      return { name: s?.name || "", level: s?.level || "" };
+    })
+    .map(s => ({ name: String(s.name || "").trim(), level: String(s.level || "").trim() }))
+    .filter(s => s.name)
     .map(s => `<span class="chip">${escHtml(s.name)}${s.level ? ` - ${escHtml(s.level)}` : ""}</span>`)
     .join("");
 }
 
+/* =========================
+   ✅ FIX: experience supports BOTH formats
+   - old parser: { title, company, bullets, start, end, location }
+   - new:        { position, company, highlights, start, end, location }
+========================= */
 function experienceBlocks(exps = [], t = {}) {
   const nowWord = t?.t_present || "Present";
+
   return (exps || []).map(e => {
-    const endOrNow = e.end ? e.end : nowWord;
-    const highlights = (e.highlights || []).map(h => `<li>${escHtml(h)}</li>`).join("");
+    const position = e?.position || e?.title || "";
+    const company = e?.company || "";
+    const start = e?.start || "";
+    const endOrNow = (e?.end ? e.end : nowWord);
+    const location = e?.location || "";
+
+    const highlightsArr = Array.isArray(e?.highlights) ? e.highlights
+      : Array.isArray(e?.bullets) ? e.bullets
+      : [];
+
+    const highlights = (highlightsArr || [])
+      .map(h => String(h || "").trim())
+      .filter(Boolean)
+      .map(h => `<li>${escHtml(h)}</li>`)
+      .join("");
+
     return `
       <div class="item">
         <div class="row">
-          <strong>${escHtml(e.position)} — ${escHtml(e.company)}</strong>
-          <span class="muted">${escHtml(e.start)} - ${escHtml(endOrNow)}</span>
+          <strong>${escHtml(position)}${company ? ` — ${escHtml(company)}` : ""}</strong>
+          <span class="muted">${escHtml(start)}${start || endOrNow ? " - " : ""}${escHtml(endOrNow)}</span>
         </div>
-        <div class="muted">${escHtml(e.location || "")}</div>
+        ${location ? `<div class="muted">${escHtml(location)}</div>` : ``}
         <ul>${highlights}</ul>
       </div>
     `;
   }).join("");
 }
 
+/* =========================
+   ✅ FIX: projects supports BOTH formats
+   - old parser: { name, bullets, description }
+   - new:        { name, highlights, tech }
+========================= */
 function projectBlocks(projects = []) {
   return (projects || []).map(p => {
-    const techCsv = (p.tech || []).join(", ");
-    const highlights = (p.highlights || []).map(h => `<li>${escHtml(h)}</li>`).join("");
+    const techCsv = (p?.tech || []).join(", ");
+    const highlightsArr = Array.isArray(p?.highlights) ? p.highlights
+      : Array.isArray(p?.bullets) ? p.bullets
+      : [];
+
+    const highlights = (highlightsArr || [])
+      .map(h => String(h || "").trim())
+      .filter(Boolean)
+      .map(h => `<li>${escHtml(h)}</li>`)
+      .join("");
+
+    const desc = String(p?.description || "").trim();
+
     return `
       <div class="item">
-        <strong>${escHtml(p.name)}</strong> <span class="muted">${techCsv ? `(${escHtml(techCsv)})` : ""}</span>
+        <strong>${escHtml(p?.name || "")}</strong>
+        <span class="muted">${techCsv ? ` (${escHtml(techCsv)})` : ""}</span>
+        ${desc ? `<div class="muted" style="margin-top:1mm;">${escHtml(desc)}</div>` : ``}
         <ul>${highlights}</ul>
       </div>
     `;
   }).join("");
 }
 
+/* =========================
+   ✅ FIX: education supports BOTH formats
+   - parser: { school, degree, start, end }
+   - old/new mixed safe
+========================= */
 function educationBlocks(edu = []) {
-  return (edu || []).map(ed => `
-    <div class="item">
-      <strong>${escHtml(ed.degree)} — ${escHtml(ed.school)}</strong>
-      <span class="muted">${escHtml(ed.start)} - ${escHtml(ed.end)}</span>
-    </div>
-  `).join("");
+  return (edu || []).map(ed => {
+    const degree = ed?.degree || "";
+    const school = ed?.school || "";
+    const start = ed?.start || "";
+    const end = ed?.end || "";
+
+    return `
+      <div class="item">
+        <strong>${escHtml(degree)}${school ? ` — ${escHtml(school)}` : ""}</strong>
+        <span class="muted">${escHtml(start)}${start || end ? " - " : ""}${escHtml(end)}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 export async function renderCV({ mode, lang } = {}) {
@@ -179,6 +254,18 @@ export async function renderCV({ mode, lang } = {}) {
   // foto kontrol (modern template için)
   const includePhoto = !!cv?.meta?.includePhoto && !!cv?.basics?.photoUrl;
 
+  // ✅ languages support: ["English"] OR [{name:"English",level:"B2"}]
+  const langListHtml = (cv.languages || [])
+    .map(l => {
+      if (typeof l === "string") return `<li>${escHtml(l)}</li>`;
+      const name = String(l?.name || "").trim();
+      const level = String(l?.level || "").trim();
+      if (!name) return "";
+      return `<li>${escHtml(name)}${level ? ` (${escHtml(level)})` : ""}</li>`;
+    })
+    .filter(Boolean)
+    .join("");
+
   tpl = tpl
     // i18n section titles
     .replaceAll("{{t_contact}}", escHtml(t.t_contact))
@@ -189,25 +276,26 @@ export async function renderCV({ mode, lang } = {}) {
     .replaceAll("{{t_projects}}", escHtml(t.t_projects))
     .replaceAll("{{t_education}}", escHtml(t.t_education))
     .replaceAll("{{t_certificates}}", escHtml(t.t_certificates))
+
     // core fields
-    .replaceAll("{{fullName}}", escHtml(cv.basics.fullName))
-    .replaceAll("{{title}}", escHtml(cv.basics.title))
-    .replaceAll("{{location}}", escHtml(cv.basics.location))
-    .replaceAll("{{phone}}", escHtml(cv.basics.phone))
-    .replaceAll("{{email}}", escHtml(cv.basics.email))
-    .replaceAll("{{summary}}", escHtml(cv.summary || ""))
+    .replaceAll("{{fullName}}", escHtml(cv?.basics?.fullName || ""))
+    .replaceAll("{{title}}", escHtml(cv?.basics?.title || ""))
+    .replaceAll("{{location}}", escHtml(cv?.basics?.location || ""))
+    .replaceAll("{{phone}}", escHtml(cv?.basics?.phone || ""))
+    .replaceAll("{{email}}", escHtml(cv?.basics?.email || ""))
+    .replaceAll("{{summary}}", escHtml(cv?.summary || ""))
     .replaceAll("{{accent}}", escHtml(cv?.meta?.accent || "#2B6CB0"))
-    .replaceAll("{{linksInline}}", linksInline(cv.basics.links))
-    .replaceAll("{{linksBlocks}}", linksBlocks(cv.basics.links))
-    .replaceAll("{{skillsList}}", skillsList(cv.skills))
-    .replaceAll("{{skillsChips}}", skillsChips(cv.skills))
-    .replaceAll("{{experienceBlocks}}", experienceBlocks(cv.experience, t))
-    .replaceAll("{{projectBlocks}}", projectBlocks(cv.projects))
-    .replaceAll("{{educationBlocks}}", educationBlocks(cv.education))
-    .replaceAll("{{certList}}", listItems(cv.certificates))
-    .replaceAll("{{langList}}", (cv.languages || []).map(l =>
-      `<li>${escHtml(l.name)}${l.level ? ` (${escHtml(l.level)})` : ""}</li>`
-    ).join(""))
+
+    .replaceAll("{{linksInline}}", linksInline(cv?.basics?.links || []))
+    .replaceAll("{{linksBlocks}}", linksBlocks(cv?.basics?.links || []))
+    .replaceAll("{{skillsList}}", skillsList(cv?.skills || []))
+    .replaceAll("{{skillsChips}}", skillsChips(cv?.skills || []))
+    .replaceAll("{{experienceBlocks}}", experienceBlocks(cv?.experience || [], t))
+    .replaceAll("{{projectBlocks}}", projectBlocks(cv?.projects || []))
+    .replaceAll("{{educationBlocks}}", educationBlocks(cv?.education || []))
+    .replaceAll("{{certList}}", listItems(cv?.certificates || []))
+    .replaceAll("{{langList}}", langListHtml)
+
     .replaceAll("{{photoDisplay}}", includePhoto ? "block" : "none")
     .replaceAll("{{photoUrl}}", includePhoto ? cv.basics.photoUrl : "");
 
