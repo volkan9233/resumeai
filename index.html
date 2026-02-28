@@ -479,33 +479,32 @@
   <span class="asterisk">*</span> Suggestions only — no guarantees of interviews or hiring outcomes.
 </div>
     <script>
-(function(){
+(function () {
   const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
   if (!unlocked) return;
 
-  // 1) Hero: fiyat + preview butonu gizle
-  const heroPrice = document.getElementById("heroPrice");
-  if (heroPrice) heroPrice.style.display = "none";
+  // 1) Checkout/Unlock linklerini gizle
+  document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]').forEach(a => {
+    a.style.display = "none";
+  });
 
-  const heroPreviewBtn = document.getElementById("heroPreviewBtn");
-  if (heroPreviewBtn) heroPreviewBtn.style.display = "none";
+  // 2) Preview linklerini gizle (hero + alttaki CTA dahil hepsi)
+  document.querySelectorAll('a[href*="preview=1"]').forEach(a => {
+    a.style.display = "none";
+  });
 
-  // 2) Lemon checkout linklerini gizle (tüm unlock butonları)
-  const links = document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]');
-  links.forEach(a => { a.style.display = "none"; });
+  // 3) Fiyat satırını gizle (15$, 29$, limited launch vs)
+  const price = document.querySelector(".price");
+  if (price) price.style.display = "none";
 
-  // 3) Alt CTA panelini komple gizle
-  const ctaPanel = document.getElementById("ctaPanel");
-  if (ctaPanel) ctaPanel.style.display = "none";
-
-  // 4) Sadece "Go to Analyze" kalsın
+  // 4) Hero'da Analyze butonunu göster
   const heroAnalyze = document.getElementById("analyzeBtnHero");
   if (heroAnalyze) heroAnalyze.style.display = "inline-block";
-  // 3) Hero'daki preview butonunu gizle
-const heroPreview = document.getElementById("heroPreviewBtn");
-if (heroPreview) heroPreview.style.display = "none";
+
+  // 5) Hero'da unlock butonu varsa gizle (id ile)
+  const heroUnlock = document.getElementById("unlockBtnHero");
+  if (heroUnlock) heroUnlock.style.display = "none";
 })();
-document.getElementById("y") && (document.getElementById("y").textContent = new Date().getFullYear());
 </script>
     <footer style="margin-top:40px;padding:22px 0;border-top:1px solid rgba(255,255,255,.08);color:#94a3b8;font-size:13px;">
   <div style="max-width:980px;margin:auto;padding:0 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
