@@ -501,6 +501,9 @@
   // 4) Sadece "Go to Analyze" kalsın
   const heroAnalyze = document.getElementById("analyzeBtnHero");
   if (heroAnalyze) heroAnalyze.style.display = "inline-block";
+  // 3) Hero'daki preview butonunu gizle
+const heroPreview = document.getElementById("heroPreviewBtn");
+if (heroPreview) heroPreview.style.display = "none";
 })();
 document.getElementById("y") && (document.getElementById("y").textContent = new Date().getFullYear());
 </script>
