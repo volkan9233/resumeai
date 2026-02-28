@@ -483,15 +483,26 @@
   const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
   if (!unlocked) return;
 
-  // 1) Unlock butonlarını gizle
+  // 1) Hero: fiyat + preview butonu gizle
+  const heroPrice = document.getElementById("heroPrice");
+  if (heroPrice) heroPrice.style.display = "none";
+
+  const heroPreviewBtn = document.getElementById("heroPreviewBtn");
+  if (heroPreviewBtn) heroPreviewBtn.style.display = "none";
+
+  // 2) Lemon checkout linklerini gizle (tüm unlock butonları)
   const links = document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]');
   links.forEach(a => { a.style.display = "none"; });
 
-  // 2) Hero’daki Go to Analyze butonunu göster
+  // 3) Alt CTA panelini komple gizle
+  const ctaPanel = document.getElementById("ctaPanel");
+  if (ctaPanel) ctaPanel.style.display = "none";
+
+  // 4) Sadece "Go to Analyze" kalsın
   const heroAnalyze = document.getElementById("analyzeBtnHero");
   if (heroAnalyze) heroAnalyze.style.display = "inline-block";
 })();
-      document.getElementById("y") && (document.getElementById("y").textContent = new Date().getFullYear());
+document.getElementById("y") && (document.getElementById("y").textContent = new Date().getFullYear());
 </script>
     <footer style="margin-top:40px;padding:22px 0;border-top:1px solid rgba(255,255,255,.08);color:#94a3b8;font-size:13px;">
   <div style="max-width:980px;margin:auto;padding:0 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
