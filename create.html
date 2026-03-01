@@ -102,6 +102,33 @@ Role: ..."
         ></textarea>
         <div class="muted" style="margin-top:6px">Notes = senin ham cümlelerin; ResumeAI bunu güçlü bullet’a çevirir.</div>
       </div>
+      <!-- EDUCATION -->
+<div style="margin-top:14px">
+  <label>Education (one item per block)</label>
+  <textarea id="education" placeholder=
+"School: University of X
+Degree: BSc Computer Engineering
+Start: 2016
+End: 2020
+Notes: (optional) GPA, honors, relevant coursework
+
+School: ..."
+  ></textarea>
+  <div class="muted" style="margin-top:6px">Optional. Leave empty if you don’t have it.</div>
+</div>
+
+<!-- PROJECTS -->
+<div style="margin-top:14px">
+  <label>Projects (one project per block)</label>
+  <textarea id="projects" placeholder=
+"Name: ResumeAI.work
+Tech: Next.js, OpenAI API, Upstash
+Notes: built ATS analyzer + PDF exports
+
+Name: ..."
+  ></textarea>
+  <div class="muted" style="margin-top:6px">Tech = comma separated. Notes = what you did; ResumeAI turns it into bullets.</div>
+</div>
 
       <div class="row">
         <button id="btn">Generate CV + PDF</button>
