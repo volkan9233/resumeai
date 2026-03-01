@@ -179,7 +179,7 @@ function parseExperience(v){
       const m = b.match(new RegExp("^"+key+"\\s*:\\s*(.+)$","im"));
       return m ? m[1].trim() : "";
     };
-    const notes = get("Notes");
+    
     return {
       school: get("School"),
       degree: get("Degree"),
