@@ -226,8 +226,8 @@ document.getElementById("btn").addEventListener("click", async ()=>{
     skills: String(document.getElementById("skills").value||"").split(",").map(x=>x.trim()).filter(Boolean),
     languages: parseLangs(document.getElementById("langs").value),
     experience: parseExperience(document.getElementById("experience").value),
-    education: [],
-    projects: [],
+    education: parseEducation(document.getElementById("education").value),
+projects: parseProjects(document.getElementById("projects").value),
     certificates: []
   };
 
