@@ -172,6 +172,40 @@ function parseExperience(v){
     };
   }).filter(x=>x.position || x.company);
 }
+  function parseEducation(v){
+  const blocks = String(v||"").split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  return blocks.slice(0,10).map(b=>{
+    const get = (key)=>{
+      const m = b.match(new RegExp("^"+key+"\\s*:\\s*(.+)$","im"));
+      return m ? m[1].trim() : "";
+    };
+    const notes = get("Notes");
+    return {
+      school: get("School"),
+      degree: get("Degree"),
+      start: get("Start"),
+      end: get("End"),
+      notes: notes
+    };
+  }).filter(x=>x.school || x.degree);
+}
+
+function parseProjects(v){
+  const blocks = String(v||"").split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  return blocks.slice(0,10).map(b=>{
+    const get = (key)=>{
+      const m = b.match(new RegExp("^"+key+"\\s*:\\s*(.+)$","im"));
+      return m ? m[1].trim() : "";
+    };
+    const tech = get("Tech");
+    const notes = get("Notes");
+    return {
+      name: get("Name"),
+      tech: tech ? tech.split(",").map(x=>x.trim()).filter(Boolean).slice(0,10) : [],
+      highlights: notes ? [notes] : []
+    };
+  }).filter(x=>x.name);
+}
 
 document.getElementById("btn").addEventListener("click", async ()=>{
   const btn = document.getElementById("btn");
