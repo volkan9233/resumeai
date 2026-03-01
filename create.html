@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ResumeAI — Create Resume</title>
+  <style>
+    body{margin:0;font-family:Inter,system-ui,Arial;background:#0b0f19;color:#e5e7eb}
+    .wrap{max-width:980px;margin:auto;padding:40px 20px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    label{font-size:13px;color:#9ca3af}
+    input,textarea,select{
+      width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);
+      background:#111827;color:#e5e7eb;outline:none;
+    }
+    textarea{min-height:110px;resize:vertical}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+    button{
+      padding:12px 16px;border:0;border-radius:12px;
+      background:linear-gradient(135deg,#7b5cff,#5b3dff);
+      color:#fff;font-weight:800;cursor:pointer;
+    }
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .muted{color:#9ca3af;font-size:13px}
+    .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="/index.html" style="color:#a5b4fc;text-decoration:none;">← Back</a>
+    <h1 style="margin:10px 0 4px 0;">Create your resume</h1>
+    <div class="muted">Fill your details → ResumeAI writes strong bullets → export ATS/Modern PDF.</div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="grid">
+        <div>
+          <label>Language</label>
+          <select id="lang">
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+            <option value="es">Español</option>
+            <option value="ru">Русский</option>
+            <option value="fr">Français</option>
+            <option value="ar">العربية</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
+        <div>
+          <label>Optional: Job description (for tailoring)</label>
+          <input id="jd" placeholder="Paste job description (optional)" />
+        </div>
+
+        <div>
+          <label>Full name</label>
+          <input id="fullName" placeholder="John Doe" />
+        </div>
+        <div>
+          <label>Title</label>
+          <input id="title" placeholder="Marketing Manager / Frontend Developer" />
+        </div>
+
+        <div>
+          <label>Location</label>
+          <input id="location" placeholder="Istanbul, TR" />
+        </div>
+        <div>
+          <label>Email</label>
+          <input id="email" placeholder="you@email.com" />
+        </div>
+
+        <div>
+          <label>Phone</label>
+          <input id="phone" placeholder="+90 ..." />
+        </div>
+        <div>
+          <label>Links (one per line: Label | URL)</label>
+          <input id="links" placeholder="LinkedIn | https://linkedin.com/in/..." />
+        </div>
+
+        <div>
+          <label>Skills (comma separated)</label>
+          <input id="skills" placeholder="GA4, SEO, SQL, React, ..." />
+        </div>
+        <div>
+          <label>Languages (one per line: Name | Level)</label>
+          <input id="langs" placeholder="English | Native&#10;Turkish | Native" />
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <label>Experience (one role per block)</label>
+        <textarea id="experience" placeholder=
+"Role: Marketing Manager
+Company: ABC
+Start: 2022
+End: Present
+Location: Remote
+Notes: ran paid search, improved landing pages
+
+Role: ..."
+        ></textarea>
+        <div class="muted" style="margin-top:6px">Notes = senin ham cümlelerin; ResumeAI bunu güçlü bullet’a çevirir.</div>
+      </div>
+
+      <div class="row">
+        <button id="btn">Generate CV + PDF</button>
+        <div id="status" class="muted"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+function parseLinks(v){
+  const lines = String(v||"").split("\\n").map(x=>x.trim()).filter(Boolean);
+  return lines.slice(0,6).map(line=>{
+    const parts = line.split("|").map(s=>s.trim());
+    return { label: parts[0] || "Link", url: parts[1] || "" };
+  }).filter(x=>x.url);
+}
+
+function parseLangs(v){
+  const lines = String(v||"").split("\\n").map(x=>x.trim()).filter(Boolean);
+  return lines.slice(0,10).map(line=>{
+    const parts = line.split("|").map(s=>s.trim());
+    return { name: parts[0] || "", level: parts[1] || "" };
+  }).filter(x=>x.name);
+}
+
+function parseExperience(v){
+  const blocks = String(v||"").split(/\\n\\s*\\n/).map(b=>b.trim()).filter(Boolean);
+  return blocks.slice(0,10).map(b=>{
+    const get = (key)=>{
+      const m = b.match(new RegExp("^"+key+"\\s*:\\s*(.+)$","im"));
+      return m ? m[1].trim() : "";
+    };
+    const notes = get("Notes");
+    return {
+      position: get("Role"),
+      company: get("Company"),
+      start: get("Start"),
+      end: get("End") || null,
+      location: get("Location"),
+      highlights: notes ? [notes] : []
+    };
+  }).filter(x=>x.position || x.company);
+}
+
+document.getElementById("btn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("btn");
+  const status = document.getElementById("status");
+  btn.disabled = true;
+  status.textContent = "Generating…";
+
+  const lang = document.getElementById("lang").value;
+  const jd = document.getElementById("jd").value;
+
+  const profile = {
+    fullName: document.getElementById("fullName").value,
+    title: document.getElementById("title").value,
+    location: document.getElementById("location").value,
+    phone: document.getElementById("phone").value,
+    email: document.getElementById("email").value,
+    links: parseLinks(document.getElementById("links").value),
+    skills: String(document.getElementById("skills").value||"").split(",").map(x=>x.trim()).filter(Boolean),
+    languages: parseLangs(document.getElementById("langs").value),
+    experience: parseExperience(document.getElementById("experience").value),
+    education: [],
+    projects: [],
+    certificates: []
+  };
+
+  try{
+    const r = await fetch("/api/create", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      credentials:"include",
+      body: JSON.stringify({ profile, jd, lang, preview:false })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data?.error || "Request failed");
+
+    localStorage.setItem("resumeai_cvdata", JSON.stringify(data.cv_data));
+    status.textContent = "Done ✅ Opening PDF…";
+    window.location.href = `/cv.html?lang=${encodeURIComponent(lang)}#mode=ats`;
+  }catch(e){
+    status.textContent = "Error: " + (e.message || e);
+  }finally{
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
