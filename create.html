@@ -28,14 +28,14 @@
 </head>
 <body>
   <div class="wrap">
-    <a href="/index.html" style="color:#a5b4fc;text-decoration:none;">← Back</a>
-    <h1 style="margin:10px 0 4px 0;">Create your resume</h1>
-    <div class="muted">Fill your details → ResumeAI writes strong bullets → export ATS/Modern PDF.</div>
+    <a id="t_back" href="/index.html" style="color:#a5b4fc;text-decoration:none;">← Back</a>
+    <h1 id="t_title" style="margin:10px 0 4px 0;">Create your resume</h1>
+    <div id="t_sub" class="muted">Fill your details → ResumeAI writes strong bullets → export ATS/Modern PDF.</div>
 
     <div class="card" style="margin-top:16px">
       <div class="grid">
         <div>
-          <label>Language</label>
+          <label id="t_lang_label">Language</label>
           <select id="lang">
             <option value="en">English</option>
             <option value="tr">Türkçe</option>
@@ -47,49 +47,49 @@
           </select>
         </div>
         <div>
-          <label>Optional: Job description (for tailoring)</label>
+          <label id="t_jd_label">Optional: Job description (for tailoring)</label>
           <input id="jd" placeholder="Paste job description (optional)" />
         </div>
 
         <div>
-          <label>Full name</label>
+          <label id="t_fullname_label">Full name</label>
           <input id="fullName" placeholder="John Doe" />
         </div>
         <div>
-          <label>Title</label>
+          <label id="t_title_label">Title</label>
           <input id="title" placeholder="Marketing Manager / Frontend Developer" />
         </div>
 
         <div>
-          <label>Location</label>
+          <label id="t_location_label">Location</label>
           <input id="location" placeholder="Istanbul, TR" />
         </div>
         <div>
-          <label>Email</label>
+          <label id="t_email_label">Email</label>
           <input id="email" placeholder="you@email.com" />
         </div>
 
         <div>
-          <label>Phone</label>
+          <label id="t_phone_label">Phone</label>
           <input id="phone" placeholder="+90 ..." />
         </div>
         <div>
-          <label>Links (one per line: Label | URL)</label>
+          <label id="t_links_label">Links (one per line: Label | URL)</label>
           <input id="links" placeholder="LinkedIn | https://linkedin.com/in/..." />
         </div>
 
         <div>
-          <label>Skills (comma separated)</label>
+          <label id="t_skills_label">Skills (comma separated)</label>
           <input id="skills" placeholder="GA4, SEO, SQL, React, ..." />
         </div>
         <div>
-          <label>Languages (one per line: Name | Level)</label>
+          <label id="t_langs_label">Languages (one per line: Name | Level)</label>
           <input id="langs" placeholder="English | Native&#10;Turkish | Native" />
         </div>
       </div>
 
       <div style="margin-top:14px">
-        <label>Experience (one role per block)</label>
+        <label id="t_exp_label">Experience (one role per block)</label>
         <textarea id="experience" placeholder=
 "Role: Marketing Manager
 Company: ABC
@@ -100,12 +100,15 @@ Notes: ran paid search, improved landing pages
 
 Role: ..."
         ></textarea>
-        <div class="muted" style="margin-top:6px">Notes = senin ham cümlelerin; ResumeAI bunu güçlü bullet’a çevirir.</div>
+        <div id="t_notes_hint" class="muted" style="margin-top:6px">
+          Notes = your raw text; ResumeAI turns it into strong bullets.
+        </div>
       </div>
+
       <!-- EDUCATION -->
-<div style="margin-top:14px">
-  <label>Education (one item per block)</label>
-  <textarea id="education" placeholder=
+      <div style="margin-top:14px">
+        <label id="t_edu_label">Education (one item per block)</label>
+        <textarea id="education" placeholder=
 "School: University of X
 Degree: BSc Computer Engineering
 Start: 2016
@@ -113,33 +116,117 @@ End: 2020
 Notes: (optional) GPA, honors, relevant coursework
 
 School: ..."
-  ></textarea>
-  <div class="muted" style="margin-top:6px">Optional. Leave empty if you don’t have it.</div>
-</div>
+        ></textarea>
+        <div id="t_edu_hint" class="muted" style="margin-top:6px">Optional. Leave empty if you don’t have it.</div>
+      </div>
 
-<!-- PROJECTS -->
-<div style="margin-top:14px">
-  <label>Projects (one project per block)</label>
-  <textarea id="projects" placeholder=
+      <!-- PROJECTS -->
+      <div style="margin-top:14px">
+        <label id="t_proj_label">Projects (one project per block)</label>
+        <textarea id="projects" placeholder=
 "Name: ResumeAI.work
 Tech: Next.js, OpenAI API, Upstash
 Notes: built ATS analyzer + PDF exports
 
 Name: ..."
-  ></textarea>
-  <div class="muted" style="margin-top:6px">Tech = comma separated. Notes = what you did; ResumeAI turns it into bullets.</div>
-</div>
+        ></textarea>
+        <div id="t_proj_hint" class="muted" style="margin-top:6px">Tech = comma separated. Notes = what you did; ResumeAI turns it into bullets.</div>
+      </div>
 
       <div class="row">
-        <button id="btn">Generate CV + PDF</button>
+        <button id="btn"><span id="t_btn">Generate CV + PDF</span></button>
         <div id="status" class="muted"></div>
       </div>
     </div>
   </div>
 
 <script>
+const I18N = {
+  en: {
+    back: "← Back",
+    title: "Create your resume",
+    sub: "Fill your details → ResumeAI writes strong bullets → export ATS/Modern PDF.",
+    langLabel: "Language",
+    jdLabel: "Optional: Job description (for tailoring)",
+    fullNameLabel: "Full name",
+    titleLabel: "Title",
+    locationLabel: "Location",
+    emailLabel: "Email",
+    phoneLabel: "Phone",
+    linksLabel: "Links (one per line: Label | URL)",
+    skillsLabel: "Skills (comma separated)",
+    langsLabel: "Languages (one per line: Name | Level)",
+    expLabel: "Experience (one role per block)",
+    notesHint: "Notes = your raw text; ResumeAI turns it into strong bullets.",
+    eduLabel: "Education (one item per block)",
+    eduHint: "Optional. Leave empty if you don’t have it.",
+    projLabel: "Projects (one project per block)",
+    projHint: "Tech = comma separated. Notes = what you did; ResumeAI turns it into bullets.",
+    btn: "Generate CV + PDF",
+    generating: "Generating…",
+    done: "Done ✅ Opening PDF…",
+    errPrefix: "Error: "
+  },
+  tr: {
+    back: "← Geri",
+    title: "CV’ni oluştur",
+    sub: "Bilgilerini doldur → ResumeAI güçlü bullet’lar yazar → ATS/Modern PDF indir.",
+    langLabel: "Dil",
+    jdLabel: "Opsiyonel: İş ilanı metni (tailoring için)",
+    fullNameLabel: "Ad Soyad",
+    titleLabel: "Ünvan",
+    locationLabel: "Konum",
+    emailLabel: "E-posta",
+    phoneLabel: "Telefon",
+    linksLabel: "Linkler (satır satır: Etiket | URL)",
+    skillsLabel: "Yetenekler (virgülle ayır)",
+    langsLabel: "Diller (satır satır: Dil | Seviye)",
+    expLabel: "Deneyim (her rol ayrı blok)",
+    notesHint: "Notes = ham cümlelerin; ResumeAI bunu güçlü bullet’lara çevirir.",
+    eduLabel: "Eğitim (her kayıt ayrı blok)",
+    eduHint: "Opsiyonel. Yoksa boş bırak.",
+    projLabel: "Projeler (her proje ayrı blok)",
+    projHint: "Tech = virgülle ayır. Notes = yaptıkların; ResumeAI bullet’a çevirir.",
+    btn: "CV + PDF oluştur",
+    generating: "Oluşturuluyor…",
+    done: "Bitti ✅ PDF açılıyor…",
+    errPrefix: "Hata: "
+  }
+};
+
+function t(){
+  const lang = (document.getElementById("lang")?.value || "en").toLowerCase();
+  return I18N[lang] || I18N.en;
+}
+
+function applyLangUI(){
+  const tt = t();
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+
+  set("t_back", tt.back);
+  set("t_title", tt.title);
+  set("t_sub", tt.sub);
+  set("t_lang_label", tt.langLabel);
+  set("t_jd_label", tt.jdLabel);
+  set("t_fullname_label", tt.fullNameLabel);
+  set("t_title_label", tt.titleLabel);
+  set("t_location_label", tt.locationLabel);
+  set("t_email_label", tt.emailLabel);
+  set("t_phone_label", tt.phoneLabel);
+  set("t_links_label", tt.linksLabel);
+  set("t_skills_label", tt.skillsLabel);
+  set("t_langs_label", tt.langsLabel);
+  set("t_exp_label", tt.expLabel);
+  set("t_notes_hint", tt.notesHint);
+  set("t_edu_label", tt.eduLabel);
+  set("t_edu_hint", tt.eduHint);
+  set("t_proj_label", tt.projLabel);
+  set("t_proj_hint", tt.projHint);
+  set("t_btn", tt.btn);
+}
+
 function parseLinks(v){
-  const lines = String(v||"").split("\\n").map(x=>x.trim()).filter(Boolean);
+  const lines = String(v||"").split("\n").map(x=>x.trim()).filter(Boolean);
   return lines.slice(0,6).map(line=>{
     const parts = line.split("|").map(s=>s.trim());
     return { label: parts[0] || "Link", url: parts[1] || "" };
@@ -147,7 +234,7 @@ function parseLinks(v){
 }
 
 function parseLangs(v){
-  const lines = String(v||"").split("\\n").map(x=>x.trim()).filter(Boolean);
+  const lines = String(v||"").split("\n").map(x=>x.trim()).filter(Boolean);
   return lines.slice(0,10).map(line=>{
     const parts = line.split("|").map(s=>s.trim());
     return { name: parts[0] || "", level: parts[1] || "" };
@@ -155,7 +242,7 @@ function parseLangs(v){
 }
 
 function parseExperience(v){
-  const blocks = String(v||"").split(/\\n\\s*\\n/).map(b=>b.trim()).filter(Boolean);
+  const blocks = String(v||"").split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
   return blocks.slice(0,10).map(b=>{
     const get = (key)=>{
       const m = b.match(new RegExp("^"+key+"\\s*:\\s*(.+)$","im"));
@@ -172,22 +259,21 @@ function parseExperience(v){
     };
   }).filter(x=>x.position || x.company);
 }
-  function parseEducation(v){
+
+function parseEducation(v){
   const blocks = String(v||"").split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
   return blocks.slice(0,10).map(b=>{
     const get = (key)=>{
       const m = b.match(new RegExp("^"+key+"\\s*:\\s*(.+)$","im"));
       return m ? m[1].trim() : "";
     };
-    
     return {
       school: get("School"),
       degree: get("Degree"),
       start: get("Start"),
-      end: get("End"),
-      notes: notes
+      end: get("End")
     };
-  }).filter(x=>x.school || x.degree);
+  }).filter(x => x.school || x.degree);
 }
 
 function parseProjects(v){
@@ -201,19 +287,24 @@ function parseProjects(v){
     const notes = get("Notes");
     return {
       name: get("Name"),
-      tech: tech ? tech.split(",").map(x=>x.trim()).filter(Boolean).slice(0,10) : [],
+      tech: tech ? tech.split(",").map(x=>x.trim()).filter(Boolean) : [],
       highlights: notes ? [notes] : []
     };
-  }).filter(x=>x.name);
+  }).filter(x => x.name);
 }
+
+applyLangUI();
+document.getElementById("lang").addEventListener("change", applyLangUI);
 
 document.getElementById("btn").addEventListener("click", async ()=>{
   const btn = document.getElementById("btn");
   const status = document.getElementById("status");
-  btn.disabled = true;
-  status.textContent = "Generating…";
-
   const lang = document.getElementById("lang").value;
+  const tt = t();
+
+  btn.disabled = true;
+  status.textContent = tt.generating;
+
   const jd = document.getElementById("jd").value;
 
   const profile = {
@@ -227,7 +318,7 @@ document.getElementById("btn").addEventListener("click", async ()=>{
     languages: parseLangs(document.getElementById("langs").value),
     experience: parseExperience(document.getElementById("experience").value),
     education: parseEducation(document.getElementById("education").value),
-projects: parseProjects(document.getElementById("projects").value),
+    projects: parseProjects(document.getElementById("projects").value),
     certificates: []
   };
 
@@ -238,14 +329,15 @@ projects: parseProjects(document.getElementById("projects").value),
       credentials:"include",
       body: JSON.stringify({ profile, jd, lang, preview:false })
     });
-    const data = await r.json();
-    if(!r.ok) throw new Error(data?.error || "Request failed");
+
+    const data = await r.json().catch(()=> ({}));
+    if(!r.ok) throw new Error(data?.error || ("Request failed ("+r.status+")"));
 
     localStorage.setItem("resumeai_cvdata", JSON.stringify(data.cv_data));
-    status.textContent = "Done ✅ Opening PDF…";
+    status.textContent = tt.done;
     window.location.href = `/cv.html?lang=${encodeURIComponent(lang)}#mode=ats`;
   }catch(e){
-    status.textContent = "Error: " + (e.message || e);
+    status.textContent = tt.errPrefix + (e?.message || e);
   }finally{
     btn.disabled = false;
   }
