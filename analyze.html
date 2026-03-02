@@ -639,12 +639,11 @@ document.addEventListener("DOMContentLoaded", async () => {
    Copy helpers
 ======================= */
 function copyText(text){
-  if (!text) return alert("Nothing to copy.");
+  if (!text) return alert(window.__nothingToCopy || "Nothing to copy.");
   navigator.clipboard.writeText(text)
-    .then(()=> alert("Copied ✅"))
-    .catch(()=> alert("Copy failed (iOS sometimes blocks)."));
+    .then(()=> alert(window.__copyOk || "Copied ✅"))
+    .catch(()=> alert(window.__copyFail || "Copy failed (iOS sometimes blocks)."));
 }
-
 document.getElementById("copyMissing")?.addEventListener("click", ()=>{
   const items = [...document.querySelectorAll("#missing li")]
     .map(li=>li.textContent.trim()).filter(Boolean);
