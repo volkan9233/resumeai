@@ -187,29 +187,31 @@ async function fetchUnlockState() {
     
 
     const order_id = qs.get("order_id") || "";
-    if (!order_id) {
-      const s = document.getElementById("status");
-      if (s) s.textContent = "CONFIRM FAILED: missing order_id in URL";
-      return;
-    }
+    (async function confirmIfPaid() {
+  try {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("paid") !== "1") return;
+
+    const order_id = qs.get("order_id") || "";
+    if (!order_id) return;
 
     const r = await fetch(
       `/api/confirm?order_id=${encodeURIComponent(order_id)}`,
       { method: "GET", credentials: "include" }
     );
 
-    const t = await r.text();
     if (!r.ok) {
-      const s = document.getElementById("status");
-      if (s) s.textContent = "CONFIRM FAILED: " + t;
-      return; // 🔥 throw yok, catch üstünü kapatmasın
+      // Sessiz geç (istersen console'a yaz)
+      console.warn("confirm failed", await r.text());
+      return;
     }
 
     localStorage.setItem("resumeai_unlocked", "1");
+
+    // ✅ URL'yi temizle (paid=1 parametreleri gitmiş olsun)
     window.location.replace("/analyze.html");
   } catch (e) {
-    const s = document.getElementById("status");
-    if (s) s.textContent = "CONFIRM ERROR: " + (e?.message || e);
+    console.warn("confirm error", e);
   }
 })();
 
