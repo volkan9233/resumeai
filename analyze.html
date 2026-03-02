@@ -311,7 +311,7 @@ async function syncPreviewUI() {
   window.__isPreview = isPreview;
 
   const s = document.getElementById("status");
-  if (s) s.textContent = isPreview ? "Preview Mode 🔒" : "Full Mode ✅";
+  if (s) s.textContent = isPreview ? (window.__previewModeText || "Preview Mode 🔒") : (window.__fullModeText || "Full Mode ✅");
 }
 
 /* =======================
@@ -403,13 +403,13 @@ ws.slice(0, isPreview ? 1 : ws.length).forEach(it => {
 if (isPreview) {
   const li = document.createElement('li');
   li.style.opacity = "0.85";
-  li.textContent = "🔒 Unlock to see the full list (typically 10–15 weak phrases).";
+  li.textContent = window.__weakLockedNote || "🔒 Unlock to see the full list (typically 10–15 weak phrases).";
   weak.appendChild(li);
 }
 
     // optimized
     document.getElementById('optimized').textContent = isPreview
-      ? "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version."
+      ? (window.__optLocked || "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version.")
       : (data.optimized_cv || "");
 
     document.getElementById('out').style.display = "block";
