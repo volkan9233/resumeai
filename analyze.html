@@ -186,27 +186,29 @@ async function fetchUnlockState() {
     if (qs.get("paid") !== "1") return;
 
     const order_id = qs.get("order_id") || "";
+    if (!order_id) {
+      const s = document.getElementById("status");
+      if (s) s.textContent = "CONFIRM FAILED: missing order_id in URL";
+      return;
+    }
+
     const r = await fetch(
-  `/api/confirm?order_id=${encodeURIComponent(order_id)}`,
-  { method: "GET", credentials: "include" }
-);
+      `/api/confirm?order_id=${encodeURIComponent(order_id)}`,
+      { method: "GET", credentials: "include" }
+    );
 
+    const t = await r.text();
     if (!r.ok) {
-  const t = await r.text();
-  const s = document.getElementById("status");
-  if (s) s.textContent = "CONFIRM FAILED: " + t;
-  throw new Error("confirm failed: " + t);
-}
+      const s = document.getElementById("status");
+      if (s) s.textContent = "CONFIRM FAILED: " + t;
+      return; // 🔥 throw yok, catch üstünü kapatmasın
+    }
 
-    // UX: localStorage sadece UI içindir; gerçek unlock server cookie ile
     localStorage.setItem("resumeai_unlocked", "1");
-
-    // 🔥 CRITICAL: cookie'yi garanti kullanmak için tam sayfa yönlendirme
     window.location.replace("/analyze.html");
   } catch (e) {
-    console.warn(e);
     const s = document.getElementById("status");
-    if (s) s.textContent = "Confirm error. Check /api/confirm logs.";
+    if (s) s.textContent = "CONFIRM ERROR: " + (e?.message || e);
   }
 })();
 
