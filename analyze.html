@@ -184,8 +184,7 @@ async function fetchUnlockState() {
   try {
     const qs = new URLSearchParams(location.search);
     if (qs.get("paid") !== "1") return;
-    const s0 = document.getElementById("status");
-if (s0) s0.textContent = ""; // paid=1 akışında hiçbir şey gösterme
+    
 
     const order_id = qs.get("order_id") || "";
     if (!order_id) {
