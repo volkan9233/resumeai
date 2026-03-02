@@ -4,10 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ResumeAI — Create Resume</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+
   <style>
-    /* FIX: prevent inputs from overflowing the grid/card */
-*, *::before, *::after { box-sizing: border-box; }
-html, body { max-width: 100%; overflow-x: hidden; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { max-width: 100%; overflow-x: hidden; }
     :root{
       --bg:#0b0f19;
       --panel: rgba(255,255,255,.03);
@@ -19,12 +21,11 @@ html, body { max-width: 100%; overflow-x: hidden; }
       --accent2:#5b3dff;
     }
     body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text)}
-    .wrap{max-width:980px;margin:auto;padding:40px 20px}
-    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    a.link{color:#a5b4fc;text-decoration:none;font-weight:600}
+    .wrap{max-width:980px;margin:auto;padding:34px 20px}
+    a.link{color:#a5b4fc;text-decoration:none;font-weight:700}
     h1{margin:14px 0 6px 0;font-size:42px;letter-spacing:-0.02em}
     .muted{color:var(--muted);font-size:13px;line-height:1.5}
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin-top:16px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px;margin-top:16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     label{font-size:13px;color:var(--muted)}
     input,textarea,select{
@@ -32,101 +33,259 @@ html, body { max-width: 100%; overflow-x: hidden; }
       background:var(--input);color:var(--text);outline:none;
     }
     textarea{min-height:120px;resize:vertical}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+    input:focus, textarea:focus, select:focus{border-color:rgba(99,102,241,0.55); box-shadow:0 0 0 4px rgba(99,102,241,0.15)}
     button{
       padding:12px 16px;border:0;border-radius:12px;
       background:linear-gradient(135deg,var(--accent1),var(--accent2));
-      color:#fff;font-weight:800;cursor:pointer;
+      color:#fff;font-weight:900;cursor:pointer;
     }
     button:disabled{opacity:.6;cursor:not-allowed}
+    .btnGhost{
+      background: transparent !important;
+      border: 1px solid rgba(255,255,255,.18) !important;
+      color: #e5e7eb !important;
+    }
+
     .pill{
       display:inline-flex;align-items:center;gap:8px;
       padding:10px 12px;border-radius:14px;
       border:1px solid rgba(255,255,255,.12);
       background:rgba(255,255,255,.02);
     }
-    .hint{margin-top:6px}
-    .sectionTitle{margin:18px 0 6px 0;font-weight:800}
     .small{font-size:12px;color:rgba(255,255,255,.65)}
-    @media(max-width:900px){.grid{grid-template-columns:1fr} h1{font-size:34px}}
+    .sectionTitle{margin:18px 0 6px 0;font-weight:900}
+    .hint{margin-top:6px}
+
+    /* Wizard premium */
+    .stickyTop{
+      position: sticky; top: 12px; z-index: 999;
+      background: rgba(17,24,39,.92);
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(10px);
+      border-radius: 18px;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+    .wizTop{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+    }
+    .brandMini{
+      display:flex; align-items:center; gap:10px;
+      font-weight:900; letter-spacing:-.02em;
+    }
+    .brandMini span{ color:#6366F1; }
+    .wizTitle{
+      font-weight:900; letter-spacing:-.02em; font-size:14px;
+    }
+    .stepMeta{ color: rgba(255,255,255,.7); font-size:12px; font-weight:800; }
+    .progressWrap{
+      margin-top:10px;
+      height:10px; border-radius:999px;
+      background: rgba(255,255,255,.08);
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .progressBar{
+      height:100%;
+      width:0%;
+      background: linear-gradient(135deg,var(--accent1),var(--accent2));
+      border-radius:999px;
+      transition: width .25s ease;
+    }
+    .step{ display:none; animation: stepIn .18s ease; }
+    .step.active{ display:block; }
+    @keyframes stepIn{
+      from{ opacity:0; transform: translateY(6px); }
+      to{ opacity:1; transform: translateY(0); }
+    }
+    .wizNav{
+      position: sticky; bottom: 0; z-index: 999;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(15,21,36,.90);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+    }
+    .wizRight{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .reviewBox{
+      padding:14px; border-radius:16px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.02);
+    }
+    .kpiRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .kpi{
+      padding:10px 12px; border-radius:14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.02);
+      font-size:12px;
+      color: rgba(255,255,255,.85);
+    }
+
+    /* Language gate */
+    .langGate{
+      margin-top: 16px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+    }
+    .langGateTop{
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap: 14px; flex-wrap:wrap;
+    }
+    .langGate h1{ margin:0; font-size:34px; }
+    .langGate p{ margin:8px 0 0 0; }
+    .langGateActions{
+      margin-top: 14px;
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .langSelect{
+      min-width: 220px;
+    }
+
+    @media(max-width:900px){
+      .grid{grid-template-columns:1fr}
+      h1{font-size:34px}
+      .stickyTop{ top: 0; border-radius: 0; border-left:0; border-right:0; }
+    }
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <div class="topbar">
-      <a class="link" href="/index.html">← <span id="t_back">Back</span></a>
-      <div class="pill">
-        <span class="small" id="t_langLabel">Language</span>
-        <select id="lang" style="width:auto;min-width:140px">
-          <option value="en">English</option>
-          <option value="tr">Türkçe</option>
-          <option value="es">Español</option>
-          <option value="ru">Русский</option>
-          <option value="fr">Français</option>
-          <option value="ar">العربية</option>
-          <option value="zh">中文</option>
-        </select>
+
+    <!-- Language gate (first) -->
+    <div class="langGate" id="langGate">
+      <div class="langGateTop">
+        <div>
+          <div class="brandMini" style="margin-bottom:10px">
+            Resume<span>AI</span>
+          </div>
+          <h1 id="gateTitle">Choose your language</h1>
+          <p class="muted" id="gateSub">
+            We’ll use your selected language across the Create Resume flow.
+          </p>
+        </div>
+
+        <div class="pill" style="height:fit-content">
+          <span class="small" id="t_langLabel_gate">Language</span>
+          <select id="langGateSelect" class="langSelect">
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+            <option value="es">Español</option>
+            <option value="ru">Русский</option>
+            <option value="fr">Français</option>
+            <option value="ar">العربية</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="langGateActions">
+        <button id="langContinue">Continue</button>
+        <a class="link" href="/index.html">← <span id="t_back_gate">Back</span></a>
       </div>
     </div>
 
-    <h1 id="t_title">Create your resume</h1>
-    <div class="muted" id="t_sub">
-      Fill your details and generate an ATS-friendly resume PDF. (No AI rewriting here — we only format what you enter.)
-    </div>
+    <!-- Wizard content (hidden until language chosen) -->
+    <div id="wizardRoot" style="display:none;">
 
-    <div class="card">
-      <div class="grid">
-        <div>
-          <label id="t_fullname_label">Full name</label>
-          <input id="fullName" placeholder="John Doe" />
-        </div>
-        <div>
-          <label id="t_headline_label">Headline / Title</label>
-          <input id="title" placeholder="Marketing Manager / Frontend Developer" />
+      <div class="topbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <a class="link" href="/index.html">← <span id="t_back">Back</span></a>
+      </div>
+
+      <h1 id="t_title">Create your resume</h1>
+      <div class="muted" id="t_sub">
+        Fill your details and generate an ATS-friendly resume PDF. (No AI rewriting here — we only format what you enter.)
+      </div>
+
+      <div class="stickyTop">
+        <div class="wizTop">
+          <div>
+            <div class="wizTitle" id="wizStepTitle">Basics</div>
+            <div class="stepMeta" id="wizStepCount">Step 1/7</div>
+          </div>
+
+          <div class="pill">
+            <span class="small" id="t_langLabel">Language</span>
+            <select id="lang" style="width:auto;min-width:140px">
+              <option value="en">English</option>
+              <option value="tr">Türkçe</option>
+              <option value="es">Español</option>
+              <option value="ru">Русский</option>
+              <option value="fr">Français</option>
+              <option value="ar">العربية</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label id="t_location_label">Location</label>
-          <input id="location" placeholder="Istanbul, TR" />
-        </div>
-        <div>
-          <label id="t_email_label">Email</label>
-          <input id="email" placeholder="you@email.com" />
-        </div>
-
-        <div>
-          <label id="t_phone_label">Phone</label>
-          <input id="phone" placeholder="+90 ..." />
-        </div>
-        <div>
-          <label id="t_links_label">Links (one per line: Label | URL)</label>
-          <input id="links" placeholder="LinkedIn | https://linkedin.com/in/..." />
-        </div>
-
-        <div>
-          <label id="t_skills_label">Skills (comma separated)</label>
-          <input id="skills" placeholder="SEO, Google Analytics, SQL, Excel, ..." />
-        </div>
-        <div>
-          <label id="t_langs_label">Languages (one per line: Language | Level)</label>
-          <input id="langs" placeholder="English | Native&#10;Turkish | Native" />
+        <div class="progressWrap" aria-label="progress">
+          <div class="progressBar" id="wizProgress"></div>
         </div>
       </div>
 
-      <div style="margin-top:14px">
-        <div class="sectionTitle" id="t_summary_title">Summary (optional)</div>
-        <label class="muted" id="t_summary_hint">
-          Write 2–4 short bullet lines about your profile. (Example: “- 5+ years in digital marketing …”)
-        </label>
-        <textarea id="summary" placeholder="- ..."></textarea>
-      </div>
+      <div class="card">
 
-      <div style="margin-top:14px">
-        <div class="sectionTitle" id="t_exp_title">Work experience</div>
-        <label class="muted" id="t_exp_hint">
-          One job per block. Use either structured format OR simple lines.
-        </label>
-        <textarea id="experience" placeholder=
+        <!-- STEP 1: BASICS -->
+        <div class="step active" data-step="basics">
+          <div class="grid">
+            <div>
+              <label id="t_fullname_label">Full name</label>
+              <input id="fullName" placeholder="John Doe" />
+            </div>
+            <div>
+              <label id="t_headline_label">Headline / Title</label>
+              <input id="title" placeholder="Marketing Manager / Frontend Developer" />
+            </div>
+
+            <div>
+              <label id="t_location_label">Location</label>
+              <input id="location" placeholder="Istanbul, TR" />
+            </div>
+            <div>
+              <label id="t_email_label">Email</label>
+              <input id="email" placeholder="you@email.com" />
+            </div>
+
+            <div>
+              <label id="t_phone_label">Phone</label>
+              <input id="phone" placeholder="+90 ..." />
+            </div>
+            <div>
+              <label id="t_links_label">Links (one per line: Label | URL)</label>
+              <input id="links" placeholder="LinkedIn | https://linkedin.com/in/..." />
+            </div>
+
+            <div>
+              <label id="t_skills_label">Skills (comma separated)</label>
+              <input id="skills" placeholder="SEO, Google Analytics, SQL, Excel, ..." />
+            </div>
+            <div>
+              <label id="t_langs_label">Languages (one per line: Language | Level)</label>
+              <input id="langs" placeholder="English | Native&#10;Turkish | Native" />
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: SUMMARY -->
+        <div class="step" data-step="summary">
+          <div class="sectionTitle" id="t_summary_title">Summary (optional)</div>
+          <label class="muted" id="t_summary_hint">
+            Write 2–4 short bullet lines about your profile. (Example: “- 5+ years in digital marketing …”)
+          </label>
+          <textarea id="summary" placeholder="- ..."></textarea>
+        </div>
+
+        <!-- STEP 3: EXPERIENCE -->
+        <div class="step" data-step="experience">
+          <div class="sectionTitle" id="t_exp_title">Work experience</div>
+          <label class="muted" id="t_exp_hint">One job per block. Use either structured format OR simple lines.</label>
+          <textarea id="experience" placeholder=
 "Structured example:
 Role: Marketing Manager
 Company: ABC
@@ -143,18 +302,17 @@ Marketing Manager
 2022 - Present
 - What you did...
 - What you achieved..."
-        ></textarea>
-        <div class="muted hint" id="t_exp_hint2">
-          Tip: Add 3–6 bullet lines per job (start with “- ”). No need for perfect English — just be clear.
+          ></textarea>
+          <div class="muted hint" id="t_exp_hint2">
+            Tip: Add 3–6 bullet lines per job (start with “- ”). No need for perfect English — just be clear.
+          </div>
         </div>
-      </div>
 
-      <div style="margin-top:14px">
-        <div class="sectionTitle" id="t_edu_title">Education (optional)</div>
-        <label class="muted" id="t_edu_hint">
-          One item per block (School, Degree, Years). If you don’t have education, leave empty.
-        </label>
-        <textarea id="education" placeholder=
+        <!-- STEP 4: EDUCATION -->
+        <div class="step" data-step="education">
+          <div class="sectionTitle" id="t_edu_title">Education (optional)</div>
+          <label class="muted" id="t_edu_hint">One item per block (School, Degree, Years). If you don’t have education, leave empty.</label>
+          <textarea id="education" placeholder=
 "University of X
 BSc Computer Engineering
 2016 - 2020
@@ -162,42 +320,70 @@ BSc Computer Engineering
 Yeditepe University
 Business Administration
 2010 - 2014"
-        ></textarea>
-      </div>
+          ></textarea>
+        </div>
 
-      <div style="margin-top:14px">
-        <div class="sectionTitle" id="t_proj_title">Projects (optional)</div>
-        <label class="muted" id="t_proj_hint">
-          One project per block. Add name + technologies + 1–3 bullet lines.
-        </label>
-        <textarea id="projects" placeholder=
+        <!-- STEP 5: PROJECTS -->
+        <div class="step" data-step="projects">
+          <div class="sectionTitle" id="t_proj_title">Projects (optional)</div>
+          <label class="muted" id="t_proj_hint">One project per block. Add name + technologies + 1–3 bullet lines.</label>
+          <textarea id="projects" placeholder=
 "ResumeAI.work
 Tech: Next.js, Vercel, OpenAI API
 - Built ATS analyzer
 - Added PDF exports"
-        ></textarea>
-      </div>
+          ></textarea>
+        </div>
 
-      <div style="margin-top:14px">
-        <div class="sectionTitle" id="t_cert_title">Certificates (optional)</div>
-        <label class="muted" id="t_cert_hint">One per line.</label>
-        <textarea id="certificates" placeholder="Google Analytics Certificate&#10;HubSpot Inbound Marketing"></textarea>
-      </div>
+        <!-- STEP 6: CERTS -->
+        <div class="step" data-step="certificates">
+          <div class="sectionTitle" id="t_cert_title">Certificates (optional)</div>
+          <label class="muted" id="t_cert_hint">One per line.</label>
+          <textarea id="certificates" placeholder="Google Analytics Certificate&#10;HubSpot Inbound Marketing"></textarea>
+        </div>
 
-      <div class="row">
-        <button id="btn"><span id="t_btn">Generate CV + PDF</span></button>
-        <div id="status" class="muted"></div>
+        <!-- STEP 7: REVIEW -->
+        <div class="step" data-step="review">
+          <div class="sectionTitle" id="t_review_title">Review & Export</div>
+          <div class="muted" id="t_review_sub">We’ll generate the ATS template from what you entered.</div>
+
+          <div class="reviewBox" style="margin-top:12px">
+            <div style="font-weight:900" id="t_quickcheck">Quick check</div>
+            <div class="kpiRow">
+              <div class="kpi" id="kpiName">Name: —</div>
+              <div class="kpi" id="kpiTitle">Title: —</div>
+              <div class="kpi" id="kpiExp">Experience blocks: —</div>
+              <div class="kpi" id="kpiSkills">Skills: —</div>
+            </div>
+            <div class="muted" style="margin-top:10px" id="status"></div>
+          </div>
+        </div>
+
+        <!-- Sticky nav -->
+        <div class="wizNav">
+          <button id="wizBack" class="btnGhost" type="button">Back</button>
+
+          <div class="wizRight">
+            <button id="wizNext" type="button">Continue</button>
+            <button id="btn" type="button" style="display:none"><span id="t_btn">Generate CV + PDF</span></button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
 
 <script>
-/** ---------- i18n ---------- **/
+/** ---------- i18n (same languages as Analyze) ---------- **/
 const I18N = {
   en: {
+    gateTitle:"Choose your language",
+    gateSub:"We’ll use your selected language across the Create Resume flow.",
+    gateContinue:"Continue",
     back:"Back", langLabel:"Language",
     title:"Create your resume",
     sub:"Fill your details and generate an ATS-friendly resume PDF. (No AI rewriting here — we only format what you enter.)",
+    basics:"Basics", summaryStep:"Summary", expStep:"Work experience", eduStep:"Education", projStep:"Projects", certStep:"Certificates", reviewStep:"Review & Export",
     fullname:"Full name", headline:"Headline / Title", location:"Location", email:"Email", phone:"Phone",
     links:"Links (one per line: Label | URL)",
     skills:"Skills (comma separated)",
@@ -213,14 +399,23 @@ const I18N = {
     projHint:"One project per block. Add name + technologies + 1–3 bullet lines.",
     certTitle:"Certificates (optional)",
     certHint:"One per line.",
+    reviewTitle:"Review & Export",
+    reviewSub:"We’ll generate the ATS template from what you entered.",
+    quickCheck:"Quick check",
     btn:"Generate CV + PDF",
     done:"Done ✅ Opening CV…",
-    err:"Error:"
+    err:"Error:",
+    cont:"Continue",
+    backBtn:"Back"
   },
   tr: {
+    gateTitle:"Dil seç",
+    gateSub:"Create Resume akışını seçtiğin dilde göstereceğiz.",
+    gateContinue:"Devam",
     back:"Geri", langLabel:"Dil",
     title:"CV oluştur",
     sub:"Bilgilerini doldur ve ATS uyumlu CV PDF’i oluştur. (Bu sayfada AI yok — sadece senin yazdıklarını düzenleyip yerleştiriyoruz.)",
+    basics:"Temel", summaryStep:"Özet", expStep:"İş deneyimi", eduStep:"Eğitim", projStep:"Projeler", certStep:"Sertifikalar", reviewStep:"Önizleme",
     fullname:"Ad Soyad", headline:"Başlık / Ünvan", location:"Konum", email:"E-posta", phone:"Telefon",
     links:"Linkler (satır satır: Etiket | URL)",
     skills:"Yetenekler (virgülle ayır)",
@@ -236,90 +431,375 @@ const I18N = {
     projHint:"Her proje için ayrı blok. İsim + teknolojiler + 1–3 madde yaz.",
     certTitle:"Sertifikalar (opsiyonel)",
     certHint:"Her satıra bir tane.",
+    reviewTitle:"Önizleme & Çıktı",
+    reviewSub:"Girdiğin bilgilerle ATS şablonunda CV oluşturacağız.",
+    quickCheck:"Hızlı kontrol",
     btn:"CV + PDF oluştur",
     done:"Tamam ✅ CV açılıyor…",
-    err:"Hata:"
+    err:"Hata:",
+    cont:"Devam",
+    backBtn:"Geri"
   },
-  es: { back:"Atrás", langLabel:"Idioma", title:"Crea tu CV", sub:"Completa tus datos y genera un PDF ATS. (Sin reescritura AI — solo formateamos lo que ingresas.)",
+  es: {
+    gateTitle:"Elige tu idioma",
+    gateSub:"Usaremos tu idioma seleccionado en todo el flujo.",
+    gateContinue:"Continuar",
+    back:"Atrás", langLabel:"Idioma",
+    title:"Crea tu CV",
+    sub:"Completa tus datos y genera un PDF ATS. (Sin reescritura AI — solo formateamos lo que ingresas.)",
+    basics:"Básico", summaryStep:"Resumen", expStep:"Experiencia", eduStep:"Educación", projStep:"Proyectos", certStep:"Certificados", reviewStep:"Revisión",
     fullname:"Nombre completo", headline:"Título", location:"Ubicación", email:"Email", phone:"Teléfono",
-    links:"Enlaces (una línea: Etiqueta | URL)", skills:"Habilidades (separadas por comas)", langs:"Idiomas (una línea: Idioma | Nivel)",
-    summaryTitle:"Resumen (opcional)", summaryHint:"Escribe 2–4 líneas con viñetas.", expTitle:"Experiencia", expHint:"Un trabajo por bloque.",
-    expHint2:"Consejo: 3–6 viñetas por trabajo.", eduTitle:"Educación (opcional)", eduHint:"Un ítem por bloque.", projTitle:"Proyectos (opcional)", projHint:"Un proyecto por bloque.",
-    certTitle:"Certificados (opcional)", certHint:"Uno por línea.", btn:"Generar CV + PDF", done:"Listo ✅ Abriendo…", err:"Error:" },
-  ru: { back:"Назад", langLabel:"Язык", title:"Создать резюме", sub:"Заполни данные и получи PDF (ATS). (Без AI-переписывания — только форматируем твой текст.)",
+    links:"Enlaces (línea: Etiqueta | URL)",
+    skills:"Habilidades (comas)",
+    langs:"Idiomas (línea: Idioma | Nivel)",
+    summaryTitle:"Resumen (opcional)",
+    summaryHint:"Escribe 2–4 líneas con viñetas.",
+    expTitle:"Experiencia",
+    expHint:"Un trabajo por bloque.",
+    expHint2:"Consejo: 3–6 viñetas por trabajo.",
+    eduTitle:"Educación (opcional)",
+    eduHint:"Un ítem por bloque.",
+    projTitle:"Proyectos (opcional)",
+    projHint:"Un proyecto por bloque.",
+    certTitle:"Certificados (opcional)",
+    certHint:"Uno por línea.",
+    reviewTitle:"Revisión y exportación",
+    reviewSub:"Generaremos el CV ATS con lo que ingresaste.",
+    quickCheck:"Chequeo rápido",
+    btn:"Generar CV + PDF",
+    done:"Listo ✅ Abriendo…",
+    err:"Error:",
+    cont:"Continuar",
+    backBtn:"Atrás"
+  },
+  ru: {
+    gateTitle:"Выберите язык",
+    gateSub:"Мы будем использовать выбранный язык во всём мастере.",
+    gateContinue:"Продолжить",
+    back:"Назад", langLabel:"Язык",
+    title:"Создать резюме",
+    sub:"Заполни данные и получи PDF (ATS). (Без AI-переписывания — только форматируем твой текст.)",
+    basics:"Основное", summaryStep:"Профиль", expStep:"Опыт", eduStep:"Образование", projStep:"Проекты", certStep:"Сертификаты", reviewStep:"Проверка",
     fullname:"Имя", headline:"Должность", location:"Город", email:"Email", phone:"Телефон",
-    links:"Ссылки (строка: Метка | URL)", skills:"Навыки (через запятую)", langs:"Языки (строка: Язык | Уровень)",
-    summaryTitle:"Профиль (опц.)", summaryHint:"2–4 строки с “- ”.", expTitle:"Опыт", expHint:"Одна работа — один блок.", expHint2:"Совет: 3–6 буллетов на работу.",
-    eduTitle:"Образование (опц.)", eduHint:"Один блок на пункт.", projTitle:"Проекты (опц.)", projHint:"Один блок на проект.",
-    certTitle:"Сертификаты (опц.)", certHint:"Один на строку.", btn:"Создать CV + PDF", done:"Готово ✅ Открываю…", err:"Ошибка:" },
-  fr: { back:"Retour", langLabel:"Langue", title:"Créer votre CV", sub:"Remplis tes infos et génère un PDF ATS. (Pas de réécriture AI — on formate seulement.)",
+    links:"Ссылки (строка: Метка | URL)",
+    skills:"Навыки (через запятую)",
+    langs:"Языки (строка: Язык | Уровень)",
+    summaryTitle:"Профиль (опц.)",
+    summaryHint:"2–4 строки с “- ”.",
+    expTitle:"Опыт",
+    expHint:"Одна работа — один блок.",
+    expHint2:"Совет: 3–6 буллетов на работу.",
+    eduTitle:"Образование (опц.)",
+    eduHint:"Один блок на пункт.",
+    projTitle:"Проекты (опц.)",
+    projHint:"Один блок на проект.",
+    certTitle:"Сертификаты (опц.)",
+    certHint:"Один на строку.",
+    reviewTitle:"Проверка и экспорт",
+    reviewSub:"Соберём ATS-резюме из введённых данных.",
+    quickCheck:"Быстрая проверка",
+    btn:"Создать CV + PDF",
+    done:"Готово ✅ Открываю…",
+    err:"Ошибка:",
+    cont:"Далее",
+    backBtn:"Назад"
+  },
+  fr: {
+    gateTitle:"Choisissez votre langue",
+    gateSub:"Nous utiliserons la langue choisie dans tout le flux.",
+    gateContinue:"Continuer",
+    back:"Retour", langLabel:"Langue",
+    title:"Créer votre CV",
+    sub:"Remplis tes infos et génère un PDF ATS. (Pas de réécriture AI — on formate seulement.)",
+    basics:"Base", summaryStep:"Résumé", expStep:"Expérience", eduStep:"Éducation", projStep:"Projets", certStep:"Certificats", reviewStep:"Vérifier",
     fullname:"Nom complet", headline:"Titre", location:"Lieu", email:"Email", phone:"Téléphone",
-    links:"Liens (ligne: Libellé | URL)", skills:"Compétences (séparées par des virgules)", langs:"Langues (ligne: Langue | Niveau)",
-    summaryTitle:"Résumé (optionnel)", summaryHint:"2–4 lignes en puces.", expTitle:"Expérience", expHint:"Un poste par bloc.", expHint2:"Astuce: 3–6 puces par poste.",
-    eduTitle:"Éducation (optionnel)", eduHint:"Un item par bloc.", projTitle:"Projets (optionnel)", projHint:"Un projet par bloc.",
-    certTitle:"Certificats (optionnel)", certHint:"Un par ligne.", btn:"Générer CV + PDF", done:"Terminé ✅ Ouverture…", err:"Erreur:" },
-  ar: { back:"رجوع", langLabel:"اللغة", title:"إنشاء السيرة الذاتية", sub:"املأ بياناتك وأنشئ PDF متوافق مع ATS. (بدون إعادة كتابة بالذكاء — فقط تنسيق.)",
+    links:"Liens (ligne: Libellé | URL)",
+    skills:"Compétences (virgules)",
+    langs:"Langues (ligne: Langue | Niveau)",
+    summaryTitle:"Résumé (optionnel)",
+    summaryHint:"2–4 lignes en puces.",
+    expTitle:"Expérience",
+    expHint:"Un poste par bloc.",
+    expHint2:"Astuce: 3–6 puces par poste.",
+    eduTitle:"Éducation (optionnel)",
+    eduHint:"Un item par bloc.",
+    projTitle:"Projets (optionnel)",
+    projHint:"Un projet par bloc.",
+    certTitle:"Certificats (optionnel)",
+    certHint:"Un par ligne.",
+    reviewTitle:"Vérifier & exporter",
+    reviewSub:"Nous générerons un CV ATS à partir de vos informations.",
+    quickCheck:"Vérification rapide",
+    btn:"Générer CV + PDF",
+    done:"Terminé ✅ Ouverture…",
+    err:"Erreur:",
+    cont:"Continuer",
+    backBtn:"Retour"
+  },
+  ar: {
+    gateTitle:"اختر اللغة",
+    gateSub:"سنستخدم اللغة المختارة طوال خطوات إنشاء السيرة.",
+    gateContinue:"متابعة",
+    back:"رجوع", langLabel:"اللغة",
+    title:"إنشاء السيرة الذاتية",
+    sub:"املأ بياناتك وأنشئ PDF متوافق مع ATS. (بدون إعادة كتابة بالذكاء — فقط تنسيق.)",
+    basics:"الأساسيات", summaryStep:"ملخص", expStep:"الخبرة", eduStep:"التعليم", projStep:"المشاريع", certStep:"الشهادات", reviewStep:"مراجعة",
     fullname:"الاسم الكامل", headline:"المسمى", location:"الموقع", email:"البريد", phone:"الهاتف",
-    links:"روابط (سطر: اسم | رابط)", skills:"المهارات (مفصولة بفواصل)", langs:"اللغات (سطر: لغة | مستوى)",
-    summaryTitle:"ملخص (اختياري)", summaryHint:"اكتب 2–4 نقاط.", expTitle:"الخبرة", expHint:"وظيفة واحدة لكل كتلة.", expHint2:"نصيحة: 3–6 نقاط لكل وظيفة.",
-    eduTitle:"التعليم (اختياري)", eduHint:"عنصر لكل كتلة.", projTitle:"المشاريع (اختياري)", projHint:"مشروع لكل كتلة.",
-    certTitle:"الشهادات (اختياري)", certHint:"واحدة لكل سطر.", btn:"إنشاء CV + PDF", done:"تم ✅ جارٍ الفتح…", err:"خطأ:" },
-  zh: { back:"返回", langLabel:"语言", title:"创建简历", sub:"填写信息并生成 ATS 友好的 PDF。（不做 AI 改写，只做排版。）",
+    links:"روابط (سطر: اسم | رابط)",
+    skills:"المهارات (فواصل)",
+    langs:"اللغات (سطر: لغة | مستوى)",
+    summaryTitle:"ملخص (اختياري)",
+    summaryHint:"اكتب 2–4 نقاط.",
+    expTitle:"الخبرة",
+    expHint:"وظيفة واحدة لكل كتلة.",
+    expHint2:"نصيحة: 3–6 نقاط لكل وظيفة.",
+    eduTitle:"التعليم (اختياري)",
+    eduHint:"عنصر لكل كتلة.",
+    projTitle:"المشاريع (اختياري)",
+    projHint:"مشروع لكل كتلة.",
+    certTitle:"الشهادات (اختياري)",
+    certHint:"واحدة لكل سطر.",
+    reviewTitle:"مراجعة وتصدير",
+    reviewSub:"سننشئ سيرة ATS من بياناتك.",
+    quickCheck:"فحص سريع",
+    btn:"إنشاء CV + PDF",
+    done:"تم ✅ جارٍ الفتح…",
+    err:"خطأ:",
+    cont:"متابعة",
+    backBtn:"رجوع"
+  },
+  zh: {
+    gateTitle:"选择语言",
+    gateSub:"我们将使用你选择的语言完成整个创建流程。",
+    gateContinue:"继续",
+    back:"返回", langLabel:"语言",
+    title:"创建简历",
+    sub:"填写信息并生成 ATS 友好的 PDF。（不做 AI 改写，只做排版。）",
+    basics:"基础信息", summaryStep:"简介", expStep:"工作经历", eduStep:"教育", projStep:"项目", certStep:"证书", reviewStep:"检查",
     fullname:"姓名", headline:"标题/职位", location:"地点", email:"邮箱", phone:"电话",
-    links:"链接（每行：名称 | URL）", skills:"技能（逗号分隔）", langs:"语言（每行：语言 | 等级）",
-    summaryTitle:"简介（可选）", summaryHint:"写 2–4 条要点。", expTitle:"工作经历", expHint:"每份工作一段。", expHint2:"建议：每份工作 3–6 条要点。",
-    eduTitle:"教育（可选）", eduHint:"每条教育一段。", projTitle:"项目（可选）", projHint:"每个项目一段。",
-    certTitle:"证书（可选）", certHint:"每行一个。", btn:"生成 CV + PDF", done:"完成 ✅ 正在打开…", err:"错误:" }
+    links:"链接（每行：名称 | URL）",
+    skills:"技能（逗号分隔）",
+    langs:"语言（每行：语言 | 等级）",
+    summaryTitle:"简介（可选）",
+    summaryHint:"写 2–4 条要点。",
+    expTitle:"工作经历",
+    expHint:"每份工作一段。",
+    expHint2:"建议：每份工作 3–6 条要点。",
+    eduTitle:"教育（可选）",
+    eduHint:"每条教育一段。",
+    projTitle:"项目（可选）",
+    projHint:"每个项目一段。",
+    certTitle:"证书（可选）",
+    certHint:"每行一个。",
+    reviewTitle:"检查与导出",
+    reviewSub:"我们会根据你输入的信息生成 ATS 简历。",
+    quickCheck:"快速检查",
+    btn:"生成 CV + PDF",
+    done:"完成 ✅ 正在打开…",
+    err:"错误:",
+    cont:"继续",
+    backBtn:"返回"
+  }
 };
 
 function applyLang(code){
   const t = I18N[code] || I18N.en;
   document.documentElement.lang = code;
-  // quick RTL support
   document.documentElement.dir = (code === "ar") ? "rtl" : "ltr";
 
-  const set = (id, val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
-  set("t_back", t.back);
-  set("t_langLabel", t.langLabel);
-  set("t_title", t.title);
-  set("t_sub", t.sub);
+  const setText = (id, val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
 
-  const setLabel = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
-  setLabel("t_fullname_label", t.fullname);
-  setLabel("t_headline_label", t.headline);
-  setLabel("t_location_label", t.location);
-  setLabel("t_email_label", t.email);
-  setLabel("t_phone_label", t.phone);
-  setLabel("t_links_label", t.links);
-  setLabel("t_skills_label", t.skills);
-  setLabel("t_langs_label", t.langs);
+  // gate
+  setText("gateTitle", t.gateTitle);
+  setText("gateSub", t.gateSub);
+  setText("t_back_gate", t.back);
+  setText("t_langLabel_gate", t.langLabel);
+  document.getElementById("langContinue") && (document.getElementById("langContinue").textContent = t.gateContinue);
 
-  set("t_summary_title", t.summaryTitle);
-  set("t_summary_hint", t.summaryHint);
-  set("t_exp_title", t.expTitle);
-  set("t_exp_hint", t.expHint);
-  set("t_exp_hint2", t.expHint2);
-  set("t_edu_title", t.eduTitle);
-  set("t_edu_hint", t.eduHint);
-  set("t_proj_title", t.projTitle);
-  set("t_proj_hint", t.projHint);
-  set("t_cert_title", t.certTitle);
-  set("t_cert_hint", t.certHint);
-  set("t_btn", t.btn);
+  // header
+  setText("t_back", t.back);
+  setText("t_langLabel", t.langLabel);
+  setText("t_title", t.title);
+  setText("t_sub", t.sub);
+
+  // step titles
+  setText("t_review_title", t.reviewTitle);
+  setText("t_review_sub", t.reviewSub);
+  setText("t_quickcheck", t.quickCheck);
+
+  // labels
+  setText("t_fullname_label", t.fullname);
+  setText("t_headline_label", t.headline);
+  setText("t_location_label", t.location);
+  setText("t_email_label", t.email);
+  setText("t_phone_label", t.phone);
+  setText("t_links_label", t.links);
+  setText("t_skills_label", t.skills);
+  setText("t_langs_label", t.langs);
+
+  setText("t_summary_title", t.summaryTitle);
+  setText("t_summary_hint", t.summaryHint);
+  setText("t_exp_title", t.expTitle);
+  setText("t_exp_hint", t.expHint);
+  setText("t_exp_hint2", t.expHint2);
+  setText("t_edu_title", t.eduTitle);
+  setText("t_edu_hint", t.eduHint);
+  setText("t_proj_title", t.projTitle);
+  setText("t_proj_hint", t.projHint);
+  setText("t_cert_title", t.certTitle);
+  setText("t_cert_hint", t.certHint);
+  setText("t_btn", t.btn);
+
+  // wizard buttons
+  document.getElementById("wizNext") && (document.getElementById("wizNext").textContent = t.cont);
+  document.getElementById("wizBack") && (document.getElementById("wizBack").textContent = t.backBtn);
 
   // store
   localStorage.setItem("resumeai_create_lang", code);
+
+  // update step header text
+  renderStepHeader();
 }
 
-(function initLang(){
+/** ---------- wizard ---------- **/
+const STEPS = [
+  { key:"basics", titleKey:"basics" },
+  { key:"summary", titleKey:"summaryStep" },
+  { key:"experience", titleKey:"expStep" },
+  { key:"education", titleKey:"eduStep" },
+  { key:"projects", titleKey:"projStep" },
+  { key:"certificates", titleKey:"certStep" },
+  { key:"review", titleKey:"reviewStep" },
+];
+
+let stepIndex = 0;
+
+function getLang(){
+  return document.getElementById("lang")?.value || localStorage.getItem("resumeai_create_lang") || "en";
+}
+function tkey(k){
+  const t = I18N[getLang()] || I18N.en;
+  return t[k] || k;
+}
+
+function renderStepHeader(){
+  const titleEl = document.getElementById("wizStepTitle");
+  const countEl = document.getElementById("wizStepCount");
+  const barEl = document.getElementById("wizProgress");
+
+  const step = STEPS[stepIndex];
+  if (titleEl) titleEl.textContent = tkey(step.titleKey);
+  if (countEl) countEl.textContent = `Step ${stepIndex+1}/${STEPS.length}`;
+  if (barEl) barEl.style.width = `${Math.round((stepIndex/(STEPS.length-1))*100)}%`;
+}
+
+function showStep(i){
+  stepIndex = Math.max(0, Math.min(STEPS.length - 1, i));
+
+  document.querySelectorAll(".step").forEach(el=>{
+    el.classList.toggle("active", el.getAttribute("data-step") === STEPS[stepIndex].key);
+  });
+
+  renderStepHeader();
+
+  const backBtn = document.getElementById("wizBack");
+  const nextBtn = document.getElementById("wizNext");
+  const genBtn  = document.getElementById("btn");
+
+  if (backBtn) backBtn.disabled = (stepIndex === 0);
+
+  if (STEPS[stepIndex].key === "review") {
+    if (nextBtn) nextBtn.style.display = "none";
+    if (genBtn) genBtn.style.display = "inline-flex";
+    fillReviewKPIs();
+  } else {
+    if (nextBtn) nextBtn.style.display = "inline-flex";
+    if (genBtn) genBtn.style.display = "none";
+  }
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function fillReviewKPIs(){
+  const name = (document.getElementById("fullName")?.value || "").trim();
+  const ttl  = (document.getElementById("title")?.value || "").trim();
+  const exp  = (document.getElementById("experience")?.value || "").trim();
+  const skills = (document.getElementById("skills")?.value || "").trim();
+
+  const expBlocks = exp ? exp.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean).length : 0;
+  const skillCount = skills ? skills.split(",").map(s=>s.trim()).filter(Boolean).length : 0;
+
+  document.getElementById("kpiName").textContent = `Name: ${name || "—"}`;
+  document.getElementById("kpiTitle").textContent = `Title: ${ttl || "—"}`;
+  document.getElementById("kpiExp").textContent = `Experience blocks: ${expBlocks || 0}`;
+  document.getElementById("kpiSkills").textContent = `Skills: ${skillCount || 0}`;
+}
+
+function validateStep(){
+  // Only basic required: fullName + title (to keep friction low)
+  if (STEPS[stepIndex].key === "basics") {
+    const name = (document.getElementById("fullName").value || "").trim();
+    const title = (document.getElementById("title").value || "").trim();
+    return !!(name && title);
+  }
+  return true;
+}
+
+/** ---------- init gate ---------- **/
+(function initGate(){
   const saved = localStorage.getItem("resumeai_create_lang");
-  const select = document.getElementById("lang");
-  if(saved && select) select.value = saved;
-  applyLang(select?.value || "en");
-  select?.addEventListener("change", ()=> applyLang(select.value));
+
+  const gateSelect = document.getElementById("langGateSelect");
+  const wizardSelect = document.getElementById("lang");
+
+  if (saved) {
+    if (gateSelect) gateSelect.value = saved;
+    if (wizardSelect) wizardSelect.value = saved;
+    applyLang(saved);
+
+    // auto enter wizard if language already chosen
+    document.getElementById("langGate").style.display = "none";
+    document.getElementById("wizardRoot").style.display = "block";
+    showStep(0);
+  } else {
+    applyLang(gateSelect?.value || "en");
+  }
+
+  document.getElementById("langContinue").addEventListener("click", ()=>{
+    const chosen = gateSelect.value || "en";
+    if (wizardSelect) wizardSelect.value = chosen;
+    applyLang(chosen);
+
+    document.getElementById("langGate").style.display = "none";
+    document.getElementById("wizardRoot").style.display = "block";
+    showStep(0);
+  });
+
+  gateSelect.addEventListener("change", ()=> applyLang(gateSelect.value));
+
+  wizardSelect.addEventListener("change", ()=>{
+    applyLang(wizardSelect.value);
+  });
+
+  document.getElementById("wizBack").addEventListener("click", ()=>{
+    showStep(stepIndex - 1);
+  });
+
+  document.getElementById("wizNext").addEventListener("click", ()=>{
+    if (!validateStep()) {
+      const s = document.getElementById("status");
+      if (s) s.textContent = (getLang() === "tr")
+        ? "Lütfen en az Ad Soyad ve Ünvan alanlarını doldur."
+        : "Please fill at least Full name and Headline/Title.";
+      return;
+    }
+    const s = document.getElementById("status");
+    if (s) s.textContent = "";
+    showStep(stepIndex + 1);
+  });
 })();
 
-/** ---------- parsers (for flexible input) ---------- **/
+/** ---------- parsers (same as your current page) ---------- **/
 const safe = (v)=> (v==null ? "" : String(v)).trim();
 
 function splitBlocks(v){
@@ -344,13 +824,11 @@ function parseLinks(v){
 function parseLangs(v){
   return lines(v).slice(0,10).map(line=>{
     const parts = line.split("|").map(s=>s.trim());
-    // allow "english-turkish-french" mistake -> treat as name only
     return { name: parts[0] || "", level: parts[1] || "" };
   }).filter(x=>x.name);
 }
 
 function parseBulletsFromLines(arr){
-  // keep only lines starting with "-" as bullets
   const bullets = arr.filter(l => l.startsWith("-")).map(l => l.replace(/^\-\s*/, "").trim()).filter(Boolean);
   return bullets.slice(0, 10);
 }
@@ -383,8 +861,6 @@ function parseExperience(v){
       };
     }
 
-    // simple format:
-    // 1: company, 2: role, 3: dates, rest: bullets
     const l = lines(b);
     const company = l[0] || "";
     const position = l[1] || "";
@@ -397,7 +873,6 @@ function parseExperience(v){
       start = dm[1];
       end = (String(dm[2]).toLowerCase().includes("present") || String(dm[2]).toLowerCase().includes("now")) ? null : dm[2];
     }else{
-      // if user only wrote one year range like "2019-2025"
       const ym = dates.match(/(\d{4})\s*[-–]\s*(\d{4})/);
       if(ym){ start = ym[1]; end = ym[2]; }
     }
@@ -419,7 +894,6 @@ function parseEducation(v){
   const blocks = splitBlocks(v);
   return blocks.map(b=>{
     const l = lines(b);
-    // try structured
     const school = (b.match(/^School\s*:\s*(.+)$/im)?.[1] || l[0] || "").trim();
     const degree = (b.match(/^Degree\s*:\s*(.+)$/im)?.[1] || l[1] || "").trim();
     const years = l.find(x=>/\d{4}/.test(x)) || "";
@@ -451,11 +925,11 @@ function parseCertificates(v){
   return lines(v).slice(0, 15);
 }
 
-/** ---------- action ---------- **/
+/** ---------- export action (same logic) ---------- **/
 document.getElementById("btn").addEventListener("click", ()=>{
   const btn = document.getElementById("btn");
   const status = document.getElementById("status");
-  const lang = document.getElementById("lang").value;
+  const lang = getLang();
   const t = I18N[lang] || I18N.en;
 
   btn.disabled = true;
