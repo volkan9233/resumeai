@@ -977,7 +977,7 @@ document.getElementById("downloadAts")?.addEventListener("click", ()=>{
 });
 
 document.getElementById("downloadModern")?.addEventListener("click", ()=>{
-  if (window.__isPreview) return alert("Preview mode: CV PDF is locked. Unlock to download.");
+  if (window.__isPreview) return alert(window.__pdfLocked || "Preview mode: CV PDF is locked. Unlock to download.");
 
   const optimized = getOptimizedTextClean();
   if (!optimized) return alert("Optimized CV is empty.");
