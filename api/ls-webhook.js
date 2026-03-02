@@ -49,7 +49,14 @@ export default async function handler(req, res) {
       "";
 
     const attrs = evt?.data?.attributes || {};
-    const orderId = attrs?.order_number || attrs?.identifier || attrs?.id || attrs?.order_id;
+    const orderId =
+  attrs?.order_id ||
+  attrs?.order_number ||
+  attrs?.identifier ||
+  attrs?.id ||
+  evt?.data?.id ||
+  "";
+    console.log("LS WEBHOOK", { eventName, orderId, email });
     const email = attrs?.user_email || attrs?.customer_email || attrs?.email;
 
     // Sadece bizim ürünse işleyelim (ürün adıyla da filtreleyebilirsin)
