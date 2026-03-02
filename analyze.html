@@ -362,17 +362,26 @@ async function run(){
     });
 
     // weak
-    const weak = document.getElementById('weak');
-    weak.innerHTML = "";
-    if (isPreview) {
-      weak.innerHTML = "<li>🔒 Preview: Weak phrases are locked. Unlock to see full rewrites.</li>";
-    } else {
-      (data.weak_sentences || []).forEach(it=>{
-        const li = document.createElement('li');
-        li.textContent = (it && it.sentence && it.rewrite) ? `${it.sentence} → ${it.rewrite}` : String(it);
-        weak.appendChild(li);
-      });
-    }
+const weak = document.getElementById('weak');
+weak.innerHTML = "";
+
+// Preview: 1 tane gerçek weak göster, sonra kilit mesajı ekle
+const ws = Array.isArray(data.weak_sentences) ? data.weak_sentences : [];
+
+ws.slice(0, isPreview ? 1 : ws.length).forEach(it => {
+  const li = document.createElement('li');
+  li.textContent = (it && it.sentence && it.rewrite)
+    ? `${it.sentence} → ${it.rewrite}`
+    : String(it);
+  weak.appendChild(li);
+});
+
+if (isPreview) {
+  const li = document.createElement('li');
+  li.style.opacity = "0.85";
+  li.textContent = "🔒 Unlock to see the full list (typically 10–15 weak phrases).";
+  weak.appendChild(li);
+}
 
     // optimized
     document.getElementById('optimized').textContent = isPreview
