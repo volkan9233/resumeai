@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     if (!appSecret) return res.status(500).json({ error: "APP_SECRET missing" });
 
     const { order_id, email } = req.query || {};
-    if (!email) return res.status(400).json({ error: "email required" });
+    
 
     // ✅ FORCE TEST (gerçek ödeme olmadan FULL denemek için)
     if (req.query.force === "1") {
@@ -57,7 +57,21 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, forced: true });
     }
 
-    const ehash = sha256(String(email).trim().toLowerCase());
+    let ehash = null;
+
+if (email) {
+  ehash = sha256(String(email).trim().toLowerCase());
+}
+
+if (!ehash && order_id) {
+  const saved = await redis.get(`resumeai:paid:order:${order_id}`);
+  if (!saved) return res.status(401).json({ error: "Order not recognized" });
+  ehash = String(saved);
+}
+
+if (!ehash) {
+  return res.status(400).json({ error: "order_id required" });
+}
 
     // 1) order opsiyonel: redis’te varsa eşleşmeli
     if (order_id) {
