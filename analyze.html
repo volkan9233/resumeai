@@ -192,9 +192,11 @@ async function fetchUnlockState() {
 );
 
     if (!r.ok) {
-      const t = await r.text();
-      throw new Error("confirm failed: " + t);
-    }
+  const t = await r.text();
+  const s = document.getElementById("status");
+  if (s) s.textContent = "CONFIRM FAILED: " + t;
+  throw new Error("confirm failed: " + t);
+}
 
     // UX: localStorage sadece UI içindir; gerçek unlock server cookie ile
     localStorage.setItem("resumeai_unlocked", "1");
