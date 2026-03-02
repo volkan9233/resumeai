@@ -460,8 +460,10 @@ window.__nothingToCopy = t.nothingToCopy;
 async function syncPreviewUI() {
   await fetchUnlockState();
 
-  const forcedPreview = new URLSearchParams(location.search).get("preview") === "1";
-  const isPreview = forcedPreview || !window.__unlocked;
+  const qs2 = new URLSearchParams(location.search);
+const isPaid = qs2.get("paid") === "1";
+const forcedPreview = !isPaid && qs2.get("preview") === "1";
+const isPreview = forcedPreview || !window.__unlocked;
 
   // Banner / Locks UI
   const banner = document.getElementById("previewBanner");
