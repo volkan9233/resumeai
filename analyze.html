@@ -186,13 +186,10 @@ async function fetchUnlockState() {
     if (qs.get("paid") !== "1") return;
 
     const order_id = qs.get("order_id") || "";
-    const email = qs.get("email") || "";
-    if (!email) return;
-
     const r = await fetch(
-      `/api/confirm?order_id=${encodeURIComponent(order_id)}&email=${encodeURIComponent(email)}`,
-      { method: "GET", credentials: "include" }
-    );
+  `/api/confirm?order_id=${encodeURIComponent(order_id)}`,
+  { method: "GET", credentials: "include" }
+);
 
     if (!r.ok) {
       const t = await r.text();
