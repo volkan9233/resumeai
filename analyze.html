@@ -210,6 +210,17 @@ async function fetchUnlockState() {
     }
 
     localStorage.setItem("resumeai_unlocked", "1");
+    // confirm başarılı olduktan sonra:
+const convKey = `aw_purchase_${order_id}`;
+if (!localStorage.getItem(convKey)) {
+  gtag('event', 'conversion', {
+    'send_to': 'AW-17987698621/nrbiCIuKvYEcEL3_mYFD',
+    'value': 15.0,
+    'currency': 'USD',
+    'transaction_id': order_id || ''
+  });
+  localStorage.setItem(convKey, '1');
+}
 
     // URL temizle (paid=1 ve order_id gitsin)
     window.location.replace("/analyze.html");
