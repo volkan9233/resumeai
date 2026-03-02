@@ -487,13 +487,15 @@ const isPreview = forcedPreview || !window.__unlocked;
 
   const s = document.getElementById("status");
 if (s) {
-  // normalde mod yaz
+  // ✅ önce eski confirm mesajı varsa sil (ne olursa olsun)
+  if (/confirm/i.test(s.textContent) || /order not/i.test(s.textContent)) {
+    s.textContent = "";
+  }
+
+  // sonra mod yaz
   s.textContent = isPreview
     ? (window.__previewModeText || "Preview Mode 🔒")
     : (window.__fullModeText || "Full Mode ✅");
-
-  // eğer daha önce "Confirm..." hatası kalmışsa ve FULL isek temizle
-  if (!isPreview && /confirm/i.test(s.textContent)) s.textContent = "";
 }
   }
 
