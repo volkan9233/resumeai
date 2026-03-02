@@ -1343,7 +1343,7 @@ function renderStepExtras(container){
   ph.className = "itemHead";
   const pt = document.createElement("div");
   pt.className = "title";
-  pt.textContent = "Projects";
+  pt.textContent = t.projectsTitle;
   ph.appendChild(pt);
   const addP = document.createElement("button");
   addP.type="button"; addP.className="chipBtn"; addP.textContent = t.fields.addProject;
@@ -1395,7 +1395,7 @@ function renderStepExtras(container){
   ch.className = "itemHead";
   const ct = document.createElement("div");
   ct.className = "title";
-  ct.textContent = "Certificates";
+  ct.textContent = t.certificatesTitle;
   ch.appendChild(ct);
   certCard.appendChild(ch);
 
@@ -1411,7 +1411,7 @@ function renderStepExtras(container){
   lh.className = "itemHead";
   const lt = document.createElement("div");
   lt.className = "title";
-  lt.textContent = "Languages";
+  lt.textContent = t.languagesTitle;
   lh.appendChild(lt);
   const addL = document.createElement("button");
   addL.type="button"; addL.className="chipBtn"; addL.textContent = t.fields.addLanguage;
