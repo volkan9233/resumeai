@@ -222,6 +222,76 @@
       font-size:12px;
       line-height:1.55;
     }
+    /* --- Actions row layout: button left, targeting right --- */
+.actions#actionsRow{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  justify-content:space-between;
+  flex-wrap:nowrap;
+}
+
+.actionLeft{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  min-width:260px; /* buton satırı */
+}
+
+#targetBox{
+  flex:1;
+  margin-top:0;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  background:rgba(255,255,255,.03);
+  max-width:680px;   /* sağa doğru yayılsın ama aşırı uzamasın */
+}
+
+.targetGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:10px;
+}
+
+.tHint{
+  opacity:.8;
+  font-size:12px;
+  margin-bottom:6px;
+}
+
+#targetBox input, #targetBox select{
+  width:100%;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#111827;
+  color:#fff;
+  outline:none;
+}
+
+.toneRow{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.toneBtn{
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.04);
+  color:#fff;
+  font-weight:800;
+}
+
+/* Mobilde alt alta düşsün (normal) */
+@media(max-width:900px){
+  .actions#actionsRow{ flex-wrap:wrap; }
+  #targetBox{ max-width:none; width:100%; }
+}
+    
   </style>
 
   <!-- Google tag (gtag.js) -->
