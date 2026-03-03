@@ -57,7 +57,8 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "POST required" });
     }
 
-    const { cv, jd, preview, lang } = req.body || {};
+    const { cv, jd, preview, lang, mode } = req.body || {};
+const reqMode = (typeof mode === "string" && mode.trim()) ? mode.trim().toLowerCase() : "ats";
 
 const sessionOk = verifySession(req);      // ✅ cookie var mı?
 const requestedPreview = !!preview;        // client preview istedi mi?
