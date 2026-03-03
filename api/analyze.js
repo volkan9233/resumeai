@@ -84,9 +84,12 @@ const isPreview = requestedPreview || !sessionOk; // ✅ session yoksa full verm
       });
     }
 
-    if (!cv || !jd) {
-      return res.status(400).json({ error: "cv and jd are required" });
-    }
+    if (!cv) {
+  return res.status(400).json({ error: "cv is required" });
+}
+if (reqMode !== "linkedin" && !jd) {
+  return res.status(400).json({ error: "jd is required" });
+}
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
