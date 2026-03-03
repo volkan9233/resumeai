@@ -885,6 +885,12 @@ async function run(){
   const btn = document.getElementById("btn");
   const status = document.getElementById("status");
   const spinner = document.getElementById("spinner");
+  const targetRole = (document.getElementById("targetRole")?.value || "").trim();
+if (!targetRole) {
+  status.className = "status err";
+  status.textContent = "Please enter Target role (required).";
+  return;
+}
 
   if(!resume){
     status.className = "status err";
