@@ -757,6 +757,25 @@ function fillChips(elId, arr){
     root.appendChild(c);
   });
 }
+  // --- Tone buttons active/inactive ---
+function renderToneButtons(){
+  document.querySelectorAll(".toneBtn").forEach(b => {
+    const on = (b.dataset.tone === (window.__li_tone || "clean"));
+    b.style.background = on ? "rgba(109,94,252,.95)" : "rgba(255,255,255,.04)";
+    b.style.borderColor = on ? "rgba(255,255,255,.22)" : "rgba(255,255,255,.16)";
+    b.style.opacity = on ? "1" : ".85";
+  });
+}
+
+function bindToneButtons(){
+  document.querySelectorAll(".toneBtn").forEach(b => {
+    b.addEventListener("click", () => {
+      window.__li_tone = b.dataset.tone;   // clean/confident/bold
+      renderToneButtons();
+    });
+  });
+  renderToneButtons();
+}
 
 /* =======================
    Main run()
