@@ -207,6 +207,16 @@ QUALITY RULES:
 - recruiter.boolean: a single boolean string using OR groups + a few AND terms, ready to paste in LinkedIn Recruiter.
 - Return ONLY valid JSON. No extra keys.
 
+TARGETING META (must drive output strongly):
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
+
+HARD RULE:
+- If target_role is provided, every headline + about + skills + recruiter keywords MUST align to target_role + seniority.
+
 RESUME:
 ${cv}
 
