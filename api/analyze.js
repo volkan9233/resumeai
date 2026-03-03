@@ -121,6 +121,73 @@ CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix langu
 This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
 Do not add any extra keys.
 `.trim();
+    const linkedinPreviewUser = `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[] },
+  "recruiter": { "keywords": string[] }
+}
+
+RULES:
+- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
+- headlines: exactly 1 item.
+- about.short: 600–900 chars, punchy, no emojis.
+- experience_fix: exactly 1 item. "before" must be a real bullet/sentence from the resume.
+- skills.top: 7–10 items.
+- recruiter.keywords: 5–8 items.
+- No extra keys. Return ONLY valid JSON.
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
+
+const linkedinFullUser = `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string, "normal": string, "bold": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[], "tools": string[], "industry": string[] },
+  "recruiter": { "keywords": string[], "boolean": string }
+}
+
+QUALITY RULES:
+- Output VALUES must be in ${outLang}. Do not mix languages.
+- Do NOT invent employers, titles, dates, degrees, or metrics.
+- If resume has no numbers, improve bullets using scope + tools + outcome WITHOUT guessing numbers.
+- Headline max 220 chars each. No emojis.
+- About:
+  - short: 500–800 chars
+  - normal: 900–1400 chars
+  - bold: 900–1400 chars (more confident, still truthful)
+- headlines: exactly 5 items with labels:
+  1) "Search"
+  2) "Impact"
+  3) "Niche"
+  4) "Leadership"
+  5) "Clean"
+- experience_fix: exactly 5 items. Each "before" must be from the resume text. "after" must be LinkedIn-ready bullet. "why" must explain (clarity/impact/scope/keywords).
+- skills.top: 12–18
+- skills.tools: 8–16
+- skills.industry: 12–20
+- recruiter.keywords: 10–20
+- recruiter.boolean: a single boolean string using OR groups + a few AND terms, ready to paste in LinkedIn Recruiter.
+- Return ONLY valid JSON. No extra keys.
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
 
     // ✅ PREVIEW prompt (small output)
     const previewUser = `
