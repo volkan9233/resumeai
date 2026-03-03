@@ -296,6 +296,7 @@ if (reqMode === "linkedin") {
 } else {
   userPrompt = isPreview ? previewUser : fullUser;
 }
+    const chosenSystem = (reqMode === "linkedin") ? linkedinSystem : system;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
