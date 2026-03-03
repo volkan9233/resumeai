@@ -333,28 +333,47 @@
   text-align:center;
 }
 .guarantee .btn{ display:block; margin:10px auto 0; max-width:420px; }
-    .hero-cta{
-  margin-top: 40px;
-  display: grid;
-  gap: 14px;
-  justify-items: center;
-}
+    
 
+    /* HERO CTA: 2 üst + 2 alt */
 .cta-row{
-  display: grid;
+  display:grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  width: min(860px, 100%);
+  margin-top: 40px;
+  max-width: 920px;   /* istersen 860–980 arası */
+  margin-left:auto;
+  margin-right:auto;
 }
 
-/* butonlar satırı doldursun */
+/* Eski boyut hissi: daha kısa buton */
 .cta-row .btn{
+  margin-top: 0 !important;   /* global .btn margin-top:40px'ı burada sıfırlar */
   width: 100%;
-  text-align: center;
-  margin-top: 0; /* senin .btn margin-top:40px veriyordu, satır bozulmasın */
+  padding: 14px 26px;         /* <- KÜÇÜLTME burada */
+  font-size: 17px;            /* <- KÜÇÜLTME burada */
+  border-radius: 10px;
 }
 
-/* mobilde alt alta düşsün */
+/* Shine kalsın ama Safari'de komşu butona taşmasın */
+.cta-row .btn{
+  position: relative;
+  z-index: 0;
+  isolation: isolate;         /* <- kritik */
+  overflow: hidden;           /* zaten vardı ama burada garanti */
+  transform: translateZ(0);   /* Safari rendering fix */
+}
+
+.cta-row .btn::after{
+  z-index: 0;                 /* shine altta kalsın */
+}
+
+.cta-row .btn > *{
+  position: relative;
+  z-index: 1;                 /* yazı shine'ın üstünde */
+}
+
+/* mobilde 1 sütun */
 @media(max-width: 768px){
   .cta-row{ grid-template-columns: 1fr; }
 }
