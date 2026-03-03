@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ResumeAI — LinkedIn Optimization</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --panel: rgba(255,255,255,.04);
+      --panel2: rgba(255,255,255,.02);
+      --border: rgba(255,255,255,.12);
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --muted2:#94a3b8;
+      --input:#111827;
+      --accent1:#7b5cff;
+      --accent2:#5b3dff;
+      --ok:#22c55e;
+      --danger:#ef4444;
+      --warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Arial;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(123,92,255,.18), transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(91,61,255,.14), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:980px;margin:auto;padding:44px 18px;}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:12px;flex-wrap:wrap;margin-bottom:14px;
+    }
+    .brand{
+      font-weight:900;letter-spacing:-.02em;
+      display:flex;align-items:center;gap:10px;
+    }
+    .brand .dot{
+      width:12px;height:12px;border-radius:99px;
+      background:linear-gradient(135deg,var(--accent1),var(--accent2));
+      box-shadow:0 0 0 6px rgba(123,92,255,.18);
+    }
+    .brand span{color:#c7d2fe;font-weight:900;}
+    a.link{color:#a5b4fc;text-decoration:none;font-weight:800;}
+    a.link:hover{text-decoration:underline;}
+
+    h1{margin:8px 0 8px 0;font-size:40px;letter-spacing:-.03em;line-height:1.08;}
+    .sub{color:var(--muted2);font-size:14px;line-height:1.65;max-width:860px;}
+
+    .langRow{
+      margin-top:12px;
+      position:sticky; top:0; z-index:20;
+      padding:10px; border-radius:14px;
+      background:rgba(17,24,39,.92);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(8px);
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;
+    }
+    .langLabel{font-weight:900;color:#cbd5e1;letter-spacing:.2px;font-size:14px;}
+    .langBar{display:flex;gap:10px;flex-wrap:wrap;}
+    .langBar a{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:10px 12px;font-size:14px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.22);
+      color:#cbd5e1;text-decoration:none;opacity:.9;font-weight:800;
+    }
+    .langBar a.active{
+      background:rgba(109,94,252,.95);
+      color:#fff;border-color:rgba(255,255,255,.18);
+      opacity:1;
+    }
+
+    .card{
+      margin-top:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:16px;
+    }
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:900px){ .grid{grid-template-columns:1fr;} h1{font-size:32px;} }
+
+    label{display:block;font-size:12px;color:rgba(255,255,255,.72);margin-bottom:6px;font-weight:800;letter-spacing:.01em;}
+    textarea,input{
+      width:100%;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:var(--input);
+      color:var(--text);
+      outline:none;
+      font-size:13px;
+      line-height:1.55;
+    }
+    textarea{min-height:240px;resize:vertical;}
+    textarea:focus,input:focus{
+      border-color: rgba(123,92,255,.55);
+      box-shadow: 0 0 0 4px rgba(123,92,255,.10);
+    }
+
+    .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+    .btn{
+      padding:12px 16px;border:0;border-radius:12px;font-weight:900;cursor:pointer;color:#fff;
+      background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    }
+    .btn.secondary{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.14);
+      color:rgba(255,255,255,.9);
+      font-weight:800;
+    }
+    .btn.ghost{
+      background:transparent;border:1px dashed rgba(255,255,255,.22);
+      color:rgba(255,255,255,.82);font-weight:800;
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed;}
+
+    .hint{color:rgba(255,255,255,.7);font-size:12px;}
+    .status{color:#cbd5e1;font-size:13px;font-weight:800;}
+    .status.ok{color:#bbf7d0}
+    .status.err{color:#fecaca}
+    .spinner{
+      display:none;width:18px;height:18px;border:3px solid rgba(255,255,255,.25);
+      border-top-color:#6366F1;border-radius:999px;animation:spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .banner{
+      display:none;
+      margin-top:12px;
+      padding:12px 14px;
+      border:1px dashed rgba(255,255,255,.25);
+      border-radius:14px;
+      background:rgba(255,255,255,.04);
+    }
+    .banner .t{font-weight:900;font-size:14px;}
+    .banner .d{opacity:.85;font-size:13px;margin-top:6px;line-height:1.55;}
+    .banner a{
+      display:inline-block;margin-top:10px;padding:10px 12px;border-radius:12px;
+      background:#7c3aed;color:#fff;font-weight:900;text-decoration:none;
+    }
+
+    .out{display:none;margin-top:14px;}
+    .section{
+      margin-top:12px;
+      padding:14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.02);
+    }
+    .section h2{margin:0 0 8px 0;font-size:16px;letter-spacing:-.01em;}
+    .muted{color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 10px 0;}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .copyBtn{
+      padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);color:rgba(255,255,255,.9);font-weight:900;
+      cursor:pointer;
+    }
+
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.03);
+      font-weight:900;font-size:12px;color:rgba(255,255,255,.9);
+    }
+    .pill.search{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.10)}
+    .pill.impact{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.10)}
+    .pill.niche{border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.10)}
+    .pill.lead{border-color:rgba(236,72,153,.35);background:rgba(236,72,153,.10)}
+    .pill.clean{border-color:rgba(148,163,184,.35);background:rgba(148,163,184,.08)}
+
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .tab{
+      padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);
+      background:transparent;color:#cbd5e1;font-weight:900;cursor:pointer;
+    }
+    .tab.active{
+      background:rgba(109,94,252,.95);color:#fff;border-color:rgba(255,255,255,.18);
+    }
+    pre{
+      white-space:pre-wrap;word-wrap:break-word;
+      background:rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.10);
+      padding:12px;border-radius:14px;
+      margin:10px 0 0 0;
+      color:#e5e7eb;
+      line-height:1.6;
+      font-size:13px;
+    }
+    ul{margin:8px 0 0 0;padding-left:18px;color:#e5e7eb;line-height:1.65;}
+    .chipWrap{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .chip{
+      padding:8px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.03);
+      font-weight:800;font-size:12px;color:rgba(255,255,255,.9);
+    }
+    details{
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.02);
+      border-radius:14px;
+      padding:10px 12px;
+      margin-top:10px;
+    }
+    summary{cursor:pointer;font-weight:900;outline:none;}
+    .k{color:#a5b4fc;font-weight:900}
+    .warnBox{
+      margin-top:10px;
+      border:1px solid rgba(245,158,11,.25);
+      background:rgba(245,158,11,.08);
+      border-radius:14px;
+      padding:10px 12px;
+      color:#fde68a;
+      font-weight:800;
+      font-size:12px;
+      line-height:1.55;
+    }
+  </style>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987698621"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'AW-17987698621');
+  </script>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><div class="dot"></div><div>Resume<span>AI</span></div></div>
+      <a class="link" href="/index.html">← <span id="t_back">Back</span></a>
+    </div>
+
+    <h1 id="t_title">LinkedIn Optimization</h1>
+    <div class="sub" id="t_sub">
+      Paste your resume (and optional target role/job). Get recruiter-search headlines, About section, stronger experience bullets, and keywords you can paste in minutes.
+    </div>
+
+    <div class="langRow">
+      <div class="langLabel" id="t_langLabel">Select language</div>
+      <div class="langBar" id="langBar"></div>
+    </div>
+
+    <div class="banner" id="previewBanner">
+      <div class="t" id="t_previewTitle">🔒 Free Preview Mode — limited output</div>
+      <div class="d" id="t_previewDesc">Unlock to get 5 headlines, 3 About tones, 5 bullet rewrites, full skills + recruiter keyword pack.</div>
+      <a id="unlockLink" href="https://resumeaiwork.lemonsqueezy.com/checkout/buy/9fb41ad2-b64b-4a7d-b37e-768065b4f667" target="_blank" rel="noopener">Unlock 1-Year Access</a>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label id="t_resumeLabel">Resume (paste text)</label>
+          <textarea id="resume" placeholder="Paste your resume here..."></textarea>
+        </div>
+        <div>
+          <label id="t_targetLabel">Target role / job description (optional)</label>
+          <textarea id="job" placeholder="Example: Product Manager, Data Analyst, Marketing Manager..."></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btn">Optimize LinkedIn</button>
+        <div class="spinner" id="spinner"></div>
+        <div class="status" id="status"></div>
+      </div>
+
+      <div class="warnBox" id="qualityNote" style="display:none;">
+        <span class="k">Quality rules:</span> No fake metrics. No invented experience. If your resume has no numbers, we rewrite using scope + tools + outcome (without guessing).
+      </div>
+    </div>
+
+    <div class="out" id="out">
+
+      <!-- HEADLINES -->
+      <div class="section">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h2 id="t_headlinesTitle">Headline Pack</h2>
+            <div class="muted" id="t_headlinesDesc">5 options optimized for recruiter search + positioning.</div>
+          </div>
+          <button class="copyBtn" id="copyHeadlines">Copy all</button>
+        </div>
+        <div id="headlines"></div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="section">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h2 id="t_aboutTitle">About section</h2>
+            <div class="muted" id="t_aboutDesc">Choose tone: Short / Normal / Bold.</div>
+          </div>
+          <button class="copyBtn" id="copyAbout">Copy</button>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-about="short" id="tabShort">Short</button>
+          <button class="tab" data-about="normal" id="tabNormal">Normal</button>
+          <button class="tab" data-about="bold" id="tabBold">Bold</button>
+        </div>
+
+        <pre id="aboutText"></pre>
+      </div>
+
+      <!-- EXPERIENCE FIX KIT -->
+      <div class="section">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h2 id="t_fixTitle">Experience Fix Kit</h2>
+            <div class="muted" id="t_fixDesc">We strengthen your weakest bullets: Before → After + why it’s better.</div>
+          </div>
+          <button class="copyBtn" id="copyFix">Copy all</button>
+        </div>
+        <div id="fixKit"></div>
+      </div>
+
+      <!-- SKILLS / KEYWORDS -->
+      <div class="section">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h2 id="t_skillsTitle">Skills & Keywords</h2>
+            <div class="muted" id="t_skillsDesc">Top Skills for LinkedIn + tools + industry keywords.</div>
+          </div>
+          <button class="copyBtn" id="copySkills">Copy all</button>
+        </div>
+
+        <div class="muted" style="margin-top:10px;" id="t_topSkills">Top Skills</div>
+        <div class="chipWrap" id="skillsTop"></div>
+
+        <div class="muted" style="margin-top:12px;" id="t_tools">Tool stack</div>
+        <div class="chipWrap" id="skillsTools"></div>
+
+        <div class="muted" style="margin-top:12px;" id="t_industry">Industry keywords</div>
+        <div class="chipWrap" id="skillsIndustry"></div>
+      </div>
+
+      <!-- RECRUITER SEARCH -->
+      <div class="section">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h2 id="t_recruiterTitle">Recruiter Search Pack</h2>
+            <div class="muted" id="t_recruiterDesc">Keywords + ready-to-use Boolean string.</div>
+          </div>
+          <button class="copyBtn" id="copyRecruiter">Copy</button>
+        </div>
+
+        <div class="muted" style="margin-top:10px;" id="t_recKeywords">Recruiter keywords</div>
+        <div class="chipWrap" id="recKeywords"></div>
+
+        <div class="muted" style="margin-top:12px;" id="t_boolean">Boolean search string</div>
+        <pre id="booleanStr"></pre>
+      </div>
+
+    </div>
+
+    <footer style="margin-top:40px;padding:22px 0;border-top:1px solid rgba(255,255,255,.08);color:#94a3b8;font-size:13px;">
+      <div style="max-width:980px;margin:auto;padding:0 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <div>© <span id="y"></span> ResumeAI</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+          <a href="/terms.html">Terms</a>
+          <a href="/privacy.html">Privacy</a>
+          <a href="/refund.html">Refunds</a>
+          <a href="mailto:support@resumeai.work">Support</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+<script>
+/* =======================
+   Unlock state from server (same as analyze)
+======================= */
+async function fetchUnlockState() {
+  try {
+    const r = await fetch("/api/me", { method: "GET", credentials: "include" });
+    const j = await r.json().catch(() => ({}));
+    window.__unlocked = !!j.unlocked;
+  } catch {
+    window.__unlocked = false;
+  }
+}
+
+/* =======================
+   paid=1 confirm (same cookie flow)
+   NOTE: /api/confirm must already exist in your project
+======================= */
+(async function confirmIfPaid() {
+  try {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("paid") !== "1") return;
+
+    const order_id = qs.get("order_id") || "";
+    if (!order_id) return;
+
+    const r = await fetch(`/api/confirm?order_id=${encodeURIComponent(order_id)}`, {
+      method: "GET",
+      credentials: "include"
+    });
+    if (!r.ok) return;
+
+    localStorage.setItem("resumeai_unlocked", "1");
+
+    // AW purchase conversion (only once per order_id)
+    const convKey = `aw_purchase_${order_id}`;
+    if (!localStorage.getItem(convKey)) {
+      let didRedirect = false;
+      const go = () => {
+        if (didRedirect) return;
+        didRedirect = true;
+        localStorage.setItem(convKey, "1");
+        window.location.replace("/linkedin.html");
+      };
+
+      gtag('event', 'conversion', {
+        'send_to': 'AW-17987698621/nrbiCIuKvYEcEL3_mYFD',
+        'value': 15.0,
+        'currency': 'USD',
+        'transaction_id': order_id || '',
+        'event_callback': go
+      });
+      setTimeout(go, 1200);
+      return;
+    }
+
+    window.location.replace("/linkedin.html");
+  } catch {}
+})();
+
+/* =======================
+   i18n (lightweight)
+======================= */
+const I18N = {
+  en: {
+    back:"Back",
+    title:"LinkedIn Optimization",
+    sub:"Paste your resume (and optional target role/job). Get recruiter-search headlines, About section, stronger experience bullets, and keywords you can paste in minutes.",
+    langLabel:"Select language",
+    resumeLabel:"Resume (paste text)",
+    targetLabel:"Target role / job description (optional)",
+    btn:"Optimize LinkedIn",
+    needResume:"Please paste your resume.",
+    done:"Done ✅",
+    previewTitle:"🔒 Free Preview Mode — limited output",
+    previewDesc:"Unlock to get 5 headlines, 3 About tones, 5 bullet rewrites, full skills + recruiter keyword pack.",
+    headlinesTitle:"Headline Pack",
+    headlinesDesc:"5 options optimized for recruiter search + positioning.",
+    aboutTitle:"About section",
+    aboutDesc:"Choose tone: Short / Normal / Bold.",
+    fixTitle:"Experience Fix Kit",
+    fixDesc:"We strengthen your weakest bullets: Before → After + why it’s better.",
+    skillsTitle:"Skills & Keywords",
+    skillsDesc:"Top Skills for LinkedIn + tools + industry keywords.",
+    topSkills:"Top Skills",
+    tools:"Tool stack",
+    industry:"Industry keywords",
+    recruiterTitle:"Recruiter Search Pack",
+    recruiterDesc:"Keywords + ready-to-use Boolean string.",
+    recKeywords:"Recruiter keywords",
+    boolean:"Boolean search string",
+    copyOk:"Copied ✅",
+    copyFail:"Copy failed.",
+    nothing:"Nothing to copy."
+  },
+  tr: {
+    back:"Geri",
+    title:"LinkedIn Optimizasyonu",
+    sub:"CV’nizi (opsiyonel hedef rol/ilan ile) yapıştırın. Recruiter aramasına uygun headline’lar, About, daha güçlü deneyim maddeleri ve anahtar kelimeler üretelim.",
+    langLabel:"Dil seç",
+    resumeLabel:"CV (metin yapıştır)",
+    targetLabel:"Hedef rol / iş ilanı (opsiyonel)",
+    btn:"LinkedIn’i Optimize Et",
+    needResume:"Lütfen CV’nizi yapıştırın.",
+    done:"Tamam ✅",
+    previewTitle:"🔒 Ücretsiz Önizleme — sınırlı çıktı",
+    previewDesc:"5 headline, 3 About tonu, 5 madde güçlendirme ve tam keyword paketi için kilidi açın.",
+    headlinesTitle:"Headline Paketi",
+    headlinesDesc:"Recruiter araması + konumlandırma için seçenekler.",
+    aboutTitle:"About bölümü",
+    aboutDesc:"Ton seç: Kısa / Normal / İddialı.",
+    fixTitle:"Deneyim Fix Kit",
+    fixDesc:"En zayıf maddeleri güçlendirir: Önce → Sonra + neden daha iyi.",
+    skillsTitle:"Skills & Keywords",
+    skillsDesc:"LinkedIn Top Skills + araçlar + sektör anahtar kelimeleri.",
+    topSkills:"Top Skills",
+    tools:"Araçlar",
+    industry:"Sektör anahtar kelimeleri",
+    recruiterTitle:"Recruiter Search Paketi",
+    recruiterDesc:"Keywords + hazır Boolean string.",
+    recKeywords:"Recruiter keywords",
+    boolean:"Boolean arama cümlesi",
+    copyOk:"Kopyalandı ✅",
+    copyFail:"Kopyalama başarısız.",
+    nothing:"Kopyalanacak bir şey yok."
+  },
+  es: {
+    back:"Volver",
+    title:"Optimización de LinkedIn",
+    sub:"Pega tu CV (y opcionalmente el rol/puesto). Obtén headlines, About, mejoras de experiencia y keywords listas para copiar.",
+    langLabel:"Seleccionar idioma",
+    resumeLabel:"CV (pegar texto)",
+    targetLabel:"Rol objetivo / descripción (opcional)",
+    btn:"Optimizar LinkedIn",
+    needResume:"Por favor pega tu CV.",
+    done:"Listo ✅",
+    previewTitle:"🔒 Vista previa gratis — salida limitada",
+    previewDesc:"Desbloquea para 5 headlines, 3 tonos About, 5 rewrites y el pack completo de keywords.",
+    headlinesTitle:"Pack de Headlines",
+    headlinesDesc:"Opciones para búsqueda de recruiters + posicionamiento.",
+    aboutTitle:"Sección About",
+    aboutDesc:"Elige tono: Corto / Normal / Fuerte.",
+    fixTitle:"Kit de mejora (Experiencia)",
+    fixDesc:"Mejoramos bullets débiles: Antes → Después + por qué.",
+    skillsTitle:"Skills & Keywords",
+    skillsDesc:"Top Skills + herramientas + keywords de industria.",
+    topSkills:"Top Skills",
+    tools:"Herramientas",
+    industry:"Keywords de industria",
+    recruiterTitle:"Pack Recruiter Search",
+    recruiterDesc:"Keywords + cadena Boolean lista.",
+    recKeywords:"Keywords recruiter",
+    boolean:"Cadena Boolean",
+    copyOk:"Copiado ✅",
+    copyFail:"Error al copiar.",
+    nothing:"Nada para copiar."
+  }
+};
+
+function getLang(){
+  const qs = new URLSearchParams(location.search);
+  return (qs.get("lang") || "en").toLowerCase();
+}
+function setText(sel, v){ const el = document.querySelector(sel); if(el) el.textContent = v; }
+function setPh(sel, v){ const el = document.querySelector(sel); if(el) el.setAttribute("placeholder", v); }
+
+(function initLangBar(){
+  const bar = document.getElementById("langBar");
+  const current = getLang();
+  const preview = new URLSearchParams(location.search).get("preview"); // keep if present
+  const langs = [["en","EN"],["tr","TR"],["es","ES"]];
+  bar.innerHTML = "";
+  langs.forEach(([code,label])=>{
+    const a = document.createElement("a");
+    a.className = (code === current) ? "active" : "";
+    const p = new URLSearchParams();
+    if (preview) p.set("preview", preview);
+    p.set("lang", code);
+    a.href = "/linkedin.html?" + p.toString();
+    a.textContent = label;
+    bar.appendChild(a);
+  });
+})();
+
+function applyI18n(){
+  const lang = getLang();
+  const t = I18N[lang] || I18N.en;
+
+  setText("#t_back", t.back);
+  setText("#t_title", t.title);
+  setText("#t_sub", t.sub);
+  setText("#t_langLabel", t.langLabel);
+  setText("#t_resumeLabel", t.resumeLabel);
+  setText("#t_targetLabel", t.targetLabel);
+  setText("#btn", t.btn);
+
+  setText("#t_previewTitle", t.previewTitle);
+  setText("#t_previewDesc", t.previewDesc);
+
+  setText("#t_headlinesTitle", t.headlinesTitle);
+  setText("#t_headlinesDesc", t.headlinesDesc);
+  setText("#t_aboutTitle", t.aboutTitle);
+  setText("#t_aboutDesc", t.aboutDesc);
+  setText("#t_fixTitle", t.fixTitle);
+  setText("#t_fixDesc", t.fixDesc);
+  setText("#t_skillsTitle", t.skillsTitle);
+  setText("#t_skillsDesc", t.skillsDesc);
+  setText("#t_topSkills", t.topSkills);
+  setText("#t_tools", t.tools);
+  setText("#t_industry", t.industry);
+  setText("#t_recruiterTitle", t.recruiterTitle);
+  setText("#t_recruiterDesc", t.recruiterDesc);
+  setText("#t_recKeywords", t.recKeywords);
+  setText("#t_boolean", t.boolean);
+
+  window.__t = t;
+}
+applyI18n();
+
+/* =======================
+   Preview mode (same logic as analyze)
+======================= */
+async function syncPreviewUI(){
+  await fetchUnlockState();
+
+  const qs = new URLSearchParams(location.search);
+  const isPaid = qs.get("paid") === "1";
+  const forcedPreview = !isPaid && qs.get("preview") === "1";
+  const isPreview = forcedPreview || !window.__unlocked;
+
+  const banner = document.getElementById("previewBanner");
+  if (banner) banner.style.display = isPreview ? "block" : "none";
+
+  window.__isPreview = isPreview;
+}
+
+/* =======================
+   Rendering helpers
+======================= */
+function esc(s){ return String(s||""); }
+
+function copyText(text){
+  const t = window.__t || I18N.en;
+  if(!text) return alert(t.nothing);
+  navigator.clipboard.writeText(text)
+    .then(()=> alert(t.copyOk))
+    .catch(()=> alert(t.copyFail));
+}
+
+function renderHeadlines(list){
+  const root = document.getElementById("headlines");
+  root.innerHTML = "";
+  (list || []).forEach((it, idx)=>{
+    const row = document.createElement("div");
+    row.style.cssText = "margin-top:10px;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.02);";
+
+    const top = document.createElement("div");
+    top.className = "row";
+    top.style.justifyContent = "space-between";
+
+    const left = document.createElement("div");
+    left.className = "row";
+
+    const label = (it && it.label) ? String(it.label) : "";
+    const pill = document.createElement("span");
+    pill.className = "pill " + (
+      /search/i.test(label) ? "search" :
+      /impact/i.test(label) ? "impact" :
+      /niche/i.test(label) ? "niche" :
+      /lead/i.test(label) ? "lead" : "clean"
+    );
+    pill.textContent = label || ("Option " + (idx+1));
+    left.appendChild(pill);
+
+    const txt = document.createElement("div");
+    txt.style.fontWeight = "900";
+    txt.style.color = "rgba(255,255,255,.92)";
+    txt.style.marginTop = "6px";
+    txt.textContent = it.text || "";
+    row.appendChild(left);
+
+    const btn = document.createElement("button");
+    btn.className = "copyBtn";
+    btn.textContent = "Copy";
+    btn.addEventListener("click", ()=> copyText(it.text || ""));
+    top.appendChild(left);
+    top.appendChild(btn);
+
+    row.appendChild(top);
+
+    const body = document.createElement("div");
+    body.style.marginTop = "10px";
+    body.style.fontWeight = "800";
+    body.style.color = "rgba(255,255,255,.92)";
+    body.textContent = it.text || "";
+    row.appendChild(body);
+
+    root.appendChild(row);
+  });
+}
+
+function renderFixKit(list){
+  const root = document.getElementById("fixKit");
+  root.innerHTML = "";
+  (list || []).forEach((it, idx)=>{
+    const d = document.createElement("details");
+    if (idx === 0) d.open = true;
+
+    const s = document.createElement("summary");
+    s.textContent = `Fix #${idx+1} — bullet rewrite`;
+    d.appendChild(s);
+
+    const pre1 = document.createElement("pre");
+    pre1.textContent = "BEFORE:\n" + (it.before || "");
+    const pre2 = document.createElement("pre");
+    pre2.textContent = "AFTER:\n" + (it.after || "");
+    const pre3 = document.createElement("pre");
+    pre3.textContent = "WHY:\n" + (it.why || "");
+
+    d.appendChild(pre1);
+    d.appendChild(pre2);
+    d.appendChild(pre3);
+    root.appendChild(d);
+  });
+}
+
+function fillChips(elId, arr){
+  const root = document.getElementById(elId);
+  root.innerHTML = "";
+  (arr || []).forEach(x=>{
+    const c = document.createElement("span");
+    c.className = "chip";
+    c.textContent = x;
+    root.appendChild(c);
+  });
+}
+
+/* =======================
+   Main run()
+======================= */
+async function run(){
+  const t = window.__t || I18N.en;
+
+  const resume = document.getElementById("resume").value.trim();
+  const job = document.getElementById("job").value.trim();
+  const btn = document.getElementById("btn");
+  const status = document.getElementById("status");
+  const spinner = document.getElementById("spinner");
+
+  if(!resume){
+    status.className = "status err";
+    status.textContent = t.needResume;
+    return;
+  }
+
+  const lang = getLang();
+  const isPreview = !!window.__isPreview;
+
+  btn.disabled = true;
+  status.className = "status";
+  status.textContent = "";
+  document.getElementById("out").style.display = "none";
+  document.getElementById("qualityNote").style.display = "none";
+  spinner.style.display = "inline-flex";
+
+  try{
+    const r = await fetch("/api/analyze", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      credentials: "include",
+      body: JSON.stringify({
+        mode: "linkedin",
+        cv: resume,
+        jd: job,
+        preview: isPreview,
+        lang
+      })
+    });
+
+    const raw = await r.text();
+    let data = {};
+    try{ data = JSON.parse(raw); }catch{}
+
+    if(!r.ok){
+      if (r.status === 429) {
+        status.className = "status err";
+        status.textContent = "Rate limit. Please wait and try again.";
+        return;
+      }
+      throw new Error(data?.error || raw || "Request failed");
+    }
+
+    // Render
+    renderHeadlines(data.headlines || []);
+    window.__about = (data.about || {});
+    window.__fix = (data.experience_fix || []);
+    window.__skills = (data.skills || {});
+    window.__recruiter = (data.recruiter || {});
+
+    // About default short
+    setAboutTab("short");
+
+    renderFixKit(window.__fix || []);
+    fillChips("skillsTop", (window.__skills.top || []));
+    fillChips("skillsTools", (window.__skills.tools || []));
+    fillChips("skillsIndustry", (window.__skills.industry || []));
+
+    fillChips("recKeywords", (window.__recruiter.keywords || []));
+    document.getElementById("booleanStr").textContent = window.__recruiter.boolean || "";
+
+    document.getElementById("qualityNote").style.display = "block";
+    document.getElementById("out").style.display = "block";
+
+    status.className = "status ok";
+    status.textContent = t.done;
+
+  }catch(e){
+    status.className = "status err";
+    status.textContent = "Error: " + (e.message || e);
+  }finally{
+    btn.disabled = false;
+    spinner.style.display = "none";
+  }
+}
+
+function setAboutTab(kind){
+  const tabs = document.querySelectorAll(".tab");
+  tabs.forEach(b => b.classList.toggle("active", b.dataset.about === kind));
+  const text = (window.__about && window.__about[kind]) ? window.__about[kind] : "";
+  document.getElementById("aboutText").textContent = text || "";
+  window.__aboutKind = kind;
+}
+
+/* Bind */
+document.getElementById("btn").addEventListener("click", run);
+document.querySelectorAll(".tab").forEach(b=>{
+  b.addEventListener("click", ()=> setAboutTab(b.dataset.about));
+});
+
+document.getElementById("copyHeadlines").addEventListener("click", ()=>{
+  const list = (window.__headlines_cache || null) || null;
+  // build from DOM to be safe
+  const blocks = [...document.querySelectorAll("#headlines .pill")].map((pill)=>{
+    const box = pill.closest("div[style]") || pill.parentElement;
+    const text = box?.querySelector("div[style*='font-weight: 800']")?.textContent || "";
+    return `${pill.textContent}: ${text}`.trim();
+  }).filter(Boolean);
+  copyText(blocks.join("\n"));
+});
+document.getElementById("copyAbout").addEventListener("click", ()=>{
+  copyText(document.getElementById("aboutText").textContent.trim());
+});
+document.getElementById("copyFix").addEventListener("click", ()=>{
+  const items = (window.__fix || []).map((x,i)=>(
+`Fix #${i+1}
+BEFORE: ${x.before||""}
+AFTER: ${x.after||""}
+WHY: ${x.why||""}`
+  ));
+  copyText(items.join("\n\n"));
+});
+document.getElementById("copySkills").addEventListener("click", ()=>{
+  const s = window.__skills || {};
+  const out = [
+    "TOP SKILLS:\n- " + (s.top||[]).join("\n- "),
+    "\nTOOLS:\n- " + (s.tools||[]).join("\n- "),
+    "\nINDUSTRY KEYWORDS:\n- " + (s.industry||[]).join("\n- ")
+  ].join("\n");
+  copyText(out.trim());
+});
+document.getElementById("copyRecruiter").addEventListener("click", ()=>{
+  const r = window.__recruiter || {};
+  const out = [
+    "RECRUITER KEYWORDS:\n- " + (r.keywords||[]).join("\n- "),
+    "\nBOOLEAN:\n" + (r.boolean||"")
+  ].join("\n");
+  copyText(out.trim());
+});
+
+document.getElementById("y").textContent = new Date().getFullYear();
+
+/* Init preview UI */
+document.addEventListener("DOMContentLoaded", syncPreviewUI);
+</script>
+</body>
+</html>
