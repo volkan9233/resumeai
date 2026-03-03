@@ -660,7 +660,8 @@ async function syncPreviewUI(){
    Rendering helpers
 ======================= */
 function esc(s){ return String(s||""); }
-
+// --- Tone state (premium) ---
+window.__li_tone = "clean"; // default
 function copyText(text){
   const t = window.__t || I18N.en;
   if(!text) return alert(t.nothing);
@@ -913,7 +914,10 @@ document.getElementById("copyRecruiter").addEventListener("click", ()=>{
 document.getElementById("y").textContent = new Date().getFullYear();
 
 /* Init preview UI */
-document.addEventListener("DOMContentLoaded", syncPreviewUI);
+document.addEventListener("DOMContentLoaded", async () => {
+  await syncPreviewUI();
+  bindToneButtons();
+});
 </script>
 </body>
 </html>
