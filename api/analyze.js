@@ -129,6 +129,13 @@ Do not invent employers, titles, degrees, dates, certifications, or metrics.
 If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
 No extra keys.
 `.trim();
+    // --- LinkedIn meta normalize ---
+const liMeta = (linkedin_meta && typeof linkedin_meta === "object") ? linkedin_meta : {};
+const liTargetRole = String(liMeta.target_role || "").trim();
+const liSeniority = String(liMeta.seniority || "mid").trim();
+const liIndustry = String(liMeta.industry || "").trim();
+const liLocation = String(liMeta.location || "").trim();
+const liTone = String(liMeta.tone || "clean").trim();
     const linkedinPreviewUser = `
 Return JSON in this exact schema:
 
@@ -148,6 +155,25 @@ RULES:
 - skills.top: 7–10 items.
 - recruiter.keywords: 5–8 items.
 - No extra keys. Return ONLY valid JSON.
+
+TARGETING META (use strictly):
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
+
+HARD RULE:
+- If target_role is provided, tailor every output to that role and seniority. Prefer role-specific keywords and tools.
+TARGETING META (must drive output strongly):
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
+
+HARD RULE:
+- If target_role is provided, every headline + about + skills + recruiter keywords MUST align to target_role + seniority.
 
 RESUME:
 ${cv}
