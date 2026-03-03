@@ -269,51 +269,55 @@
         </div>
       </div>
 
-      <div class="actions">
-  <button class="btn" id="btn">Optimize LinkedIn</button>
-  <div class="spinner" id="spinner"></div>
-  <div class="status" id="status"></div>
-</div>
-        <!-- Premium Target Controls -->
-<div id="targetBox" class="targetBox">
-  <div class="targetTitle">Targeting (premium)</div>
+      <div class="actions" id="actionsRow">
+  <!-- Left: button + status -->
+  <div class="actionLeft">
+    <button class="btn" id="btn">Optimize LinkedIn</button>
+    <div class="spinner" id="spinner"></div>
+    <div class="status" id="status"></div>
+  </div>
 
-  <div class="targetGrid">
-    <div>
-      <div class="targetLabelMini">Target role (required)</div>
-      <input id="targetRole" placeholder="e.g. Performance Marketing Manager" class="targetInput">
-    </div>
+  <!-- Right: Targeting box -->
+  <div id="targetBox">
+    <div style="font-weight:900;margin-bottom:8px;">Targeting (premium)</div>
 
-    <div>
-      <div class="targetLabelMini">Seniority</div>
-      <select id="targetSeniority" class="targetInput">
-        <option value="junior">Junior</option>
-        <option value="mid" selected>Mid</option>
-        <option value="senior">Senior</option>
-        <option value="lead">Lead/Manager</option>
-        <option value="director">Director</option>
-        <option value="vp">VP+</option>
-      </select>
-    </div>
-
-    <div>
-      <div class="targetLabelMini">Industry (optional)</div>
-      <input id="targetIndustry" placeholder="e.g. SaaS, E-commerce, Fintech" class="targetInput">
-    </div>
-
-    <div>
-      <div class="targetLabelMini">Location (optional)</div>
-      <input id="targetLocation" placeholder="e.g. United States / Remote" class="targetInput">
-    </div>
-
-    <div class="toneRow">
-      <div class="targetLabelMini">Tone</div>
-      <div class="toneBtns">
-        <button type="button" class="toneBtn" data-tone="clean">Clean</button>
-        <button type="button" class="toneBtn" data-tone="confident">Confident</button>
-        <button type="button" class="toneBtn" data-tone="bold">Bold</button>
+    <div class="targetGrid">
+      <div>
+        <div class="tHint">Target role (required)</div>
+        <input id="targetRole" placeholder="e.g. Performance Marketing Manager">
       </div>
-      <div class="toneHint">Tone affects headline + About writing style.</div>
+
+      <div>
+        <div class="tHint">Seniority</div>
+        <select id="targetSeniority">
+          <option value="junior">Junior</option>
+          <option value="mid" selected>Mid</option>
+          <option value="senior">Senior</option>
+          <option value="lead">Lead/Manager</option>
+          <option value="director">Director</option>
+          <option value="vp">VP+</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="tHint">Industry (optional)</div>
+        <input id="targetIndustry" placeholder="e.g. SaaS, E-commerce, Fintech">
+      </div>
+
+      <div>
+        <div class="tHint">Location (optional)</div>
+        <input id="targetLocation" placeholder="e.g. United States / Remote">
+      </div>
+
+      <div style="grid-column:1/-1;">
+        <div class="tHint">Tone</div>
+        <div class="toneRow">
+          <button type="button" class="toneBtn" data-tone="clean">Clean</button>
+          <button type="button" class="toneBtn" data-tone="confident">Confident</button>
+          <button type="button" class="toneBtn" data-tone="bold">Bold</button>
+        </div>
+        <div style="opacity:.7;font-size:12px;margin-top:6px;">Tone affects headline + About writing style.</div>
+      </div>
     </div>
   </div>
 </div>
