@@ -909,37 +909,29 @@ if (!targetRole) {
   spinner.style.display = "inline-flex";
 
   try{
-    const meta = {
-  target_role: (document.getElementById("targetRole")?.value || "").trim(),
-  seniority: document.getElementById("targetSeniority")?.value || "mid",
-  industry: (document.getElementById("targetIndustry")?.value || "").trim(),
-  location: (document.getElementById("targetLocation")?.value || "").trim(),
-  tone: window.__li_tone || "clean",
-};
-localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
-    const meta = {
-  target_role: targetRole,
-  seniority: document.getElementById("targetSeniority")?.value || "mid",
-  industry: (document.getElementById("targetIndustry")?.value || "").trim(),
-  location: (document.getElementById("targetLocation")?.value || "").trim(),
-  tone: window.__li_tone || "clean",
-};
-localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
+  const meta = {
+    target_role: targetRole,
+    seniority: document.getElementById("targetSeniority")?.value || "mid",
+    industry: (document.getElementById("targetIndustry")?.value || "").trim(),
+    location: (document.getElementById("targetLocation")?.value || "").trim(),
+    tone: window.__li_tone || "clean",
+  };
 
-const r = await fetch("/api/analyze", {
-  method:"POST",
-  headers: {"Content-Type":"application/json"},
-  credentials: "include",
-  body: JSON.stringify({
-    cv: resume,
-    jd: job,
-    preview: isPreview,
-    lang,
-    mode: "linkedin",
-    linkedin_meta: meta
-    
-  })
-});
+  localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
+
+  const r = await fetch("/api/analyze", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    credentials: "include",
+    body: JSON.stringify({
+      cv: resume,
+      jd: job,
+      preview: isPreview,
+      lang,
+      mode: "linkedin",
+      linkedin_meta: meta
+    })
+  });
 
     const raw = await r.text();
     let data = {};
