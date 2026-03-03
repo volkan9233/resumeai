@@ -932,7 +932,9 @@ const r = await fetch("/api/analyze", {
     fillChips("skillsIndustry", (window.__skills.industry || []));
 
     fillChips("recKeywords", (window.__recruiter.keywords || []));
-    document.getElementById("booleanStr").textContent = window.__recruiter.boolean || "";
+    const boolFromApi = (window.__recruiter.boolean || "").trim();
+const kw = (window.__recruiter.keywords || []);
+document.getElementById("booleanStr").textContent = boolFromApi || buildBoolean(kw);
 
     document.getElementById("qualityNote").style.display = "block";
     document.getElementById("out").style.display = "block";
