@@ -6,11 +6,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     .asterisk{
-  margin-left: 6px;   /* noktadan sonra daha doğal */
-  opacity: .7;
-  font-size: 0.55em;  /* küçültür */
-  vertical-align: super; /* hafif yukarı alır, daha şık */
-}
+      margin-left: 6px;
+      opacity: .7;
+      font-size: 0.55em;
+      vertical-align: super;
+    }
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
@@ -26,24 +26,24 @@
     }
 
     .logo-brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin-bottom: 40px;
-}
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 40px;
+    }
 
-.logo-text {
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.5px;
-}
+    .logo-text {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
 
-.logo-text span {
-  color: #6366F1;
-  font-weight: 700;
-}
-    
+    .logo-text span {
+      color: #6366F1;
+      font-weight: 700;
+    }
+
     h1 {
       font-size: 48px;
       margin-bottom: 20px;
@@ -51,12 +51,12 @@
     }
 
     .sub {
-  font-size: 19px;
-  color: #a0a6b8;
-  max-width: 700px;
-  margin: auto;
-  line-height: 1.6;
-}
+      font-size: 19px;
+      color: #a0a6b8;
+      max-width: 700px;
+      margin: auto;
+      line-height: 1.6;
+    }
 
     .price {
       margin-top: 30px;
@@ -132,256 +132,225 @@
       h1 { font-size: 34px; }
       .features { grid-template-columns: 1fr; }
     }
+
     /* Headline highlight */
-.headline-accent{
-  background: linear-gradient(90deg, rgba(99,102,241,0.0), rgba(99,102,241,0.22), rgba(139,92,246,0.0));
-  padding: 0 10px;
-  border-radius: 14px;
+    .headline-accent{
+      background: linear-gradient(90deg, rgba(99,102,241,0.0), rgba(99,102,241,0.22), rgba(139,92,246,0.0));
+      padding: 0 10px;
+      border-radius: 14px;
 
-  /* Butonlarla aynı gradient hissi */
-  color: #ffffff;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(135deg,#7b5cff,#5b3dff);
-  text-shadow: 0 0 18px rgba(99,102,241,.28);
-}
+      /* Butonlarla aynı gradient hissi */
+      color: #ffffff;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-image: linear-gradient(135deg,#7b5cff,#5b3dff);
+      text-shadow: 0 0 18px rgba(99,102,241,.28);
+    }
 
-/* Price emphasis */
-.price .old{
-  opacity: 0.85;
-  color: rgba(255,255,255,.55);
-  text-decoration-thickness: 3px;
-  text-decoration-color: rgba(255,255,255,.6);
-  text-decoration-skip-ink: none;
-  font-weight: 800;
-  margin-right: 12px;
-  filter: drop-shadow(0 0 10px rgba(0,0,0,.35));
-}
-.new-price{
-  color: #ffffff;
-  background: rgba(99,102,241,0.18);
-  border: 1px solid rgba(99,102,241,0.35);
-  padding: 4px 10px;
-  border-radius: 999px;
-  margin-right: 6px;
-}
+    /* Price emphasis */
+    .price .old{
+      opacity: 0.85;
+      color: rgba(255,255,255,.55);
+      text-decoration-thickness: 3px;
+      text-decoration-color: rgba(255,255,255,.6);
+      text-decoration-skip-ink: none;
+      font-weight: 800;
+      margin-right: 12px;
+      filter: drop-shadow(0 0 10px rgba(0,0,0,.35));
+    }
+    .new-price{
+      color: #ffffff;
+      background: rgba(99,102,241,0.18);
+      border: 1px solid rgba(99,102,241,0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-right: 6px;
+    }
 
-/* Button premium shine */
-.btn{
-  position: relative;
-  overflow: hidden;
-}
-.btn::after{
-  content:"";
-  position:absolute;
-  top:-60%;
-  left:-30%;
-  width: 30%;
-  height: 220%;
-  transform: rotate(25deg);
-  background: rgba(255,255,255,0.18);
-  filter: blur(2px);
-  transition: left 0.6s ease;
-}
-.btn:hover::after{
-  left: 120%;
-}
+    /* Button premium shine */
+    .btn{
+      position: relative;
+      overflow: hidden;
+    }
+    .btn::after{
+      content:"";
+      position:absolute;
+      top:-60%;
+      left:-30%;
+      width: 30%;
+      height: 220%;
+      transform: rotate(25deg);
+      background: rgba(255,255,255,0.18);
+      filter: blur(2px);
+      transition: left 0.6s ease;
+    }
+    .btn:hover::after{
+      left: 120%;
+    }
 
-/* Slight logo presence */
-.logo-brand{
-  filter: drop-shadow(0 0 10px rgba(99,102,241,0.18));
-}
+    /* Slight logo presence */
+    .logo-brand{
+      filter: drop-shadow(0 0 10px rgba(99,102,241,0.18));
+    }
+
     /* === Difference grid (final) === */
-.difference-grid{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  max-width: 900px;
-  margin: 50px auto;
-  row-gap: 20px;
-}
+    .difference-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      max-width: 900px;
+      margin: 50px auto;
+      row-gap: 20px;
+    }
 
-.diff-left-head{
-  color:#ffffff; /* artık beyaz */
-  font-size:18px;
-  font-weight:600;
-  letter-spacing:0.14em;
-  text-transform:uppercase;
-  padding-bottom:14px;
-  border-bottom:1px solid rgba(255,255,255,0.12);
-  text-align:center;
-}
+    .diff-left-head{
+      color:#ffffff;
+      font-size:18px;
+      font-weight:600;
+      letter-spacing:0.14em;
+      text-transform:uppercase;
+      padding-bottom:14px;
+      border-bottom:1px solid rgba(255,255,255,0.12);
+      text-align:center;
+    }
 
-.diff-right-head{
-  display:flex;
-  align-items:center;
-  justify-content:center; /* ortalar */
-  gap:10px;
-  padding-bottom:14px;
-  border-bottom:1px solid rgba(255,255,255,0.12);
-}
+    .diff-right-head{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      padding-bottom:14px;
+      border-bottom:1px solid rgba(255,255,255,0.12);
+    }
 
-.diff-left{
-  color:#6b7280;
-  text-align:center;
-  font-size:18px;   /* bunu ekle */
-}
+    .diff-left{
+      color:#6b7280;
+      text-align:center;
+      font-size:18px;
+    }
 
-.diff-right{
-  color:#ffffff;
-  font-weight:500;
-  text-align:center;
-  font-size:18px;   /* bunu ekle */
-}
+    .diff-right{
+      color:#ffffff;
+      font-weight:500;
+      text-align:center;
+      font-size:18px;
+    }
 
-.brand{
-  font-size:24px;
-  font-weight:600;
-  letter-spacing:-0.2px;
-  color:#ffffff;
-}
+    .brand{
+      font-size:24px;
+      font-weight:600;
+      letter-spacing:-0.2px;
+      color:#ffffff;
+    }
 
-.brand span{
-  color:#6366F1;
-  font-weight:700;
-}
-.difference-callout{
-  max-width: 800px;
-  margin: 30px auto 0 auto;
-  padding: 18px 20px;
-  border: 1px solid rgba(99,102,241,0.25);
-  background: rgba(99,102,241,0.08);
-  border-radius: 14px;
-  color: #e5e7eb;
-  font-weight: 600;
-  line-height: 1.6;
-}
+    .brand span{
+      color:#6366F1;
+      font-weight:700;
+    }
+    .difference-callout{
+      max-width: 800px;
+      margin: 30px auto 0 auto;
+      padding: 18px 20px;
+      border: 1px solid rgba(99,102,241,0.25);
+      background: rgba(99,102,241,0.08);
+      border-radius: 14px;
+      color: #e5e7eb;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
     /* Force bigger mini logo in comparison header */
-.diff-right-head svg{
-  width: 38px !important;
-  height: 38px !important;
-  flex: 0 0 38px;
-}
+    .diff-right-head svg{
+      width: 38px !important;
+      height: 38px !important;
+      flex: 0 0 38px;
+    }
+    .diff-right-head .brand{
+      font-size: 26px;
+      line-height: 1;
+    }
 
-/* Make the ResumeAI label visually match the icon */
-.diff-right-head .brand{
-  font-size: 26px; /* istersen 28 de olur */
-  line-height: 1;
-}
     .scroll-hint{
-  margin-top: 36px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
-  opacity:0.85;
-}
+      margin-top: 36px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      opacity:0.85;
+    }
 
-.mouse{
-  width: 28px;
-  height: 44px;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-radius: 18px;
-  position: relative;
-}
+    .mouse{
+      width: 28px;
+      height: 44px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-radius: 18px;
+      position: relative;
+    }
 
-.mouse::after{
-  content:"";
-  width: 4px;
-  height: 8px;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.55);
-  position:absolute;
-  left:50%;
-  top:10px;
-  transform: translateX(-50%);
-  animation: wheel 1.3s infinite;
-}
+    .mouse::after{
+      content:"";
+      width: 4px;
+      height: 8px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.55);
+      position:absolute;
+      left:50%;
+      top:10px;
+      transform: translateX(-50%);
+      animation: wheel 1.3s infinite;
+    }
 
-@keyframes wheel{
-  0% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
-  60% { transform: translateX(-50%) translateY(10px); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(16px); opacity: 0; }
-}
+    @keyframes wheel{
+      0% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+      60% { transform: translateX(-50%) translateY(10px); opacity: 1; }
+      100% { transform: translateX(-50%) translateY(16px); opacity: 0; }
+    }
 
-.scroll-text{
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.45);
-}
+    .scroll-text{
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+    }
+
     .btn-ghost{
-  margin-top:10px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,.25);
-  color: #cbd5e1;
-}
-    /* HERO CTA içinde ghost da diğerleriyle aynı boy/konum olsun */
-.cta-row .btn-ghost{
-  margin-top: 0 !important;
-}
-.btn-ghost:hover{
-  background: rgba(255,255,255,.06);
-}
+      margin-top:10px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.25);
+      color: #cbd5e1;
+    }
+    .btn-ghost:hover{
+      background: rgba(255,255,255,.06);
+    }
+
     .highlight{
-  color:#c4b5fd;            /* açık mor */
-  font-weight:800;
-  text-shadow: 0 0 14px rgba(124,58,237,.35);
-}
+      color:#c4b5fd;
+      font-weight:800;
+      text-shadow: 0 0 14px rgba(124,58,237,.35);
+    }
+
     .guarantee{
-  margin-top: 18px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.03);
-  text-align:center;
-}
-.guarantee .btn{ display:block; margin:10px auto 0; max-width:420px; }
-    
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      text-align:center;
+    }
+    .guarantee .btn{ display:block; margin:10px auto 0; max-width:420px; }
 
-    /* HERO CTA: 2 üst + 2 alt */
-.cta-row{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 40px;
-  max-width: 920px;   /* istersen 860–980 arası */
-  margin-left:auto;
-  margin-right:auto;
-}
-
-/* Eski boyut hissi: daha kısa buton */
-.cta-row .btn{
-  margin-top: 0 !important;
-  width: 100%;
-  padding: 16px 40px;   /* <- eski .btn ile aynı */
-  font-size: 18px;      /* <- eski .btn ile aynı */
-  border-radius: 10px;
-}
-
-/* Shine kalsın ama Safari'de komşu butona taşmasın */
-.cta-row .btn{
-  position: relative;
-  z-index: 0;
-  isolation: isolate;         /* <- kritik */
-  overflow: hidden;           /* zaten vardı ama burada garanti */
-  transform: translateZ(0);   /* Safari rendering fix */
-}
-
-.cta-row .btn::after{
-  z-index: 0;                 /* shine altta kalsın */
-}
-
-.cta-row .btn > *{
-  position: relative;
-  z-index: 1;                 /* yazı shine'ın üstünde */
-}
-
-/* mobilde 1 sütun */
-@media(max-width: 768px){
-  .cta-row{ grid-template-columns: 1fr; }
-}
+    /* ✅ HERO CTA: tek satır, eski boy, shine bozulmadan */
+    .hero-cta{
+      margin-top: 40px;            /* eski .btn margin-top 40 hissini wrapper'a aldık */
+      display:flex;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;              /* dar ekranda düzgün kırılır */
+    }
+    .hero-cta .btn{ margin-top:0 !important; }
+    .hero-cta .btn-ghost{ margin-top:0 !important; }
   </style>
+
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987698621"></script>
   <script>
@@ -395,205 +364,212 @@
 <body>
 
   <div class="container">
-  <div class="logo-brand">
-  <div class="logo-icon">
-    <svg width="64" height="64" viewBox="0 0 100 100">
-  <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
-  
-  <!-- R Vertical -->
-  <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
+    <div class="logo-brand">
+      <div class="logo-icon">
+        <svg width="64" height="64" viewBox="0 0 100 100">
+          <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
+          <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
+          <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
+                fill="none"
+                stroke="#6366F1"
+                stroke-width="8"
+                stroke-linecap="round"/>
+          <line x1="54" y1="54" x2="72" y2="72"
+                stroke="#6366F1"
+                stroke-width="8"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="logo-text">Resume<span>AI</span></div>
+    </div>
 
-  <!-- R Top Curve -->
-  <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
-        fill="none"
-        stroke="#6366F1"
-        stroke-width="8"
-        stroke-linecap="round"/>
-
-  <!-- R Leg -->
-  <line x1="54" y1="54" x2="72" y2="72"
-        stroke="#6366F1"
-        stroke-width="8"
-        stroke-linecap="round"/>
-</svg>
-  </div>
-  <div class="logo-text">Resume<span>AI</span></div>
-</div>
     <h1><span class="headline-accent">Outperform</span> Every Other Applicant.<span class="asterisk">*</span></h1>
+
     <p class="sub">
-  Your resume isn’t bad. It’s just not optimized for modern ATS systems.
-  ResumeAI is an instant ATS-style resume check. Paste your resume + job description to get an ATS match score, keyword gaps, rewrite suggestions, and an AI-optimized resume you can export as PDF.
-</p>
+      Your resume isn’t bad. It’s just not optimized for modern ATS systems.
+      ResumeAI is an instant ATS-style resume check. Paste your resume + job description to get an ATS match score, keyword gaps, rewrite suggestions,
+      and an AI-optimized resume you can export as PDF.
+    </p>
 
     <div class="price" id="heroPrice">
-  <span class="old">$29</span>
-  <strong><span class="new-price">$15</span> — Limited Launch Offer</strong>
-</div>
+      <span class="old">$29</span>
+      <strong><span class="new-price">$15</span> — Limited Launch Offer</strong>
+    </div>
 
-    <div class="cta-row">
-  <a id="createBtnHero" href="/create.html" class="btn btn-secondary">Create CV</a>
-  <a href="/linkedin.html" class="btn btn-secondary">LinkedIn Optimize</a>
+    <!-- ✅ HERO BUTTONS (tek satır, fotoğraftaki gibi) -->
+    <div class="hero-cta">
+      <a id="unlockBtnHero"
+         href="https://resumeaiwork.lemonsqueezy.com/checkout/buy/9fb41ad2-b64b-4a7d-b37e-768065b4f667"
+         class="btn"
+         target="_blank"
+         rel="noopener">Get 1-Year Access</a>
 
-  <a id="unlockBtnHero"
-     href="https://resumeaiwork.lemonsqueezy.com/checkout/buy/9fb41ad2-b64b-4a7d-b37e-768065b4f667"
-     class="btn"
-     target="_blank"
-     rel="noopener">Get 1-Year Access</a>
+      <a id="heroPreviewBtnTop" href="/analyze.html?preview=1" class="btn btn-ghost">Try Free Preview (see 20%)</a>
 
-  <a href="/analyze.html?preview=1" class="btn btn-ghost">Try Free Preview (see 20%)</a>
-</div>
+      <a id="createBtnHero" href="/create.html" class="btn btn-secondary">Create CV</a>
+
+      <a id="linkedinBtnHero" href="/linkedin.html" class="btn btn-secondary">LinkedIn Optimize</a>
+
+      <!-- unlock olunca script bunu açabilir -->
+      <a id="analyzeBtnHero" href="/analyze.html" class="btn" style="display:none;">Go to Analyze</a>
+    </div>
+
     <div class="scroll-hint" aria-hidden="true">
-  <div class="mouse"></div>
-  <div class="scroll-text">Scroll</div>
-</div>
+      <div class="mouse"></div>
+      <div class="scroll-text">Scroll</div>
+    </div>
   </div>
 
   <div class="section">
     <h2>Why Most Resumes Get Rejected</h2>
     <p>
-  <span class="highlight">75%</span> of resumes never reach a <span class="highlight">human recruiter</span>.
-  <span class="highlight">ATS systems</span> filter candidates based on <span class="highlight">missing keywords</span>.
-  Small wording mistakes can <span class="highlight">cost you interviews</span>.
-</p>
+      <span class="highlight">75%</span> of resumes never reach a <span class="highlight">human recruiter</span>.
+      <span class="highlight">ATS systems</span> filter candidates based on <span class="highlight">missing keywords</span>.
+      Small wording mistakes can <span class="highlight">cost you interviews</span>.
+    </p>
   </div>
 
   <div class="section">
     <h2>What You Get With ResumeAI</h2>
 
     <div class="features">
-
-  <div class="feature">
-    <h3>ATS Match Score</h3>
-    <p>See your compatibility score for any job description instantly.</p>
-  </div>
-
-  <div class="feature">
-    <h3>Missing Keywords Analysis</h3>
-    <p>Discover exactly which keywords your resume is missing.</p>
-  </div>
-
-  <div class="feature">
-    <h3>Weak Phrase Detection</h3>
-    <p>Identify vague, weak bullet points and improve them.</p>
-  </div>
-
-  <div class="feature">
-    <h3>AI Optimized Rewrite</h3>
-    <p>Get a recruiter-ready, ATS-optimized resume version.</p>
-  </div>
       <div class="feature">
-  <h3>Multi-Language Support</h3>
-  <p>Analyze resumes and job posts in multiple languages. Get your report in the language you select.</p>
-</div>
+        <h3>ATS Match Score</h3>
+        <p>See your compatibility score for any job description instantly.</p>
+      </div>
 
-<div class="feature">
-  <h3>PDF Export</h3>
-  <p>Download ATS-friendly and modern resume PDFs for sharing, printing, or applications.</p>
-</div>
+      <div class="feature">
+        <h3>Missing Keywords Analysis</h3>
+        <p>Discover exactly which keywords your resume is missing.</p>
+      </div>
+
+      <div class="feature">
+        <h3>Weak Phrase Detection</h3>
+        <p>Identify vague, weak bullet points and improve them.</p>
+      </div>
+
+      <div class="feature">
+        <h3>AI Optimized Rewrite</h3>
+        <p>Get a recruiter-ready, ATS-optimized resume version.</p>
+      </div>
+
+      <div class="feature">
+        <h3>Multi-Language Support</h3>
+        <p>Analyze resumes and job posts in multiple languages. Get your report in the language you select.</p>
+      </div>
+
+      <div class="feature">
+        <h3>PDF Export</h3>
+        <p>Download ATS-friendly and modern resume PDFs for sharing, printing, or applications.</p>
+      </div>
     </div>
+
     <div class="section difference-section">
-  <h2>Built for Hiring Systems. Not Just Text Generation.</h2>
-  <p class="difference-sub">
-    Most AI tools focus on writing. ResumeAI is built to evaluate structure,
-    alignment, and hiring-system compatibility.
-  </p>
+      <h2>Built for Hiring Systems. Not Just Text Generation.</h2>
+      <p class="difference-sub">
+        Most AI tools focus on writing. ResumeAI is built to evaluate structure,
+        alignment, and hiring-system compatibility.
+      </p>
 
-  <div class="difference-grid">
+      <div class="difference-grid">
+        <div class="diff-left-head">OTHER AI TOOLS</div>
+        <div class="diff-right-head">
+          <svg width="32" height="32" viewBox="0 0 100 100">
+            <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
+            <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
+            <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
+                  fill="none"
+                  stroke="#6366F1"
+                  stroke-width="10"
+                  stroke-linecap="round"/>
+            <line x1="54" y1="54" x2="72" y2="72"
+                  stroke="#6366F1"
+                  stroke-width="10"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="brand">Resume<span>AI</span></span>
+        </div>
 
-  <div class="diff-left-head">OTHER AI TOOLS</div>
-  <div class="diff-right-head">
-    <svg width="32" height="32" viewBox="0 0 100 100">
-  <rect x="8" y="8" width="84" height="84" rx="22" fill="#111827"/>
-  
-  <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
+        <div class="diff-left">Surface-level writing</div>
+        <div class="diff-right">System-aware evaluation</div>
 
-  <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
-        fill="none"
-        stroke="#6366F1"
-        stroke-width="10"
-        stroke-linecap="round"/>
+        <div class="diff-left">One-size-fits-all output</div>
+        <div class="diff-right">Role-specific alignment</div>
 
-  <line x1="54" y1="54" x2="72" y2="72"
-        stroke="#6366F1"
-        stroke-width="10"
-        stroke-linecap="round"/>
-</svg>
-    <span class="brand">Resume<span>AI</span></span>
-  </div>
+        <div class="diff-left">Formatting-focused edits</div>
+        <div class="diff-right">Signal-focused optimization</div>
 
-  <div class="diff-left">Surface-level writing</div>
-  <div class="diff-right">System-aware evaluation</div>
-
-  <div class="diff-left">One-size-fits-all output</div>
-  <div class="diff-right">Role-specific alignment</div>
-
-  <div class="diff-left">Formatting-focused edits</div>
-  <div class="diff-right">Signal-focused optimization</div>
-
-  <div class="diff-left">Text-first improvements</div>
-  <div class="diff-right">Hiring-filter readiness</div>
-
-</div>
-
-  </div>
-
-  <!-- PREMIUM CALLOUT PANEL -->
-  <div class="difference-callout">
-    Designed to help you pass the first filter — before a human ever reads your resume.
-  </div>
-
-  <div id="ctaPanel">
-  <div class="guarantee">
-  <h2>Try Free Preview First</h2>
-  <p>Preview shows 20% of the report. Unlock only if you like what you see.</p>
-  <a id="heroPreviewBtn" href="/analyze.html?preview=1" class="btn btn-ghost">Try Free Preview (see 20%)</a>
-  <a id="unlockBtn"
-   href="https://resumeaiwork.lemonsqueezy.com/checkout/buy/9fb41ad2-b64b-4a7d-b37e-768065b4f667"
-   class="btn" target="_blank" rel="noopener">Get 1-Year Access</a>
-<div class="muted" style="margin-top:10px; color: rgba(255,255,255,.6);">
-  <span class="asterisk">*</span> Suggestions only — no guarantees of interviews or hiring outcomes.
-</div>
-    <script>
-(function () {
-  const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
-  if (!unlocked) return;
-
-  // 1) Checkout/Unlock linklerini gizle
-  document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]').forEach(a => {
-    a.style.display = "none";
-  });
-
-  // 2) Preview linklerini gizle (hero + alttaki CTA dahil hepsi)
-  document.querySelectorAll('a[href*="preview=1"]').forEach(a => {
-    a.style.display = "none";
-  });
-
-  // 3) Fiyat satırını gizle (15$, 29$, limited launch vs)
-  const price = document.querySelector(".price");
-  if (price) price.style.display = "none";
-
-  // 4) Hero'da Analyze butonunu göster
-  const heroAnalyze = document.getElementById("analyzeBtnHero");
-  if (heroAnalyze) heroAnalyze.style.display = "inline-block";
-  const heroCreate = document.getElementById("createBtnHero");
-if (heroCreate) heroCreate.style.display = "inline-block";
-
-  // 5) Hero'da unlock butonu varsa gizle (id ile)
-  const heroUnlock = document.getElementById("unlockBtnHero");
-  if (heroUnlock) heroUnlock.style.display = "none";
-})();
-</script>
-    <footer style="margin-top:40px;padding:22px 0;border-top:1px solid rgba(255,255,255,.08);color:#94a3b8;font-size:13px;">
-  <div style="max-width:980px;margin:auto;padding:0 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-    <div>© <span id="y"></span> ResumeAI</div>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-      <a href="/terms.html">Terms</a>
-      <a href="/privacy.html">Privacy</a>
-      <a href="/refund.html">Refunds</a>
-      <a href="mailto:support@resumeai.work">Support</a>
+        <div class="diff-left">Text-first improvements</div>
+        <div class="diff-right">Hiring-filter readiness</div>
+      </div>
     </div>
-  </div>
-</footer>
 
+    <div class="difference-callout">
+      Designed to help you pass the first filter — before a human ever reads your resume.
+    </div>
+
+    <div id="ctaPanel">
+      <div class="guarantee">
+        <h2>Try Free Preview First</h2>
+        <p>Preview shows 20% of the report. Unlock only if you like what you see.</p>
+        <a id="heroPreviewBtn" href="/analyze.html?preview=1" class="btn btn-ghost">Try Free Preview (see 20%)</a>
+        <a id="unlockBtn"
+           href="https://resumeaiwork.lemonsqueezy.com/checkout/buy/9fb41ad2-b64b-4a7d-b37e-768065b4f667"
+           class="btn" target="_blank" rel="noopener">Get 1-Year Access</a>
+
+        <div class="muted" style="margin-top:10px; color: rgba(255,255,255,.6);">
+          <span class="asterisk">*</span> Suggestions only — no guarantees of interviews or hiring outcomes.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
+        if (!unlocked) return;
+
+        // 1) Checkout/Unlock linklerini gizle
+        document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]').forEach(a => {
+          a.style.display = "none";
+        });
+
+        // 2) Preview linklerini gizle (hero + alttaki CTA dahil hepsi)
+        document.querySelectorAll('a[href*="preview=1"]').forEach(a => {
+          a.style.display = "none";
+        });
+
+        // 3) Fiyat satırını gizle (15$, 29$, limited launch vs)
+        const price = document.querySelector(".price");
+        if (price) price.style.display = "none";
+
+        // 4) Hero'da Analyze butonunu göster
+        const heroAnalyze = document.getElementById("analyzeBtnHero");
+        if (heroAnalyze) heroAnalyze.style.display = "inline-block";
+
+        const heroCreate = document.getElementById("createBtnHero");
+        if (heroCreate) heroCreate.style.display = "inline-block";
+
+        // 5) Hero'da unlock butonu varsa gizle (id ile)
+        const heroUnlock = document.getElementById("unlockBtnHero");
+        if (heroUnlock) heroUnlock.style.display = "none";
+      })();
+    </script>
+  </div>
+
+  <footer style="margin-top:40px;padding:22px 0;border-top:1px solid rgba(255,255,255,.08);color:#94a3b8;font-size:13px;">
+    <div style="max-width:980px;margin:auto;padding:0 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+      <div>© <span id="y"></span> ResumeAI</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/refund.html">Refunds</a>
+        <a href="mailto:support@resumeai.work">Support</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("y").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
