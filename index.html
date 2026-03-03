@@ -333,6 +333,31 @@
   text-align:center;
 }
 .guarantee .btn{ display:block; margin:10px auto 0; max-width:420px; }
+    .hero-cta{
+  margin-top: 40px;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+.cta-row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: min(860px, 100%);
+}
+
+/* butonlar satırı doldursun */
+.cta-row .btn{
+  width: 100%;
+  text-align: center;
+  margin-top: 0; /* senin .btn margin-top:40px veriyordu, satır bozulmasın */
+}
+
+/* mobilde alt alta düşsün */
+@media(max-width: 768px){
+  .cta-row{ grid-template-columns: 1fr; }
+}
   </style>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987698621"></script>
