@@ -121,6 +121,14 @@ CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix langu
 This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
 Do not add any extra keys.
 `.trim();
+    const linkedinSystem = `
+You are a LinkedIn profile optimization expert.
+Return ONLY valid JSON. No markdown. No extra text.
+CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
+Do not invent employers, titles, degrees, dates, certifications, or metrics.
+If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
+No extra keys.
+`.trim();
     const linkedinPreviewUser = `
 Return JSON in this exact schema:
 
