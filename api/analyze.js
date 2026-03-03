@@ -317,6 +317,27 @@ if (reqMode === "linkedin") {
         });
       }
     }
+    if (reqMode === "linkedin") {
+  const out = {
+    headlines: Array.isArray(data?.headlines) ? data.headlines : [],
+    about: (data?.about && typeof data.about === "object") ? data.about : {},
+    experience_fix: Array.isArray(data?.experience_fix) ? data.experience_fix : [],
+    skills: (data?.skills && typeof data.skills === "object") ? data.skills : {},
+    recruiter: (data?.recruiter && typeof data.recruiter === "object") ? data.recruiter : {},
+  };
+
+  if (isPreview) {
+    return res.status(200).json({
+      headlines: out.headlines.slice(0, 1),
+      about: { short: String(out.about.short || "") },
+      experience_fix: out.experience_fix.slice(0, 1),
+      skills: { top: Array.isArray(out.skills.top) ? out.skills.top.slice(0, 10) : [] },
+      recruiter: { keywords: Array.isArray(out.recruiter.keywords) ? out.recruiter.keywords.slice(0, 8) : [] },
+    });
+  }
+
+  return res.status(200).json(out);
+}
 
     const normalized = {
       ats_score: Number.isFinite(data?.ats_score) ? data.ats_score : 0,
