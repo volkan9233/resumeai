@@ -831,6 +831,29 @@ function fillChips(elId, arr){
     root.appendChild(c);
   });
 }
+  function buildBoolean(keywords){
+  // keywords: string[]
+  const clean = (keywords||[])
+    .map(s=>String(s||"").trim())
+    .filter(Boolean)
+    .filter(s=>s.length<=32);
+
+  // çok uzun/çok genel kelimeleri kırp
+  const uniq = [...new Set(clean)];
+
+  // 12–18 arası ideal
+  const picked = uniq.slice(0, 14);
+
+  // "A B" olanları tırnakla, diğerlerini düz bırak
+  const q = (s)=> (/\s/.test(s) ? `"${s}"` : s);
+
+  // tek grup OR, yanına 1 tane de core skill grubu ekle (ilk 5)
+  const group1 = picked.slice(0, 10).map(q).join(" OR ");
+  const group2 = picked.slice(10, 14).map(q).join(" OR ");
+
+  if (!group2) return `(${group1})`;
+  return `(${group1}) AND (${group2})`;
+}
   // --- Tone buttons active/inactive ---
 function renderToneButtons(){
   document.querySelectorAll(".toneBtn").forEach(b => {
