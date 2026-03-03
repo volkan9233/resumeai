@@ -787,29 +787,28 @@ async function run(){
   spinner.style.display = "inline-flex";
 
   try{
-    const r = await fetch("/api/analyze", {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      credentials: "include",
-      const meta = {
+    const meta = {
   target_role: (document.getElementById("targetRole")?.value || "").trim(),
   seniority: document.getElementById("targetSeniority")?.value || "mid",
   industry: (document.getElementById("targetIndustry")?.value || "").trim(),
   location: (document.getElementById("targetLocation")?.value || "").trim(),
   tone: window.__li_tone || "clean",
 };
-
 localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
 
-body: JSON.stringify({
-  cv,
-  jd,
-  preview,
-  lang,
-  mode: "linkedin",
-  linkedin_meta: meta
-})
-    });
+const r = await fetch("/api/analyze", {
+  method:"POST",
+  headers: {"Content-Type":"application/json"},
+  credentials: "include",
+  body: JSON.stringify({
+    cv: resume,
+    jd: job,
+    preview: isPreview,
+    lang,
+    mode: "linkedin",
+    linkedin_meta: meta
+  })
+});
 
     const raw = await r.text();
     let data = {};
