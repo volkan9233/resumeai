@@ -188,7 +188,13 @@ JOB DESCRIPTION:
 ${jd}
 `.trim();
 
-    const userPrompt = isPreview ? previewUser : fullUser;
+    let userPrompt;
+
+if (reqMode === "linkedin") {
+  userPrompt = isPreview ? linkedinPreviewUser : linkedinFullUser;
+} else {
+  userPrompt = isPreview ? previewUser : fullUser;
+}
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
