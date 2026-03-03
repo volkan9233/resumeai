@@ -273,6 +273,49 @@
         <button class="btn" id="btn">Optimize LinkedIn</button>
         <div class="spinner" id="spinner"></div>
         <div class="status" id="status"></div>
+        <!-- Premium Target Controls -->
+<div id="targetBox" style="margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.03);">
+  <div style="font-weight:900;margin-bottom:8px;">Targeting (premium)</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div>
+      <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Target role (required)</div>
+      <input id="targetRole" placeholder="e.g. Performance Marketing Manager" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#111827;color:#fff;outline:none;">
+    </div>
+
+    <div>
+      <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Seniority</div>
+      <select id="targetSeniority" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#111827;color:#fff;outline:none;">
+        <option value="junior">Junior</option>
+        <option value="mid" selected>Mid</option>
+        <option value="senior">Senior</option>
+        <option value="lead">Lead/Manager</option>
+        <option value="director">Director</option>
+        <option value="vp">VP+</option>
+      </select>
+    </div>
+
+    <div>
+      <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Industry (optional)</div>
+      <input id="targetIndustry" placeholder="e.g. SaaS, E-commerce, Fintech" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#111827;color:#fff;outline:none;">
+    </div>
+
+    <div>
+      <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Location (optional)</div>
+      <input id="targetLocation" placeholder="e.g. United States / Remote" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#111827;color:#fff;outline:none;">
+    </div>
+
+    <div style="grid-column:1/-1;">
+      <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Tone</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="toneBtn" data-tone="clean" style="padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#fff;font-weight:800;">Clean</button>
+        <button type="button" class="toneBtn" data-tone="confident" style="padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#fff;font-weight:800;">Confident</button>
+        <button type="button" class="toneBtn" data-tone="bold" style="padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#fff;font-weight:800;">Bold</button>
+      </div>
+      <div style="opacity:.7;font-size:12px;margin-top:6px;">Tone affects headline + About writing style.</div>
+    </div>
+  </div>
+</div>
       </div>
 
       <div class="warnBox" id="qualityNote" style="display:none;">
