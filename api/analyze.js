@@ -283,7 +283,7 @@ if (reqMode === "linkedin") {
         response_format: { type: "json_object" },
         max_tokens: isPreview ? 650 : 1800,
         messages: [
-          { role: "system", content: system },
+          { role: "system", content: chosenSystem },
           { role: "user", content: userPrompt },
         ],
       }),
