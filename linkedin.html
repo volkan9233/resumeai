@@ -917,6 +917,14 @@ if (!targetRole) {
   tone: window.__li_tone || "clean",
 };
 localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
+    const meta = {
+  target_role: targetRole,
+  seniority: document.getElementById("targetSeniority")?.value || "mid",
+  industry: (document.getElementById("targetIndustry")?.value || "").trim(),
+  location: (document.getElementById("targetLocation")?.value || "").trim(),
+  tone: window.__li_tone || "clean",
+};
+localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
 
 const r = await fetch("/api/analyze", {
   method:"POST",
@@ -929,6 +937,7 @@ const r = await fetch("/api/analyze", {
     lang,
     mode: "linkedin",
     linkedin_meta: meta
+    
   })
 });
 
