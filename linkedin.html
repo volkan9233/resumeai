@@ -349,17 +349,17 @@
 
   <!-- Right: Targeting box -->
   <div id="targetBox">
-    <div style="font-weight:900;margin-bottom:8px;">Targeting (premium)</div>
+    <div id="t_targetingTitle" style="font-weight:900;margin-bottom:8px;">Targeting (premium)</div>
 
     <div class="targetGrid">
       <div>
-        <div class="tHint">Target role (required)</div>
-        <input id="targetRole" placeholder="e.g. Performance Marketing Manager">
+        <div class="tHint" id="t_targetRoleLabel">Target role (required)</div>
+<input id="targetRole" placeholder="e.g. Performance Marketing Manager">
       </div>
 
       <div>
-        <div class="tHint">Seniority</div>
-        <select id="targetSeniority">
+        <div class="tHint" id="t_seniorityLabel">Seniority</div>
+<select id="targetSeniority">
           <option value="junior">Junior</option>
           <option value="mid" selected>Mid</option>
           <option value="senior">Senior</option>
@@ -370,23 +370,22 @@
       </div>
 
       <div>
-        <div class="tHint">Industry (optional)</div>
-        <input id="targetIndustry" placeholder="e.g. SaaS, E-commerce, Fintech">
-      </div>
+        <div class="tHint" id="t_industryLabel">Industry (optional)</div>
+<input id="targetIndustry" placeholder="e.g. SaaS, E-commerce, Fintech">
 
       <div>
-        <div class="tHint">Location (optional)</div>
-        <input id="targetLocation" placeholder="e.g. United States / Remote">
+        <div class="tHint" id="t_locationLabel">Location (optional)</div>
+<input id="targetLocation" placeholder="e.g. United States / Remote">
       </div>
 
       <div style="grid-column:1/-1;">
-        <div class="tHint">Tone</div>
+        <div class="tHint" id="t_toneLabel">Tone</div>
         <div class="toneRow">
           <button type="button" class="toneBtn" data-tone="clean">Clean</button>
           <button type="button" class="toneBtn" data-tone="confident">Confident</button>
           <button type="button" class="toneBtn" data-tone="bold">Bold</button>
         </div>
-        <div style="opacity:.7;font-size:12px;margin-top:6px;">Tone affects headline + About writing style.</div>
+        <div id="t_toneHelp" style="opacity:.7;font-size:12px;margin-top:6px;">Tone affects headline + About writing style.</div>
       </div>
     </div>
   </div>
