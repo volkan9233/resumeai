@@ -468,6 +468,10 @@
     0 10px 26px rgba(0,0,0,.25),
     0 0 0 6px rgba(123,92,255,.10);
 }
+    /* Only LOCKED: disable shine on LinkedIn button (fix grey box) */
+body.is-locked #linkedinBtnHero::after{
+  display:none !important;
+}
 
   pointer-events:none;
 
