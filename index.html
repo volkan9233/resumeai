@@ -713,6 +713,8 @@ const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
 if (!unlocked) document.body.classList.add("is-locked");
         
         if (!unlocked) return;
+        document.getElementById("trustYear")?.remove();
+document.getElementById("trustSecure")?.remove();
         // ✅ Unlock olduysa FREE rozetini gizle
 document.querySelector("#createBtnHero .badge")?.remove();
 
