@@ -1049,6 +1049,84 @@ function renderStepContact(container){
   grid.appendChild(spacer);
 
   sec.appendChild(grid);
+  // ---- Photo (optional) ----
+const photoCard = document.createElement("div");
+photoCard.className = "itemCard";
+photoCard.style.marginTop = "12px";
+
+const photoHead = document.createElement("div");
+photoHead.className = "itemHead";
+
+const photoTitle = document.createElement("div");
+photoTitle.className = "title";
+photoTitle.textContent = "Photo (optional)";
+photoHead.appendChild(photoTitle);
+
+photoCard.appendChild(photoHead);
+
+const photoRow = document.createElement("div");
+photoRow.className = "row";
+photoRow.style.gap = "12px";
+photoRow.style.marginTop = "10px";
+
+const file = document.createElement("input");
+file.type = "file";
+file.accept = "image/*";
+file.style.maxWidth = "360px";
+
+const img = document.createElement("img");
+img.style.width = "72px";
+img.style.height = "72px";
+img.style.borderRadius = "999px";
+img.style.objectFit = "cover";
+img.style.border = "1px solid rgba(255,255,255,.18)";
+img.style.display = state.basics.photo ? "block" : "none";
+if (state.basics.photo) img.src = state.basics.photo;
+
+const rm = document.createElement("button");
+rm.type = "button";
+rm.className = "chipBtn";
+rm.textContent = "Remove";
+rm.style.display = state.basics.photo ? "inline-block" : "none";
+rm.addEventListener("click", ()=>{
+  state.basics.photo = "";
+  renderAll();
+  saveToLocal();
+});
+
+file.addEventListener("change", async ()=>{
+  const f = file.files && file.files[0];
+  if(!f) return;
+
+  // 1.5MB limit
+  if (f.size > 1_500_000) {
+    alert("Photo too large. Please use ~1–1.5MB.");
+    file.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.basics.photo = String(reader.result || "");
+    renderAll();
+    saveToLocal();
+  };
+  reader.readAsDataURL(f);
+});
+
+photoRow.appendChild(file);
+photoRow.appendChild(img);
+photoRow.appendChild(rm);
+
+const hint = document.createElement("div");
+hint.className = "muted";
+hint.style.marginTop = "10px";
+hint.textContent = "JPG/PNG recommended. Keep it small (1–1.5MB).";
+
+photoCard.appendChild(photoRow);
+photoCard.appendChild(hint);
+
+sec.appendChild(photoCard);
 
   // Links
   const linksSec = document.createElement("div");
