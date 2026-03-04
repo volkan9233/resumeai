@@ -664,6 +664,7 @@ async function run(){
     });
 
     // weak
+// weak (BEFORE/AFTER kart)
 const weak = document.getElementById('weak');
 weak.innerHTML = "";
 
@@ -671,11 +672,41 @@ weak.innerHTML = "";
 const ws = Array.isArray(data.weak_sentences) ? data.weak_sentences : [];
 
 ws.slice(0, isPreview ? 1 : ws.length).forEach(it => {
-  const li = document.createElement('li');
-  li.textContent = (it && it.sentence && it.rewrite)
-    ? `${it.sentence} → ${it.rewrite}`
-    : String(it);
-  weak.appendChild(li);
+  // Eğer API object dönüyorsa (sentence/rewrite)
+  if (it && typeof it === "object" && (it.sentence || it.rewrite)) {
+    const before = String(it.sentence || "").trim();
+    const after  = String(it.rewrite || "").trim();
+
+    const wrap = document.createElement("div");
+    wrap.className = "weakPair";
+
+    const b = document.createElement("div");
+    b.className = "weakBefore";
+    b.innerHTML = `<div class="weakTag">BEFORE</div><div class="weakText"></div>`;
+    b.querySelector(".weakText").textContent = before || "—";
+
+    const a = document.createElement("div");
+    a.className = "weakAfter";
+    a.innerHTML = `<div class="weakTag">AFTER</div><div class="weakText"></div>`;
+    a.querySelector(".weakText").textContent = after || "—";
+
+    wrap.appendChild(b);
+    wrap.appendChild(a);
+
+    // ul içine div koyuyoruz (görsel için en pratik)
+    // İstersen li yerine doğrudan ekle:
+    const li = document.createElement("li");
+    li.style.listStyle = "none";
+    li.style.marginLeft = "-18px"; // ul padding'i dengelemek için
+    li.appendChild(wrap);
+    weak.appendChild(li);
+
+  } else {
+    // Eski format string geldiyse
+    const li = document.createElement('li');
+    li.textContent = String(it);
+    weak.appendChild(li);
+  }
 });
 
 if (isPreview) {
