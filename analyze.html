@@ -135,6 +135,49 @@ a.link{
   font-weight:700;
 }
 a.link:hover{ text-decoration:underline; }
+    /* Missing keywords as chips */
+.kwWrap{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top: 10px;
+}
+
+.kwChip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.04);
+  color:#e5e7eb;
+  font-weight:700;
+  font-size:13px;
+  line-height:1;
+}
+
+.kwChip::before{
+  content:"+";
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(99,102,241,.18);
+  border: 1px solid rgba(99,102,241,.35);
+  color:#c7d2fe;
+  font-weight:900;
+  font-size:12px;
+}
+
+.kwMeta{
+  margin-top: 8px;
+  color: rgba(203,213,225,.85);
+  font-size: 13px;
+  font-weight: 700;
+}
   </style>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987698621"></script>
