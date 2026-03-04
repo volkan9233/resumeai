@@ -587,8 +587,33 @@ const I18N = {
     boolean:"Boolean search string",
     copyOk:"Copied ✅",
     copyFail:"Copy failed.",
-    nothing:"Nothing to copy."
-  },
+    nothing:"Nothing to copy.",
+
+targetingTitle: "Targeting (premium)",
+targetRoleLabel: "Target role (required)",
+seniorityLabel: "Seniority",
+industryLabel: "Industry (optional)",
+locationLabel: "Location (optional)",
+toneLabel: "Tone",
+toneHelp: "Tone affects headline + About writing style.",
+phTargetRole: "e.g. Performance Marketing Manager",
+phIndustry: "e.g. SaaS, E-commerce, Fintech",
+phLocation: "e.g. United States / Remote",
+seniority: {
+  junior: "Junior",
+  mid: "Mid",
+  senior: "Senior",
+  lead: "Lead/Manager",
+  director: "Director",
+  vp: "VP+"
+},
+tone: {
+  clean: "Clean",
+  confident: "Confident",
+  bold: "Bold"
+}
+},  // ✅ EN burada bitti
+
   tr: {
     back:"Geri",
     title:"LinkedIn Optimizasyonu",
@@ -618,8 +643,33 @@ const I18N = {
     boolean:"Boolean arama cümlesi",
     copyOk:"Kopyalandı ✅",
     copyFail:"Kopyalama başarısız.",
-    nothing:"Kopyalanacak bir şey yok."
-  },
+    nothing:"Kopyalanacak bir şey yok.",
+
+targetingTitle: "Hedefleme (premium)",
+targetRoleLabel: "Hedef rol (zorunlu)",
+seniorityLabel: "Kıdem",
+industryLabel: "Sektör (opsiyonel)",
+locationLabel: "Konum (opsiyonel)",
+toneLabel: "Ton",
+toneHelp: "Ton, headline + About yazım stilini etkiler.",
+phTargetRole: "örn. Performance Marketing Manager",
+phIndustry: "örn. SaaS, E-ticaret, Fintech",
+phLocation: "örn. Türkiye / Remote",
+seniority: {
+  junior: "Junior",
+  mid: "Mid",
+  senior: "Senior",
+  lead: "Lead/Manager",
+  director: "Director",
+  vp: "VP+"
+},
+tone: {
+  clean: "Sade",
+  confident: "Özgüvenli",
+  bold: "İddialı"
+}
+}, // ✅ TR bitti
+
   es: {
     back:"Volver",
     title:"Optimización de LinkedIn",
@@ -649,9 +699,33 @@ const I18N = {
     boolean:"Cadena Boolean",
     copyOk:"Copiado ✅",
     copyFail:"Error al copiar.",
-    nothing:"Nada para copiar."
-  }
-};
+    nothing:"Nada para copiar.",
+
+targetingTitle: "Segmentación (premium)",
+targetRoleLabel: "Rol objetivo (obligatorio)",
+seniorityLabel: "Nivel",
+industryLabel: "Industria (opcional)",
+locationLabel: "Ubicación (opcional)",
+toneLabel: "Tono",
+toneHelp: "El tono afecta el estilo del titular + sección About.",
+phTargetRole: "p. ej. Performance Marketing Manager",
+phIndustry: "p. ej. SaaS, E-commerce, Fintech",
+phLocation: "p. ej. España / Remoto",
+seniority: {
+  junior: "Junior",
+  mid: "Mid",
+  senior: "Senior",
+  lead: "Lead/Manager",
+  director: "Director",
+  vp: "VP+"
+},
+tone: {
+  clean: "Limpio",
+  confident: "Seguro",
+  bold: "Audaz"
+}
+}  // ✅ ES burada bitti
+}; // ✅ I18N burada bitti
 
 function getLang(){
   const qs = new URLSearchParams(location.search);
