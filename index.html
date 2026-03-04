@@ -712,7 +712,10 @@ body.is-locked #linkedinBtnHero::after{
 
     <script>
       (function () {
-        const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
+        // mark LOCKED state on body (for CSS like disabling shine)
+const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
+if (!unlocked) document.body.classList.add("is-locked");
+        
         if (!unlocked) return;
         // ✅ Unlock olduysa FREE rozetini gizle
 document.querySelector("#createBtnHero .badge")?.remove();
