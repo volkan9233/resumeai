@@ -700,12 +700,22 @@ async function run(){
 
     // missing keywords
     const missing = document.getElementById('missing');
-    missing.innerHTML = "";
-    (data.missing_keywords || []).forEach(k=>{
-      const li = document.createElement('li');
-      li.textContent = k;
-      missing.appendChild(li);
-    });
+const kwMeta = document.getElementById('kwMeta');
+
+const kws = (data.missing_keywords || []).map(x => String(x||"").trim()).filter(Boolean);
+
+missing.innerHTML = "";
+kws.forEach(k => {
+  const chip = document.createElement("span");
+  chip.className = "kwChip";
+  chip.textContent = k;
+  missing.appendChild(chip);
+});
+
+// küçük özet
+if (kwMeta) {
+  kwMeta.textContent = kws.length ? `${kws.length} missing keywords found` : "";
+}
 
     // weak
 // weak (BEFORE/AFTER kart)
