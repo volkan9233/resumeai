@@ -574,6 +574,8 @@
       (function () {
         const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
         if (!unlocked) return;
+        // ✅ Unlock olduysa FREE rozetini gizle
+document.querySelector("#createBtnHero .badge")?.remove();
 
         // 1) Checkout/Unlock linklerini gizle
         document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]').forEach(a => {
