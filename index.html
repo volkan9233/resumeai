@@ -359,7 +359,7 @@
     /* --- FREE badge on Create CV button --- */
 .btn-has-badge{ position: relative; overflow: visible; }
 
-/* --- FREE badge on Create CV button (v2 - daha görünür) --- */
+/* FREE badge (white pill + purple text) */
 .btn-has-badge{ position: relative; overflow: visible; }
 
 .btn-has-badge .badge{
@@ -372,16 +372,20 @@
   font-weight:900;
   letter-spacing:.10em;
   text-transform:uppercase;
-
   border-radius:999px;
 
-  /* daha net kontrast */
-  background: linear-gradient(135deg, rgba(123,92,255,.95), rgba(91,61,255,.90));
-color: #fff;
-border: 1px solid rgba(255,255,255,.18);
-box-shadow:
-  0 10px 30px rgba(99,102,241,.22),
-  0 0 0 6px rgba(123,92,255,.10);
+  /* ✅ beyaz rozet + mor yazı */
+  background: rgba(255,255,255,.92);
+  color: #5b3dff; /* tema mor */
+  border: 1px solid rgba(123,92,255,.35);
+
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.22),
+    0 0 0 6px rgba(123,92,255,.10);
+
+  /* opsiyonel hafif çapraz */
+  transform: rotate(-8deg);
+}
 
   pointer-events:none;
 
