@@ -68,6 +68,57 @@ a.link:hover{ text-decoration:underline; }
     .score-high { background: linear-gradient(135deg, rgba(34,197,94,.22), rgba(16,185,129,.16)); box-shadow: 0 10px 30px rgba(34,197,94,.14); }
 
     .sec{margin-top:16px;}
+    /* Weak phrases: BEFORE / AFTER kartları */
+.weakPair{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  margin: 14px 0;
+}
+
+.weakBefore, .weakAfter{
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.weakBefore{
+  border-color: rgba(239,68,68,.25);
+  background: rgba(239,68,68,.06);
+}
+.weakAfter{
+  border-color: rgba(34,197,94,.25);
+  background: rgba(34,197,94,.06);
+}
+
+.weakTag{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-weight:900;
+  font-size: 12px;
+  letter-spacing:.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.25);
+}
+
+.weakBefore .weakTag{ border-color: rgba(239,68,68,.35); }
+.weakAfter  .weakTag{ border-color: rgba(34,197,94,.35); }
+
+.weakText{
+  color: rgba(255,255,255,.92);
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+@media(max-width:900px){
+  .weakPair{ grid-template-columns: 1fr; }
+}
     .sec h3{margin:0 0 10px 0;font-size:16px;}
     ul{margin:0;padding-left:18px;color:#d1d5db;line-height:1.7;}
     pre{
