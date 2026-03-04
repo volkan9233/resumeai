@@ -470,16 +470,27 @@
   color: rgba(255,255,255,.82);
   letter-spacing: .01em;
 }
-    .trust-row{
-  margin: 14px auto 6px auto;
+    /* Premium trust row (no green checks) */
+.trust-row{
+  margin-top: 12px;
   display:flex;
-  gap:12px;
-  justify-content:center;
+  gap:10px;
   flex-wrap:wrap;
-  color: rgba(255,255,255,.72);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .02em;
+  justify-content:center;
+  align-items:center;
+}
+.trust-row span{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.82);
+  font-weight:800;
+  font-size:12px;
+  letter-spacing:.02em;
 }
   </style>
 
