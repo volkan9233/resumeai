@@ -63,11 +63,28 @@
       font-size: 22px;
     }
 
-    .old {
-      text-decoration: line-through;
-      color: #5c6378;
-      margin-right: 10px;
-    }
+    /* Old price: thin diagonal strike */
+.price .old{
+  position: relative;
+  display: inline-block;
+  padding: 0 4px;
+  margin: 0 10px 0 10px;
+  color: rgba(255,255,255,.55);
+  font-weight: 800;
+  text-decoration: none; /* IMPORTANT */
+}
+
+.price .old::after{
+  content:"";
+  position:absolute;
+  left:-6%;
+  top:55%;
+  width:112%;
+  height:2px;                 /* çizgi inceliği (1px de yapabilirsin) */
+  background: rgba(255,255,255,.70);
+  transform: rotate(-12deg);  /* çapraz çizgi */
+  border-radius: 999px;
+}
 
     .btn {
       display: inline-block;
