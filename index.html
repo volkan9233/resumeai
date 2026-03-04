@@ -58,10 +58,27 @@
       line-height: 1.6;
     }
 
-    .price {
-      margin-top: 30px;
-      font-size: 22px;
-    }
+    /* Price (make it secondary / less aggressive) */
+.price{
+  margin-top: 16px;
+  font-size: 14px;           /* küçült */
+  color: rgba(255,255,255,.62);
+  letter-spacing: .02em;
+}
+
+.price strong{
+  font-weight: 800;
+}
+
+.price .new-price{
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
+.price .old{
+  font-size: 13px;
+  opacity: .55;
+}
 
     /* Old price: thin diagonal strike */
 .price .old{
