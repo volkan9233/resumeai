@@ -737,6 +737,10 @@ document.querySelector("#createBtnHero .badge")?.remove();
         // 5) Hero'da unlock butonu varsa gizle (id ile)
         const heroUnlock = document.getElementById("unlockBtnHero");
         if (heroUnlock) heroUnlock.style.display = "none";
+
+        // LinkedIn TRY badge only for locked users
+        const tryBadge = document.getElementById("tryBadge");
+        if (tryBadge) tryBadge.style.display = "none";
       })();
     </script>
   </div>
