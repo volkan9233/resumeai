@@ -782,6 +782,35 @@ function applyI18n(){
   setText("#t_recruiterDesc", t.recruiterDesc);
   setText("#t_recKeywords", t.recKeywords);
   setText("#t_boolean", t.boolean);
+    // ✅ Targeting box i18n
+  setText("#t_targetingTitle", t.targetingTitle);
+  setText("#t_targetRoleLabel", t.targetRoleLabel);
+  setText("#t_seniorityLabel", t.seniorityLabel);
+  setText("#t_industryLabel", t.industryLabel);
+  setText("#t_locationLabel", t.locationLabel);
+  setText("#t_toneLabel", t.toneLabel);
+  setText("#t_toneHelp", t.toneHelp);
+
+  // ✅ placeholders
+  setPh("#targetRole", t.phTargetRole);
+  setPh("#targetIndustry", t.phIndustry);
+  setPh("#targetLocation", t.phLocation);
+
+  // ✅ seniority option labels
+  const sel = document.getElementById("targetSeniority");
+  if (sel && t.seniority) {
+    const map = t.seniority;
+    [...sel.options].forEach(o => {
+      if (map[o.value]) o.textContent = map[o.value];
+    });
+  }
+
+  // ✅ tone button labels
+  const toneMap = t.tone || {};
+  document.querySelectorAll(".toneBtn").forEach(b => {
+    const key = b.dataset.tone; // clean/confident/bold
+    if (toneMap[key]) b.textContent = toneMap[key];
+  });
 
   window.__t = t;
 }
