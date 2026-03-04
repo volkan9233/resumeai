@@ -1655,7 +1655,7 @@ function buildCvData(){
     links: (state.basics.links || [])
       .map(x => ({ label: String(x.label||"").trim(), url: String(x.url||"").trim() }))
       .filter(x => x.url),
-    photoUrl: ""
+    photoUrl: state.basics.photo || ""
   };
 
   const summary = String(state.summary || "").trim();
