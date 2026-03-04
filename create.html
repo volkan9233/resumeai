@@ -1713,7 +1713,7 @@ function buildCvData(){
     education,
     certificates,
     languages,
-    meta: { accent:"#6366F1", includePhoto:false, lang }
+    meta: { accent:"#6366F1", includePhoto: !!(state.basics.photo), lang }
   };
 }
 
