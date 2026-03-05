@@ -719,6 +719,33 @@ body.is-locked #linkedinBtnHero::after{
         // mark LOCKED state on body (for CSS like disabling shine)
 const unlocked = localStorage.getItem("resumeai_unlocked") === "1";
 if (!unlocked) document.body.classList.add("is-locked");
+        // ✅ GA4: CTA click tracking (works for locked + unlocked)
+const track = (name, params={}) => {
+  try{
+    if (typeof gtag !== "function") return;
+    gtag("event", name, {
+      page: "index",
+      unlocked: unlocked ? 1 : 0,
+      ...params
+    });
+  }catch{}
+};
+
+document.getElementById("createBtnHero")?.addEventListener("click", () => {
+  track("cta_click", { cta: "create_cv" });
+});
+
+document.getElementById("linkedinBtnHero")?.addEventListener("click", () => {
+  track("cta_click", { cta: "linkedin_optimize" });
+});
+
+document.getElementById("unlockBtnHero")?.addEventListener("click", () => {
+  track("cta_click", { cta: "upgrade_full_access" });
+});
+
+document.getElementById("heroPreviewBtnTop")?.addEventListener("click", () => {
+  track("cta_click", { cta: "try_free_preview" });
+});
         
         if (!unlocked) return;
         document.getElementById("trustYear")?.remove();
