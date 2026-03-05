@@ -954,7 +954,7 @@ function renderHeadlines(list){
 
     const btn = document.createElement("button");
     btn.className = "copyBtn";
-    btn.textContent = "Copy";
+    btn.textContent = (window.__t?.copy || "Copy");
     btn.addEventListener("click", ()=> copyText(it.text || ""));
     top.appendChild(left);
     top.appendChild(btn);
@@ -980,15 +980,16 @@ function renderFixKit(list){
     if (idx === 0) d.open = true;
 
     const s = document.createElement("summary");
-    s.textContent = `Fix #${idx+1} — bullet rewrite`;
+    const t = window.__t || I18N.en;
+s.textContent = `${t.fixLabel} #${idx+1} — ${t.bulletRewrite}`;
     d.appendChild(s);
 
     const pre1 = document.createElement("pre");
-    pre1.textContent = "BEFORE:\n" + (it.before || "");
+    pre1.textContent = `${t.before}:\n` + (it.before || "");
     const pre2 = document.createElement("pre");
-    pre2.textContent = "AFTER:\n" + (it.after || "");
+    pre2.textContent = `${t.after}:\n` + (it.after || "");
     const pre3 = document.createElement("pre");
-    pre3.textContent = "WHY:\n" + (it.why || "");
+    pre3.textContent = `${t.why}:\n` + (it.why || "");
 
     d.appendChild(pre1);
     d.appendChild(pre2);
