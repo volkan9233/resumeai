@@ -525,63 +525,25 @@ body.is-locked #linkedinBtnHero::after{
     /* Logo container: kareyi kes, ikonu ortadan büyüt */
 /* Logo kutusu: sitenin brand mor gradient'i */
 /* ✅ Logo: ortalı + gradient + hafif parıltı */
-.logo-brand{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:14px;
-}
-
-/* Kutuyu biz çiziyoruz */
+/* Logo container: kareyi kes, ikonu ortadan büyüt */
 .logo-icon{
   width:56px;
   height:56px;
   border-radius:14px;
+  overflow:hidden;      /* dıştaki kareyi kırpar */
   display:flex;
   align-items:center;
   justify-content:center;
-
-  /* siteyle aynı mor geçiş */
-  background: linear-gradient(135deg, #7b5cff 0%, #5b3dff 100%);
-
-  /* hafif premium parıltı + gölge */
-  box-shadow:
-    0 14px 28px rgba(0,0,0,.42),
-    0 0 0 1px rgba(255,255,255,.07) inset,
-    0 0 20px rgba(123,92,255,.18);
-
-  position: relative;
-  overflow:hidden;
 }
 
-/* üst sol mini highlight */
-.logo-icon::before{
-  content:"";
-  position:absolute;
-  top:7px; left:8px;
-  width:26px; height:18px;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), rgba(255,255,255,0) 70%);
-  opacity:.9;
-  transform: rotate(-10deg);
-}
-
-/* alt sağ hafif gloss */
-.logo-icon::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
-  opacity:.55;
-  pointer-events:none;
-}
-
-/* R'yi ortala ve ölç */
+/* PNG'yi kutuya doldur + biraz zoom */
 .logo-img{
-  width:66%;
-  height:auto;
+  width:100%;
+  height:100%;
+  object-fit:cover;      /* kırpma */
+  object-position:center;
+  transform: scale(1.5); /* ikonu büyüt (1.25-1.6 arası dene) */
   display:block;
-  transform: translateY(1px); /* çok az optik düzeltme */
-  filter: drop-shadow(0 6px 14px rgba(0,0,0,.35));
 }
 
     /* ✅ FORCE: fiyat satırının tamamını büyüt */
