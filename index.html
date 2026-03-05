@@ -734,22 +734,56 @@ body.is-locked #linkedinBtnHero::after{
       <div class="difference-grid">
         <div class="diff-left-head">OTHER AI TOOLS</div>
         <div class="diff-right-head">
-          <svg width="32" height="32" viewBox="0 0 100 100">
-            <rect x="8" y="8" width="84" height="84" rx="22"
-      fill="rgba(255,255,255,.04)"
-      stroke="rgba(123,92,255,.22)"
-      stroke-width="1"/>
-            <rect x="38" y="28" width="8" height="44" fill="#6366F1"/>
-            <path d="M46 28H60C69 28 74 33 74 41C74 49 69 54 60 54H46"
-                  fill="none"
-                  stroke="#6366F1"
-                  stroke-width="10"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-            <line x1="54" y1="54" x2="72" y2="72"
-                  stroke="#6366F1"
-                  stroke-width="10"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ResumeAI">
+  <defs>
+    <linearGradient id="ra_g_small" x1="18" y1="18" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7b5cff"/>
+      <stop offset="1" stop-color="#5b3dff"/>
+    </linearGradient>
+
+    <filter id="ra_glow_small" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.28 0" />
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- shield -->
+  <path filter="url(#ra_glow_small)"
+        d="M64 10
+           C84 20 102 22 112 24
+           V60
+           C112 92 92 110 64 118
+           C36 110 16 92 16 60
+           V24
+           C26 22 44 20 64 10Z"
+        fill="#0f172a" opacity="0.92"/>
+
+  <path d="M64 12
+           C84 21 101 23 110 25
+           V60
+           C110 90 92 107 64 115
+           C36 107 18 90 18 60
+           V25
+           C27 23 44 21 64 12Z"
+        fill="none" stroke="url(#ra_g_small)" stroke-width="3.5" stroke-linejoin="round" opacity="0.95"/>
+
+  <!-- A -->
+  <path d="M64 34 L88 94 H78 L72 78 H56 L50 94 H40 L64 34 Z"
+        fill="none" stroke="url(#ra_g_small)" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M58 66 H70"
+        fill="none" stroke="url(#ra_g_small)" stroke-width="10"
+        stroke-linecap="round"/>
+</svg>
           <span class="brand">Resume<span>AI</span></span>
         </div>
 
