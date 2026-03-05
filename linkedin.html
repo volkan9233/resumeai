@@ -1355,7 +1355,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindToneButtons();
   bindResumeUpload();
 });
-  function bindResumeUpload(){
+
+function bindResumeUpload(){
   const btn = document.getElementById("uploadResumeBtn");
   const input = document.getElementById("uploadResumeInput");
   const resumeEl = document.getElementById("resume");
@@ -1370,7 +1371,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const name = (f.name || "").toLowerCase();
 
-    // Şimdilik sadece .txt'i direkt dolduralım (PDF/DOCX parsing tarayıcıda ek kütüphane ister)
     if(name.endsWith(".txt")){
       const text = await f.text();
       resumeEl.value = text || "";
@@ -1381,7 +1381,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     alert(t.uploadTxtOnly);
   });
 }
-});
 </script>
 </body>
 </html>
