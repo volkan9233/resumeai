@@ -880,15 +880,13 @@ applyI18n();
     el.textContent = (isPreview && text) ? text : "";
   };
 
-  // TRY modunda: "1 of X" gibi net anlat
-  const t = window.__t || I18N.en;
-const lock = t.lockIcon || "🔒";
+  const lock = t.lock || "🔒";
 
-setNote("previewNoteHeadlines", `${lock} ${t.previewHeadlinesNote || "Upgrade to see all headlines."}`);
-setNote("previewNoteAbout", `${lock} ${t.previewAboutNote || "Upgrade to unlock Normal + Bold About."}`);
-setNote("previewNoteFix", `${lock} ${t.previewFixNote || "Upgrade to unlock all Experience fixes."}`);
-setNote("previewNoteSkills", `${lock} ${t.previewSkillsNote || "Upgrade to unlock Tools + Industry keywords."}`);
-setNote("previewNoteRecruiter", `${lock} ${t.previewRecruiterNote || "Upgrade to unlock the Boolean search string."}`);
+  setNote("previewNoteHeadlines", `${lock} ${t.upgradeToSeeHeadlines || ""}`);
+  setNote("previewNoteAbout", `${lock} ${t.upgradeToSeeAbout || ""}`);
+  setNote("previewNoteFix", `${lock} ${t.upgradeToSeeFixKit || ""}`);
+  setNote("previewNoteSkills", `${lock} ${t.upgradeToSeeSkills || ""}`);
+  setNote("previewNoteRecruiter", `${lock} ${t.upgradeToSeeRecruiter || ""}`);
 
   // About tabları: TRY modunda Normal/Bold'u kilitle
   const normalBtn = document.getElementById("tabNormal");
