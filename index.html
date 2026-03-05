@@ -522,7 +522,26 @@ body.is-locked #linkedinBtnHero::after{
     /* Logo icon alignment fix */
 .logo-icon{ display:flex; align-items:center; justify-content:center; }
 .logo-icon svg{ display:block; }
-    
+
+    /* ✅ FORCE: fiyat satırının tamamını büyüt */
+#heroPrice{
+  font-size: 16px !important;   /* 14'tü -> 16 */
+  line-height: 1.35 !important;
+}
+
+/* İçindeki parçalar da uyumlu büyüsün */
+#heroPrice .old{
+  font-size: 16px !important;
+}
+
+#heroPrice .new-price{
+  font-size: 16px !important;
+  padding: 4px 10px !important;
+}
+    /* ✅ FORCE: trustRow'u biraz aşağı indir */
+#trustRow{
+  margin-top: 16px !important;  /* 10'du -> 16 */
+}
   </style>
 
   <!-- Google tag (gtag.js) -->
