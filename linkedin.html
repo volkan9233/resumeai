@@ -308,6 +308,52 @@
   letter-spacing:.01em;
   box-shadow: 0 10px 30px rgba(0,0,0,.22);
 }
+    .resumeHelp{
+  margin-top:10px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.resumeHelpText{
+  color: rgba(255,255,255,.62);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.resumeHelpBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+
+  padding:10px 12px;
+  border-radius:12px;
+
+  background: linear-gradient(135deg, rgba(123,92,255,.95), rgba(91,61,255,.95));
+  color:#fff;
+  font-weight: 900;
+  font-size: 13px;
+  text-decoration:none;
+
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.25),
+    0 0 0 6px rgba(123,92,255,.10);
+}
+
+.resumeHelpBtn:hover{ filter: brightness(1.06); }
+
+.resumeHelpBtn.ghost{
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.88);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: none;
+}
+.resumeHelpBtn.ghost:hover{
+  background: rgba(255,255,255,.07);
+}
   </style>
 
   <!-- Google tag (gtag.js) -->
