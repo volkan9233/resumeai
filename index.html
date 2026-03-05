@@ -516,21 +516,7 @@ body.is-locked #linkedinBtnHero::after{
 .btn-has-badge::after,
 .btn-has-try::after{ display:none !important; }
 
-  
 
-    /* ✅ Logo: dosyayı bozmadan göster */
-.logo-icon{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.logo-img{
-  width:56px;
-  height:56px;
-  border-radius:14px;
-  display:block;
-}
 
     /* ✅ FORCE: fiyat satırının tamamını büyüt */
 #heroPrice{
@@ -566,20 +552,21 @@ body.is-locked #linkedinBtnHero::after{
   filter:none !important;        /* arkadaki ekstra kare/halo olmasın */
 }
 
+/* ✅ logo oranını bozma */
 .logo-icon{
   display:flex;
   align-items:center;
   justify-content:center;
   width:56px;
   height:56px;
+  overflow: visible;
 }
 
 .logo-img{
-  width:56px;
-  height:56px;
-  border-radius:14px;
+  width:56px;      /* sadece genişlik */
+  height:auto;     /* oranı koru */
   display:block;
-  object-fit:contain;            /* kırpma/zoom yok */
+  border-radius:14px;
 }
   </style>
 
