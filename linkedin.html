@@ -935,6 +935,13 @@ function applyI18n(){
   setPh("#targetIndustry", t.phIndustry);
   setPh("#targetLocation", t.phLocation);
 
+  setText("#t_resumeHelpText", t.resumeHelpText);
+setText("#t_resumeHelpBuild", t.resumeHelpBuild);
+
+// Upload buton text'i (id'si yoksa direkt query ile)
+const upBtn = document.getElementById("uploadResumeBtn");
+if (upBtn) upBtn.textContent = t.resumeHelpUpload;
+
   // ✅ seniority option labels
   const sel = document.getElementById("targetSeniority");
   if (sel && t.seniority) {
