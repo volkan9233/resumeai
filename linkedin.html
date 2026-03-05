@@ -914,6 +914,23 @@ applyI18n();
       b.removeAttribute("aria-disabled");
     }
   });
+      // Recruiter pack: TRY modunda tamamen kapat
+  const kwWrap = document.getElementById("recKeywords");
+  const boolBox = document.getElementById("booleanStr");
+  const lockedMsg = document.getElementById("previewRecruiterLocked");
+
+  if (isPreview) {
+    if (kwWrap) kwWrap.style.display = "none";
+    if (boolBox) boolBox.style.display = "none";
+    if (lockedMsg) {
+      lockedMsg.style.display = "block";
+      lockedMsg.textContent = `${lock} ${t.upgradeToSeeRecruiter || "Upgrade to Full Mode to see Recruiter pack + Boolean."}`;
+    }
+  } else {
+    if (kwWrap) kwWrap.style.display = "";
+    if (boolBox) boolBox.style.display = "";
+    if (lockedMsg) lockedMsg.style.display = "none";
+  }
 }
 
 /* =======================
