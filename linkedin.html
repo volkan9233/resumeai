@@ -945,9 +945,13 @@ function applyI18n(){
   setText("#t_toneHelp", t.toneHelp);
 
   // ✅ placeholders
-  setPh("#targetRole", t.phTargetRole);
-  setPh("#targetIndustry", t.phIndustry);
-  setPh("#targetLocation", t.phLocation);
+  setPh("#resume", t.phResume || "");
+setPh("#job", t.phJob || "");
+setPh("#targetRole", t.phRole || "");
+setPh("#targetIndustry", t.phIndustry || "");
+setPh("#targetLocation", t.phLocation || "");
+  setPh("#resume", t.phResume || "");
+setPh("#job", t.phJob || "");
 
   setText("#t_resumeHelpText", t.resumeHelpText);
 setText("#t_resumeHelpBuild", t.resumeHelpBuild);
