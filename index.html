@@ -736,12 +736,12 @@ body.is-locked #linkedinBtnHero::after{
         <div class="diff-right-head">
           <svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ResumeAI">
   <defs>
-    <linearGradient id="ra_g_small" x1="18" y1="18" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+    <linearGradient id="ra_g_r_small" x1="18" y1="18" x2="110" y2="110" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#7b5cff"/>
       <stop offset="1" stop-color="#5b3dff"/>
     </linearGradient>
 
-    <filter id="ra_glow_small" x="-40%" y="-40%" width="180%" height="180%">
+    <filter id="ra_glow_r_small" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
       <feColorMatrix in="b" type="matrix"
         values="1 0 0 0 0
@@ -753,10 +753,15 @@ body.is-locked #linkedinBtnHero::after{
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+
+    <linearGradient id="ra_shine_r_small" x1="28" y1="20" x2="86" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
 
   <!-- shield -->
-  <path filter="url(#ra_glow_small)"
+  <path filter="url(#ra_glow_r_small)"
         d="M64 10
            C84 20 102 22 112 24
            V60
@@ -773,16 +778,37 @@ body.is-locked #linkedinBtnHero::after{
            C36 107 18 90 18 60
            V25
            C27 23 44 21 64 12Z"
-        fill="none" stroke="url(#ra_g_small)" stroke-width="3.5" stroke-linejoin="round" opacity="0.95"/>
+        fill="none" stroke="url(#ra_g_r_small)" stroke-width="3.5" stroke-linejoin="round" opacity="0.95"/>
 
-  <!-- A -->
-  <path d="M64 34 L88 94 H78 L72 78 H56 L50 94 H40 L64 34 Z"
-        fill="none" stroke="url(#ra_g_small)" stroke-width="10"
+  <path d="M34 30
+           C48 22 70 20 88 30
+           C78 38 62 46 44 52
+           C34 46 30 38 34 30Z"
+        fill="url(#ra_shine_r_small)"/>
+
+  <!-- R -->
+  <path d="M46 90 V38
+           H72
+           C82 38 88 44 88 52
+           C88 60 82 66 72 66
+           H60
+           V90"
+        fill="none" stroke="url(#ra_g_r_small)" stroke-width="10"
         stroke-linecap="round" stroke-linejoin="round"/>
 
-  <path d="M58 66 H70"
-        fill="none" stroke="url(#ra_g_small)" stroke-width="10"
-        stroke-linecap="round"/>
+  <path d="M60 66 L88 90"
+        fill="none" stroke="url(#ra_g_r_small)" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M94 38
+           L97 45
+           L104 48
+           L97 51
+           L94 58
+           L91 51
+           L84 48
+           L91 45Z"
+        fill="#c4b5fd" opacity="0.95"/>
 </svg>
           <span class="brand">Resume<span>AI</span></span>
         </div>
