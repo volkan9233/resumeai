@@ -538,9 +538,14 @@ body.is-locked #linkedinBtnHero::after{
   font-size: 16px !important;
   padding: 4px 10px !important;
 }
-    /* ✅ FORCE: trustRow'u biraz aşağı indir */
+    /* Butonlardan sonra boşluk ver: hem fiyat hem trustRow birlikte aşağı iner */
+#heroPrice{
+  margin-top: 26px !important;  /* 16 idi; 22-32 arası deneyebilirsin */
+}
+
+/* Trust pill’leri fiyat satırından biraz ayır */
 #trustRow{
-  margin-top: 16px !important;  /* 10'du -> 16 */
+  margin-top: 14px !important;  /* 10 idi; 12-18 arası ideal */
 }
   </style>
 
