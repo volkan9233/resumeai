@@ -404,9 +404,9 @@
           <label id="t_resumeLabel">Resume (paste text)</label>
           <textarea id="resume" placeholder="Paste your resume here..."></textarea>
           <div class="resumeHelp">
-  <span class="resumeHelpText">Don’t have a resume?</span>
+  <span class="resumeHelpText" id="t_resumeHelpText">Don’t have a resume?</span>
 
-  <a class="resumeHelpBtn" href="/create.html">
+  <a class="resumeHelpBtn" id="t_resumeHelpBuild" href="/create.html">
     ✨ Build one in 2 minutes
   </a>
 
@@ -416,7 +416,6 @@
 
   <input id="uploadResumeInput" type="file" accept=".pdf,.doc,.docx,.txt" style="display:none" />
 </div>
-        </div>
         <div>
           <label id="t_targetLabel">Target role / job description (optional)</label>
           <textarea id="job" placeholder="Example: Product Manager, Data Analyst, Marketing Manager..."></textarea>
@@ -689,6 +688,11 @@ upgradeToSeeHeadlines: "Upgrade to see all headlines (Full: 5+)",
 upgradeToSeeAbout: "Upgrade to unlock Normal + Bold About",
 upgradeToSeeFixKit: "Upgrade to unlock 5+ rewrites (Full)",
 upgradeToSeeSkills: "Upgrade to unlock full Skills + Recruiter pack",
+    resumeHelpText: "Don’t have a resume?",
+resumeHelpBuild: "✨ Build one in 2 minutes",
+resumeHelpUpload: "⬆️ Upload PDF/DOCX",
+uploadTxtOnly: "For now, automatic import works for .txt only. Please copy/paste your resume text for PDF/DOCX.",
+uploadedOk: "Loaded: ",
 
 targetingTitle: "Targeting (premium)",
 targetRoleLabel: "Target role (required)",
@@ -757,6 +761,11 @@ upgradeToSeeHeadlines: "Tüm headline’ları görmek için kilidi aç (Full: 5+
 upgradeToSeeAbout: "Normal + İddialı About için kilidi aç",
 upgradeToSeeFixKit: "5+ rewrite (Full) için kilidi aç",
 upgradeToSeeSkills: "Tam Skills + Recruiter paketi için kilidi aç",
+    resumeHelpText: "CV’n yok mu?",
+resumeHelpBuild: "✨ 2 dakikada CV oluştur",
+resumeHelpUpload: "⬆️ PDF/DOCX yükle",
+uploadTxtOnly: "Şimdilik otomatik içe aktarma sadece .txt için. PDF/DOCX için lütfen metni kopyala-yapıştır yap.",
+uploadedOk: "Yüklendi: ",
 
 targetingTitle: "Hedefleme (premium)",
 targetRoleLabel: "Hedef rol (zorunlu)",
@@ -825,6 +834,11 @@ upgradeToSeeHeadlines: "Desbloquea para ver todos los titulares (Full: 5+)",
 upgradeToSeeAbout: "Desbloquea About Normal + Audaz",
 upgradeToSeeFixKit: "Desbloquea 5+ rewrites (Full)",
 upgradeToSeeSkills: "Desbloquea Skills + Recruiter pack completo",
+    resumeHelpText: "¿No tienes CV?",
+resumeHelpBuild: "✨ Crea uno en 2 minutos",
+resumeHelpUpload: "⬆️ Subir PDF/DOCX",
+uploadTxtOnly: "Por ahora la importación automática funciona solo con .txt. Para PDF/DOCX, copia y pega el texto del CV.",
+uploadedOk: "Cargado: ",
 
 targetingTitle: "Segmentación (premium)",
 targetRoleLabel: "Rol objetivo (obligatorio)",
