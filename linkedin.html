@@ -829,6 +829,40 @@ function applyI18n(){
 }
 applyI18n();
 
+  function applyPreviewNotes(){
+  const t = window.__t || I18N.en;
+  const isPreview = !!window.__isPreview;
+
+  const setNote = (id, text) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.style.display = (isPreview && text) ? "block" : "none";
+    el.textContent = (isPreview && text) ? text : "";
+  };
+
+  // TRY modunda: "1 of X" gibi net anlat
+  setNote("previewNoteHeadlines", "Preview shows 1 headline — upgrade to see all 5 headlines.");
+  setNote("previewNoteAbout",     "Preview shows only the Short About — upgrade to unlock Normal + Bold.");
+  setNote("previewNoteFix",       "Preview shows 1 rewrite — upgrade to unlock 5 Experience fixes.");
+  setNote("previewNoteSkills",    "Preview shows Top Skills only — upgrade to unlock Tools + Industry keywords.");
+  setNote("previewNoteRecruiter", "Preview shows keywords only — upgrade to unlock the Boolean search string.");
+
+  // About tabları: TRY modunda Normal/Bold'u kilitle
+  const normalBtn = document.getElementById("tabNormal");
+  const boldBtn = document.getElementById("tabBold");
+
+  [normalBtn, boldBtn].forEach(b=>{
+    if(!b) return;
+    if(isPreview){
+      b.classList.add("disabled");
+      b.setAttribute("aria-disabled","true");
+    }else{
+      b.classList.remove("disabled");
+      b.removeAttribute("aria-disabled");
+    }
+  });
+}
+
 /* =======================
    Preview mode (same logic as analyze)
 ======================= */
@@ -844,6 +878,7 @@ async function syncPreviewUI(){
   if (banner) banner.style.display = isPreview ? "block" : "none";
 
   window.__isPreview = isPreview;
+  applyPreviewNotes();
 }
 
 /* =======================
