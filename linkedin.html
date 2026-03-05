@@ -1135,8 +1135,16 @@ document.getElementById("booleanStr").textContent = boolFromApi || buildBoolean(
 function setAboutTab(kind){
   const tabs = document.querySelectorAll(".tab");
   tabs.forEach(b => b.classList.toggle("active", b.dataset.about === kind));
-  const text = (window.__about && window.__about[kind]) ? window.__about[kind] : "";
-  document.getElementById("aboutText").textContent = text || "";
+  const isPreview = !!window.__isPreview;
+
+if(isPreview && kind !== "short"){
+  document.getElementById("aboutText").textContent =
+    "Upgrade to unlock Normal + Bold About versions.";
+  return;
+}
+
+const text = (window.__about && window.__about[kind]) ? window.__about[kind] : "";
+document.getElementById("aboutText").textContent = text || "";
   window.__aboutKind = kind;
 }
 
