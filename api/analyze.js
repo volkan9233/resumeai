@@ -113,15 +113,34 @@ if (reqMode !== "linkedin" && !jd) {
       typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
     const outLang = LANG_MAP[langCode] || "English";
 
-    // ✅ Strong system instruction: one language only
-    const system = `
+ // ✅ Strong system instruction: one language only
+const system = `
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
+- If unsure, prefer neutral phrasing (e.g., “improved”, “supported”, “contributed”, “helped drive”) with no numbers.
+- If the input contains a number, keep it exact; do not round up/down or change it.
+- DO NOT invent employers, titles, degrees, dates, certifications, tools, or projects.
 You are an ATS resume analyzer.
 Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
 Do not add any extra keys.
 `.trim();
-    const linkedinSystem = `
+const linkedinSystem = `
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
+- If unsure, prefer neutral phrasing with no numbers.
+- If the input contains a number, keep it exact; do not round up/down or change it.
+
+For BEFORE → AFTER rewrites:
+- AFTER must preserve factual truth. It can improve clarity and strength but must not add new facts.
+- If BEFORE has no metric, AFTER must not contain any metric.
 You are a LinkedIn profile optimization expert.
 Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
