@@ -522,27 +522,18 @@ body.is-locked #linkedinBtnHero::after{
     /* Logo icon alignment fix */
 .logo-icon{ display:flex; align-items:center; justify-content:center; }
 .logo-icon svg{ display:block; }
-    /* Logo container: kareyi kes, ikonu ortadan büyüt */
-/* Logo kutusu: sitenin brand mor gradient'i */
-/* ✅ Logo: ortalı + gradient + hafif parıltı */
-/* Logo container: kareyi kes, ikonu ortadan büyüt */
+
+    /* ✅ Logo: dosyayı bozmadan göster */
 .logo-icon{
-  width:56px;
-  height:56px;
-  border-radius:14px;
-  overflow:hidden;      /* dıştaki kareyi kırpar */
   display:flex;
   align-items:center;
   justify-content:center;
 }
 
-/* PNG'yi kutuya doldur + biraz zoom */
 .logo-img{
-  width:100%;
-  height:100%;
-  object-fit:cover;      /* kırpma */
-  object-position:center;
-  transform: scale(1.5); /* ikonu büyüt (1.25-1.6 arası dene) */
+  width:56px;
+  height:56px;
+  border-radius:14px;
   display:block;
 }
 
