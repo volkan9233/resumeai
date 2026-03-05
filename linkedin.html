@@ -881,11 +881,14 @@ applyI18n();
   };
 
   // TRY modunda: "1 of X" gibi net anlat
-  setNote("previewNoteHeadlines", "Preview shows 1 headline — upgrade to see all 5 headlines.");
-  setNote("previewNoteAbout",     "Preview shows only the Short About — upgrade to unlock Normal + Bold.");
-  setNote("previewNoteFix",       "Preview shows 1 rewrite — upgrade to unlock 5 Experience fixes.");
-  setNote("previewNoteSkills",    "Preview shows Top Skills only — upgrade to unlock Tools + Industry keywords.");
-  setNote("previewNoteRecruiter", "Preview shows keywords only — upgrade to unlock the Boolean search string.");
+  const t = window.__t || I18N.en;
+const lock = t.lockIcon || "🔒";
+
+setNote("previewNoteHeadlines", `${lock} ${t.previewHeadlinesNote || "Upgrade to see all headlines."}`);
+setNote("previewNoteAbout", `${lock} ${t.previewAboutNote || "Upgrade to unlock Normal + Bold About."}`);
+setNote("previewNoteFix", `${lock} ${t.previewFixNote || "Upgrade to unlock all Experience fixes."}`);
+setNote("previewNoteSkills", `${lock} ${t.previewSkillsNote || "Upgrade to unlock Tools + Industry keywords."}`);
+setNote("previewNoteRecruiter", `${lock} ${t.previewRecruiterNote || "Upgrade to unlock the Boolean search string."}`);
 
   // About tabları: TRY modunda Normal/Bold'u kilitle
   const normalBtn = document.getElementById("tabNormal");
