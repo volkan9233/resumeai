@@ -1352,6 +1352,39 @@ document.getElementById("y").textContent = new Date().getFullYear();
 document.addEventListener("DOMContentLoaded", async () => {
   await syncPreviewUI();
   bindToneButtons();
+  bindResumeUpload();
+});
+  function bindResumeUpload(){
+  const btn = document.getElementById("uploadResumeBtn");
+  const input = document.getElementById("uploadResumeInput");
+  const resumeEl = document.getElementById("resume");
+  if(!btn || !input || !resumeEl) return;
+
+  btn.addEventListener("click", () => input.click());
+
+  input.addEventListener("change", async () => {
+    const t = window.__t || I18N.en;
+    const f = input.files && input.files[0];
+    if(!f) return;
+
+    const name = (f.name || "").toLowerCase();
+
+    // Şimdilik sadece .txt'i direkt dolduralım (PDF/DOCX parsing tarayıcıda ek kütüphane ister)
+    if(name.endsWith(".txt")){
+      const text = await f.text();
+      resumeEl.value = text || "";
+      alert(t.uploadedOk + f.name);
+      return;
+    }
+
+    alert(t.uploadTxtOnly);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await syncPreviewUI();
+  bindToneButtons();
+  bindResumeUpload(); // ✅ bunu ekle
 });
 </script>
 </body>
