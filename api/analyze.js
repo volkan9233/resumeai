@@ -294,6 +294,8 @@ HARD REQUIREMENTS (do NOT be brief):
 - Keep claims truthful. Do not invent employers, degrees, titles, or metrics.
 - Proper nouns / technical terms (SQL, GA4, React, AWS, Git, etc.) may stay as-is.
 - Do NOT mix languages.
+- Do NOT invent or assume any numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
+- If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
 
 JSON STRICTNESS:
 - KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
