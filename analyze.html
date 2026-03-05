@@ -1202,5 +1202,49 @@ document.getElementById("downloadModern")?.addEventListener("click", ()=>{
     </div>
   </div>
 </footer>
+  <script>
+  // --- GA4 helpers ---
+  function gaEvent(name, params){
+    try{
+      if (typeof gtag === "function") gtag("event", name, params || {});
+    }catch(e){}
+  }
+
+  // 1) Analyze run
+  (function(){
+    const btn = document.getElementById("btn");
+    if(!btn) return;
+    btn.addEventListener("click", function(){
+      gaEvent("analyze_run", { page: "analyze" });
+    });
+  })();
+
+  // 2) Unlock click (Lemon Squeezy)
+  (function(){
+    const a = document.getElementById("unlockLink");
+    if(!a) return;
+    a.addEventListener("click", function(){
+      gaEvent("unlock_click", { page: "analyze", provider: "lemonsqueezy" });
+    });
+  })();
+
+  // 3) Download ATS PDF
+  (function(){
+    const b = document.getElementById("downloadAts");
+    if(!b) return;
+    b.addEventListener("click", function(){
+      gaEvent("download_pdf", { template: "ats", page: "analyze" });
+    });
+  })();
+
+  // 4) Download Modern PDF
+  (function(){
+    const b = document.getElementById("downloadModern");
+    if(!b) return;
+    b.addEventListener("click", function(){
+      gaEvent("download_pdf", { template: "modern", page: "analyze" });
+    });
+  })();
+</script>
 </body>
 </html>
