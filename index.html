@@ -615,131 +615,152 @@ body.is-locked #linkedinBtnHero::after{
 }
     .premium-upgrade{
   max-width: 920px;
-  margin: 14px auto 0 auto;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(123,92,255,.20);
-  background: linear-gradient(180deg, rgba(123,92,255,.07), rgba(255,255,255,.025));
+  margin: 18px auto 0 auto;
+  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(123,92,255,.22);
+  background:
+    linear-gradient(180deg, rgba(123,92,255,.08), rgba(255,255,255,.03));
   box-shadow:
-    0 12px 28px rgba(0,0,0,.22),
-    inset 0 0 0 1px rgba(255,255,255,.02);
+    0 16px 40px rgba(0,0,0,.22),
+    inset 0 0 0 1px rgba(255,255,255,.03);
 }
 
-.premium-upgrade-top{
+.premium-upgrade-inner{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:16px;
+  gap:18px;
 }
 
 .premium-upgrade-copy{
-  text-align:left;
   flex:1;
+  text-align:left;
 }
 
 .premium-upgrade-title{
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: -.02em;
+  line-height: 1.15;
+  margin: 0 0 8px 0;
   color:#fff;
+  letter-spacing:-0.02em;
 }
 
 .premium-upgrade-sub{
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255,255,255,.72);
-  max-width: 560px;
-}
-
-.premium-upgrade-btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding: 12px 16px;
-  border-radius: 12px;
-  text-decoration:none;
-  font-weight: 800;
-  font-size: 14px;
-  color:#fff;
-  white-space:nowrap;
-  background: linear-gradient(135deg,#7b5cff,#5b3dff);
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow:
-    0 10px 22px rgba(91,61,255,.22),
-    0 0 0 4px rgba(123,92,255,.06);
-}
-
-.premium-upgrade-btn:hover{
-  filter: brightness(1.05);
+  margin:0;
+  color: rgba(255,255,255,.78);
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .premium-value-strip{
-  margin-top: 16px;
+  margin-top: 14px;
   display:flex;
-  gap:10px;
   flex-wrap:wrap;
+  gap:8px;
 }
 
-.premium-value-strip span{
+.premium-value-pill{
   display:inline-flex;
   align-items:center;
-  justify-content:center;
-  padding:6px 9px;
+  gap:8px;
+  padding:8px 12px;
   border-radius:999px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.035);
-  color: rgba(255,255,255,.82);
-  font-size: 11px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.88);
+  font-size: 12px;
   font-weight: 800;
 }
 
 .premium-price-line{
-  margin-top: 16px;
+  margin-top: 14px;
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:10px;
   flex-wrap:wrap;
-}
-
-.premium-price-label{
+  color: rgba(255,255,255,.74);
   font-size: 14px;
-  color: rgba(255,255,255,.68);
   font-weight: 700;
 }
 
-.premium-old-price{
-  position: relative;
+.premium-price-line .old{
+  position:relative;
   display:inline-block;
-  color: rgba(255,255,255,.42);
-  font-size: 15px;
+  padding:0 4px;
+  color: rgba(255,255,255,.50);
   font-weight: 800;
-  padding: 0 4px;
 }
 
-.premium-old-price::after{
+.premium-price-line .old::after{
   content:"";
   position:absolute;
-  left:-4%;
-  top:52%;
-  width:108%;
+  left:-6%;
+  top:55%;
+  width:112%;
   height:1px;
   background: rgba(255,255,255,.55);
-  transform: rotate(-11deg);
+  transform: rotate(-12deg);
   border-radius:999px;
 }
 
-.premium-new-price{
+.premium-price-badge{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:4px 10px;
+  padding:5px 12px;
   border-radius:999px;
-  background: rgba(99,102,241,.14);
-  border:1px solid rgba(99,102,241,.28);
+  background: rgba(99,102,241,.18);
+  border:1px solid rgba(99,102,241,.35);
   color:#fff;
-  font-size: 18px;
   font-weight: 900;
+  font-size: 16px;
+}
+
+.premium-upgrade-btn{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:15px 22px;
+  border-radius:14px;
+  text-decoration:none;
+  font-weight:800;
+  font-size:18px;
+  color:#fff;
+  background: linear-gradient(135deg, #7b5cff, #5b3dff);
+  box-shadow: 0 12px 28px rgba(91,61,255,.25);
+  white-space:nowrap;
+}
+
+.premium-upgrade-btn:hover{
+  opacity:.95;
+}
+
+.hero-next-tease{
+  margin-top: 14px;
+  text-align:center;
+  color: rgba(255,255,255,.62);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.scroll-hint{
+  margin-top: 14px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  opacity:0.9;
+}
+
+.scroll-text{
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.52);
 }
 
 @media(max-width:768px){
@@ -748,34 +769,36 @@ body.is-locked #linkedinBtnHero::after{
     margin-top:16px;
   }
 
-  .premium-upgrade-top{
+  .premium-upgrade-inner{
     flex-direction:column;
     align-items:stretch;
+    gap:14px;
   }
 
   .premium-upgrade-copy{
-    text-align:center;
+    text-align:left;
   }
 
   .premium-upgrade-title{
-    font-size: 24px;
+    font-size: 19px;
   }
 
   .premium-upgrade-sub{
     font-size: 14px;
-    max-width: none;
   }
 
   .premium-upgrade-btn{
     width:100%;
+    font-size:16px;
+    padding:14px 18px;
   }
 
   .premium-value-strip{
-    justify-content:center;
+    gap:7px;
   }
 
   .premium-price-line{
-    justify-content:center;
+    gap:8px;
   }
 }
   </style>
