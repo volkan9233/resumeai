@@ -706,13 +706,13 @@ const isPreview = forcedPreview || !window.__unlocked;
   // Banner / Locks UI
   const banner = document.getElementById("previewBanner");
   const kwNote = document.getElementById("kwPreviewNote");
-  const lw = document.getElementById("lockWeak");
   const lo = document.getElementById("lockOpt");
+  const weakBanner = document.getElementById("weakLockBanner");
 
   if (banner) banner.style.display = isPreview ? "block" : "none";
   if (kwNote) kwNote.style.display = isPreview ? "block" : "none";
-  if (lw) lw.style.display = isPreview ? "inline" : "none";
   if (lo) lo.style.display = isPreview ? "inline" : "none";
+if (weakBanner) weakBanner.style.display = isPreview ? "block" : "none";
 
   window.__isPreview = isPreview;
 
