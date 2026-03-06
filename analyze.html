@@ -859,15 +859,25 @@ ws.slice(0, isPreview ? 1 : ws.length).forEach(it => {
 
 if (isPreview) {
   const li = document.createElement('li');
-  li.style.opacity = "0.85";
-  li.textContent = window.__weakLockedNote || "🔒 Unlock to see the full list (typically 10–15 weak phrases).";
+  li.style.listStyle = "none";
+  li.style.marginLeft = "-18px";
+
+  const box = document.createElement("div");
+  box.className = "lock-banner";
+  box.textContent = window.__weakLockedNote || "🔒 Unlock to see the full list (typically 10–15 weak phrases).";
+
+  li.appendChild(box);
   weak.appendChild(li);
 }
 
     // optimized
-    document.getElementById('optimized').textContent = isPreview
-      ? (window.__optLocked || "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version.")
-      : (data.optimized_cv || "");
+    const optimizedEl = document.getElementById('optimized');
+
+if (isPreview) {
+  optimizedEl.innerHTML = `<div class="lock-banner">${window.__optLocked || "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version."}</div>`;
+} else {
+  optimizedEl.textContent = data.optimized_cv || "";
+}
 
     document.getElementById('out').style.display = "block";
     status.textContent = window.__doneText || "Done.";
