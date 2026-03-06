@@ -230,14 +230,22 @@
 
 
   
-    /* === Difference grid (final) === */
     .difference-grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      max-width: 900px;
-      margin: 50px auto;
-      row-gap: 20px;
-    }
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 28px;
+  row-gap: 18px;
+  max-width: 900px;
+  margin: 50px auto 0 auto;
+  align-items:center;
+}
+
+.diff-left-head,
+.diff-right-head,
+.diff-left,
+.diff-right{
+  width:100%;
+}
 
     .diff-left-head{
       color:#ffffff;
