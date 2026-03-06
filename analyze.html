@@ -819,7 +819,7 @@ weak.innerHTML = "";
 // Preview: 1 tane gerçek weak göster, sonra kilit mesajı ekle
 const ws = Array.isArray(data.weak_sentences) ? data.weak_sentences : [];
 
-ws.slice(0, isPreview ? 1 : ws.length).forEach(it => {
+ws.slice(0, isPreview ? 2 : ws.length).forEach(it => {
   // Eğer API object dönüyorsa (sentence/rewrite)
   if (it && typeof it === "object" && (it.sentence || it.rewrite)) {
     const before = String(it.sentence || "").trim();
