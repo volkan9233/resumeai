@@ -11,6 +11,22 @@
       font-size: 0.55em;
       vertical-align: super;
     }
+    *,
+*::before,
+*::after{
+  box-sizing: border-box;
+}
+    .btn,
+.premium-upgrade-btn{
+  box-sizing: border-box;
+}
+    @media(max-width:768px){
+  .premium-upgrade-btn{
+    width: 100%;
+    max-width: 100%;
+    display: block;
+  }
+}
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
