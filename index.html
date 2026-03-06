@@ -586,6 +586,30 @@ body.is-locked #linkedinBtnHero::after{
   display:block;
   border-radius:14px;
 }
+    @media(max-width:768px){
+  .difference-grid{
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+    row-gap: 14px;
+  }
+
+  .diff-left-head,
+  .diff-right-head,
+  .diff-left,
+  .diff-right{
+    font-size:14px;
+  }
+
+  .diff-logo-mini{
+    width:28px;
+    height:28px;
+    flex:0 0 28px;
+  }
+
+  .diff-right-head .brand{
+    font-size:20px;
+  }
+}
   </style>
 
   <!-- Google tag (gtag.js) -->
