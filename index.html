@@ -1040,6 +1040,9 @@ document.querySelector("#createBtnHero .badge")?.remove();
         const heroUnlock = document.getElementById("unlockBtnHero");
         if (heroUnlock) heroUnlock.style.display = "none";
 
+        const premiumUpgradeCard = document.getElementById("premiumUpgradeCard");
+        if (premiumUpgradeCard) premiumUpgradeCard.style.display = "none";
+
         // LinkedIn TRY badge only for locked users
         const tryBadge = document.getElementById("tryBadge");
         if (tryBadge) tryBadge.style.display = "none";
