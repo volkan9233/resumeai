@@ -1056,44 +1056,44 @@ document.getElementById("heroPreviewBtnTop")?.addEventListener("click", () => {
 });
         
         if (!unlocked) return;
-        document.getElementById("trustYear")?.remove();
-document.getElementById("trustSecure")?.remove();
-        // ✅ Unlock olduysa FREE rozetini gizle
+
+// Premium upgrade kartını gizle
+document.querySelector(".premium-upgrade")?.style.setProperty("display", "none");
+
+// Premium tease yazısını gizle
+document.querySelector(".hero-next-tease")?.style.setProperty("display", "none");
+
+// FREE rozetini gizle
 document.querySelector("#createBtnHero .badge")?.remove();
 
-        // 1) Checkout/Unlock linklerini gizle
-        document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]').forEach(a => {
-          a.style.display = "none";
-        });
+// Checkout / unlock linklerini gizle
+document.querySelectorAll('a[href*="lemonsqueezy.com/checkout/buy/"]').forEach(a => {
+  a.style.display = "none";
+});
 
-        // 2) Preview linklerini gizle (hero + alttaki CTA dahil hepsi)
-        document.querySelectorAll('a[href*="preview=1"]').forEach(a => {
-          a.style.display = "none";
-        });
+// Preview linklerini gizle
+document.querySelectorAll('a[href*="preview=1"]').forEach(a => {
+  a.style.display = "none";
+});
 
-        // 3) Fiyat satırını gizle (15$, 29$, limited launch vs)
-        const price = document.querySelector(".price");
-        if (price) price.style.display = "none";
+// Eski price satırı kaldıysa gizle
+document.querySelector(".price")?.style.setProperty("display", "none");
 
-        // 4) Hero'da Analyze butonunu göster
-        const heroAnalyze = document.getElementById("analyzeBtnHero");
-        if (heroAnalyze) heroAnalyze.style.display = "inline-block";
+// Full kullanıcıda Analyze butonunu göster
+const heroAnalyze = document.getElementById("analyzeBtnHero");
+if (heroAnalyze) heroAnalyze.style.display = "inline-block";
 
-        const heroCreate = document.getElementById("createBtnHero");
-        if (heroCreate) heroCreate.style.display = "inline-block";
+// Create butonu açık kalsın
+const heroCreate = document.getElementById("createBtnHero");
+if (heroCreate) heroCreate.style.display = "inline-block";
 
-        // 5) Hero'da unlock butonu varsa gizle (id ile)
-        const heroUnlock = document.getElementById("unlockBtnHero");
-        if (heroUnlock) heroUnlock.style.display = "none";
+// Eski unlock butonu kaldıysa gizle
+const heroUnlock = document.getElementById("unlockBtnHero");
+if (heroUnlock) heroUnlock.style.display = "none";
 
-        const premiumUpgradeCard = document.getElementById("premiumUpgradeCard");
-        if (premiumUpgradeCard) premiumUpgradeCard.style.display = "none";
-
-        // LinkedIn TRY badge only for locked users
-        const tryBadge = document.getElementById("tryBadge");
-        if (tryBadge) tryBadge.style.display = "none";
-        const tryAtsBadge = document.getElementById("tryAtsBadge");
-        if (tryAtsBadge) tryAtsBadge.style.display = "none";
+// TRY badge'leri gizle
+document.getElementById("tryBadge")?.style.setProperty("display", "none");
+document.getElementById("tryAtsBadge")?.style.setProperty("display", "none");
       })();
     </script>
   </div>
