@@ -1019,17 +1019,17 @@ applyI18n();
   const lockedMsg = document.getElementById("previewRecruiterLocked");
 
   if (isPreview) {
-    if (kwWrap) kwWrap.style.display = "none";
-    if (boolBox) boolBox.style.display = "none";
-    if (lockedMsg) {
-      lockedMsg.style.display = "block";
-      lockedMsg.textContent = `${lock} ${t.upgradeToSeeRecruiter || "Upgrade to Full Mode to see Recruiter pack + Boolean."}`;
-    }
-  } else {
-    if (kwWrap) kwWrap.style.display = "";
-    if (boolBox) boolBox.style.display = "";
-    if (lockedMsg) lockedMsg.style.display = "none";
+  if (kwWrap) kwWrap.style.display = "none";
+  if (boolBox) boolBox.style.display = "none";
+  if (lockedMsg) {
+    lockedMsg.style.display = "block";
+    lockedMsg.textContent = `${lock} Upgrade to Full Mode to see Recruiter keywords + Boolean search string.`;
   }
+} else {
+  if (kwWrap) kwWrap.style.display = "";
+  if (boolBox) boolBox.style.display = "";
+  if (lockedMsg) lockedMsg.style.display = "none";
+}
 }
 
 /* =======================
