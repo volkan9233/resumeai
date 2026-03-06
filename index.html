@@ -399,7 +399,7 @@
     .hero-cta{
   margin-top: 40px;
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(260px, 420px));
   gap:14px;
   justify-content:center;
   max-width: 920px;
@@ -414,6 +414,10 @@
   justify-content: center;
   min-height: 68px;
 }
+    .hero-cta .btn{
+  width:100%;
+  margin-top:0 !important;
+}
     #linkedinBtnHero{
   background: linear-gradient(135deg, #7b5cff, #5b3dff) !important;
   opacity: 1;
@@ -422,7 +426,7 @@
 #analyzeBtnHero{
   grid-column: 1 / span 2;
   justify-self: center;
-  width: min(50%, 420px);
+  width: min(100%, 420px);
 }
     @media(max-width:768px){
   #heroPreviewBtnTop,
@@ -434,8 +438,16 @@
 
 @media(max-width:768px){
   .hero-cta{
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    max-width: 420px;
     gap:12px;
+  }
+
+  #heroPreviewBtnTop,
+  #analyzeBtnHero{
+    grid-column: auto;
+    width:100%;
+    justify-self: stretch;
   }
 }
     
@@ -468,8 +480,8 @@
 
 .btn-has-badge .badge{
   position:absolute;
-  top:-12px;
-  right:-12px;
+  top:-10px;
+  right:-8px;
 
   padding:6px 10px;
   font-size:11px;
@@ -493,8 +505,8 @@
 
 .btn-has-try .tryBadge{
   position:absolute;
-  top:-12px;
-  right:-12px;
+  top:-10px;
+  right:-8px;
   padding:6px 10px;
   font-size:11px;
   font-weight:900;
