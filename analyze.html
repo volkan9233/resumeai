@@ -680,7 +680,7 @@ zh: {
   setText("#previewTitle", t.previewTitle);
 setText("#previewDesc", t.previewDesc);
 setText("#unlockLink", t.unlockBtn);
-setText("#kwPreviewNote", t.kwPreviewNote);
+setText("#kwPreviewNote", "🔒 " + t.kwPreviewNote.replace(/^🔒\s*/,""));
 
 window.__weakLockedNote = t.weakLockedNote;
 window.__optLocked = t.optLocked;
