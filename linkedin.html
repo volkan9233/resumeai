@@ -933,8 +933,8 @@ function applyI18n(){
   setText("#t_industry", t.industry);
   setText("#t_recruiterTitle", t.recruiterTitle);
   setText("#t_recruiterDesc", t.recruiterDesc);
-  setText("#t_recKeywords", t.recKeywords);
-  setText("#t_boolean", t.boolean);
+  setText("#t_recKeywords", (t.recKeywords || "Recruiter keywords") + " 🔒");
+setText("#t_boolean", (t.boolean || "Boolean search string") + " 🔒");
     // ✅ Targeting box i18n
   setText("#t_targetingTitle", t.targetingTitle);
   setText("#t_targetRoleLabel", t.targetRoleLabel);
