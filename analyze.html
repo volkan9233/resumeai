@@ -1218,12 +1218,20 @@ function buildCvDataFromOptimizedText(optimizedText){
   };
 
   const pickLocation = () => {
-    for (const l of lines.slice(0, 10)) {
-      if (isHeading(l) || isBullet(l)) continue;
-      if (/[A-Za-zÇĞİÖŞÜçğıöşü]+,\s*[A-Za-zÇĞİÖŞÜçğıöşü]+/.test(l)) return l;
+  for (const l of lines.slice(0, 10)) {
+    const v = String(l || "").trim();
+    if (!v) continue;
+    if (isHeading(v) || isBullet(v)) continue;
+    if (/@/.test(v)) continue;
+    if (/https?:\/\//i.test(v)) continue;
+    if (v.length > 40) continue;
+
+    if (/^[A-Za-zÇĞİÖŞÜçğıöşü\s.-]+,\s*[A-Za-zÇĞİÖŞÜçğıöşü\s.-]+$/.test(v)) {
+      return v;
     }
-    return "";
-  };
+  }
+  return "";
+};
 
   // sectionize
   const sections = {
