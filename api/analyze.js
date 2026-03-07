@@ -150,7 +150,7 @@ You are a LinkedIn profile optimization expert.
 Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 Do not invent employers, titles, degrees, dates, certifications, or metrics.
-If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
+- If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
 - Rewrites must be materially better than the original.
 - Do NOT make shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
@@ -180,6 +180,9 @@ RULES:
 - headlines: exactly 1 item.
 - about.short: 600–900 chars, punchy, no emojis.
 - experience_fix: exactly 1 item. "before" must be a real bullet/sentence from the resume.
+- "after" must be materially stronger than "before", not a light synonym swap.
+- Choose only a sentence where a clearly better rewrite is possible.
+- If the rewrite is too similar to the original, choose another sentence.
 - skills.top: 7–10 items.
 - recruiter.keywords: 5–8 items.
 - No extra keys. Return ONLY valid JSON.
@@ -227,7 +230,10 @@ QUALITY RULES:
   3) "Niche"
   4) "Leadership"
   5) "Clean"
-- experience_fix: exactly 5 items. Each "before" must be from the resume text. "after" must be LinkedIn-ready bullet. "why" must explain (clarity/impact/scope/keywords).
+- experience_fix: exactly 5-6 items. Each "before" must be from the resume text. "after" must be LinkedIn-ready bullet. "why" must explain (clarity/impact/scope/keywords).
+- Do NOT use shallow synonym swaps or near-duplicate rewrites.
+- Each "after" must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- If a sentence cannot be improved meaningfully, do not include it.
 - skills.top: 12–18
 - skills.tools: 8–16
 - skills.industry: 12–20
