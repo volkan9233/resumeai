@@ -270,7 +270,7 @@ Return JSON in this exact schema:
 }
 
 REQUIREMENTS:
-- missing_keywords MUST include exactly 5 items (unique, role-relevant) and MUST be written in ${outLang}.
+- missing_keywords MUST include exactly 5-7 items (unique, role-relevant) and MUST be written in ${outLang}.
 - weak_sentences MUST include exactly 2 items (pick real sentences from RESUME).
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
@@ -304,7 +304,7 @@ Analyze the resume vs job description and return JSON in this exact schema:
 }
 
 HARD REQUIREMENTS (do NOT be brief):
-- missing_keywords MUST include 25–30 items (unique, role-relevant) and MUST be written in ${outLang}.
+- missing_keywords MUST include 25–35 items (unique, role-relevant) and MUST be written in ${outLang}.
 - weak_sentences MUST include 12–18 items (each from the resume text, with a stronger rewrite).
 - Both sentence and rewrite MUST be in ${outLang}.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
