@@ -356,7 +356,7 @@ if (reqMode === "linkedin") {
         model,
         temperature: 0.3,
         response_format: { type: "json_object" },
-        max_tokens: isPreview ? 650 : 1800,
+        max_tokens: isPreview ? 900 : 1800,
         messages: [
           { role: "system", content: chosenSystem },
           { role: "user", content: userPrompt },
