@@ -177,6 +177,15 @@ CRITICAL RULES (must follow):
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
 - Prefer stronger professional phrasing, but keep all claims truthful.
+- In optimized_cv, do NOT preserve weak wording when a stronger truthful rewrite is possible.
+- Avoid weak verbs such as: helped, assisted, supported, worked on, involved in, participated in, contributed to, responsible for, handled.
+- Replace weak verbs with stronger truth-preserving verbs whenever justified by the original text, such as: executed, managed, developed, coordinated, delivered, analyzed, optimized, collaborated, prepared, led (ONLY if leadership is clearly supported by the input).
+- optimized_cv must not feel like a lightly polished copy of the original resume.
+- Every experience bullet in optimized_cv should be rewritten to sound more specific, recruiter-ready, and action-oriented, while staying factually faithful.
+- If a bullet rewrite is too similar to the original, rewrite it again more strongly.
+- Prefer direct action + scope + business context phrasing over vague corporate language.
+- Avoid generic filler phrases such as: helped improve, worked closely, responsible for, involved in, contributed to, assisted with.
+- Do not use inflated wording that invents leadership or ownership, but do maximize strength within the truth of the original text.
 You are an ATS resume analyzer.
 Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
