@@ -496,6 +496,11 @@ Analyze the resume vs job description and return JSON in this exact schema:
   "summary": string
 }
 
+PRIMARY OBJECTIVE:
+- The optimized_cv must be rewritten to materially improve ATS alignment for THIS SAME job description.
+- If this optimized_cv is analyzed again against the same JD, it should score meaningfully higher than the original resume.
+- Do not merely polish wording. Improve keyword coverage, role alignment, section strength, recruiter clarity, and ATS relevance.
+
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
 - Evaluate each component score on a 0-100 scale:
@@ -504,78 +509,158 @@ HARD REQUIREMENTS:
   - bullet_strength
   - ats_safe_formatting
   - role_alignment
-- missing_keywords MUST include 25–35 items genuinely missing or underrepresented from the JOB DESCRIPTION.
-- missing_keywords MUST be unique, role-relevant, practical, and written in ${outLang}.
 
-WEAK SENTENCE RULES:
+SCORING LOGIC:
+- jd_keyword_match should reflect whether the resume naturally includes the most important skills, tools, responsibilities, and domain terms from the job description.
+- section_completeness should reflect whether the resume has strong ATS-friendly sections with useful content.
+- bullet_strength should reflect whether bullets are specific, action-oriented, and recruiter-ready.
+- ats_safe_formatting should reflect whether the resume uses clean ATS-readable structure and clear sectioning.
+- role_alignment should reflect how clearly the candidate looks like a fit for this target role.
+
+MISSING KEYWORDS:
+- missing_keywords MUST include 25–35 items genuinely missing or underrepresented from the JOB DESCRIPTION.
+- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
+- Prefer the most score-impacting missing terms first.
+- Include a balanced mix of:
+  - hard skills
+  - tools/platforms
+  - channel/domain terms
+  - process/responsibility terms
+  - reporting/analysis terms
+  - collaboration/stakeholder terms
+- Do NOT include generic fluff unless it is clearly relevant in the JD.
+
+WEAK SENTENCES:
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only include a weak sentence if the rewrite meaningfully improves it.
-- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, role relevance, professional tone.
+- Each rewrite must improve at least 2 of these:
+  - clarity
+  - ownership
+  - specificity
+  - scope
+  - action strength
+  - business context
+  - role relevance
+  - professional tone
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - Do NOT include rewrites that only sound different without becoming stronger.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If a sentence cannot be improved meaningfully, do not include it.
 - If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
 
-OPTIMIZED CV RULES:
+OPTIMIZED_CV — MOST IMPORTANT RULES:
 - optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
 - optimized_cv MUST NOT be a lightly edited version of the original resume.
-- Every bullet in optimized_cv should be rewritten with stronger, cleaner, recruiter-ready phrasing.
+- optimized_cv MUST be optimized to materially improve the score when re-analyzed against the same job description.
+- The output should feel like a stronger, more targeted, recruiter-ready version of the candidate’s resume.
+
+OPTIMIZED_CV STRUCTURE:
+- Preserve only truthful information from the input resume.
+- Use clear ATS-friendly sections when supported by the input, such as:
+  - PROFESSIONAL SUMMARY
+  - EXPERIENCE
+  - SKILLS
+  - EDUCATION
+- Do not invent new sections unless naturally justified by the existing input.
+
+OPTIMIZED_CV SUMMARY RULES:
+- Rewrite the summary so it clearly aligns the candidate to the target role in the JD.
+- The summary must naturally include high-value JD language where truthful and relevant.
+- The summary should make the candidate sound more role-aligned, focused, and recruiter-ready.
+- Do not add fake achievements, fake industries, fake tools, or fake scale.
+
+OPTIMIZED_CV EXPERIENCE RULES:
+- Every bullet in optimized_cv should be rewritten with stronger, cleaner recruiter-ready phrasing.
 - Do not copy original bullets unless a sentence is already highly optimized.
 - Prefer direct action verbs such as:
-  managed, executed, developed, coordinated, delivered, analyzed, optimized, partnered, prepared, oversaw
-- Avoid weak filler phrases such as:
-  helped, assisted, supported, contributed to, involved in, responsible for, played a key role in, worked closely with
-- If the original bullet is vague, rewrite it into a sharper scoped statement WITHOUT inventing metrics.
-- Keep each bullet concise, professional, and ATS-friendly.
-- optimized_cv should read like a resume a strong recruiter would expect to see, not like a lightly paraphrased draft.
-- Use stronger but truthful scope-building phrasing when metrics do not exist.
-- For example:
-  "Managed paid advertising campaigns across Google and social platforms."
-  should become something closer to
-  "Managed paid advertising campaigns across Google and social channels, overseeing campaign execution, optimization, and ongoing performance monitoring."
-  not just
-  "Executed paid acquisition campaigns across Google and social platforms."
-- Another example:
-  "Worked closely with sales and product teams."
-  should become something closer to
-  "Partnered with sales and product teams to align campaign priorities, messaging, and execution with broader business goals."
-- Another example:
-  "Assisted in budget planning and reporting."
-  should become something closer to
-  "Supported budget planning and prepared recurring performance reports to track spend, campaign activity, and marketing performance."
-- Even without metrics, make the bullets feel concrete, scoped, and professionally written.
+  - managed
+  - executed
+  - developed
+  - optimized
+  - coordinated
+  - analyzed
+  - improved
+  - delivered
+  - partnered
+  - collaborated
+  - prepared
+- Use "led" ONLY if leadership is clearly supported by the input.
+- Each bullet should, where truthfully possible, reflect one or more of:
+  - skill/tool relevance from the JD
+  - business context
+  - functional ownership
+  - scope of work
+  - clear purpose
+  - outcome-oriented direction without invented metrics
+- Weave JD-relevant terminology into bullets naturally, but only where factually supportable from the original resume.
+- If the JD emphasizes specific platforms, channels, workflows, or responsibilities already compatible with the candidate’s real experience, reflect that in the bullet wording.
 
 BANNED WEAK PHRASING IN optimized_cv:
-- supported
 - helped
 - assisted
+- supported
 - involved in
 - responsible for
 - contributed to
+- worked on
 - played a key role in
-- worked closely with
+- participated in
+- handled
 
 Replace these with stronger factual phrasing whenever possible, without inventing claims.
 
-SUMMARY RULES:
+KEYWORD INSERTION RULES:
+- optimized_cv should naturally absorb the most important missing keywords from the JD, but only where they fit truthfully.
+- Prioritize adding JD keywords into:
+  1) summary
+  2) skills section
+  3) experience bullets
+- Do NOT keyword-stuff.
+- Do NOT dump JD terms unnaturally into the text.
+- The result must still read like a real resume written by a strong professional.
+
+SKILLS SECTION RULES:
+- Update the skills section to better reflect JD relevance.
+- Remove obviously weak/basic wording if a stronger truthful equivalent exists.
+- Prefer recruiter- and ATS-friendly phrasing.
+- Include high-value relevant terms from the JD where supportable by the resume content.
+- Do not invent tools or platforms the candidate never used unless the original resume strongly implies them.
+
+STYLE RULES:
+- Keep bullets concise, professional, and ATS-friendly.
+- Prefer direct action + scope + business context.
+- Avoid vague corporate filler.
+- Avoid inflated executive language unless clearly justified.
+- Avoid generic buzzwords with no real informational value.
+- Do not make the candidate sound fake, exaggerated, or over-senior.
+
+TRUTH RULES:
+- Keep claims truthful.
+- Do not invent employers, degrees, titles, dates, tools, certifications, projects, industries, or metrics.
+- Do NOT invent or assume numbers/percentages/results.
+- Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
+- If the resume has no numbers, do NOT add any numbers in rewrites.
+- If a bullet has no measurable metric, strengthen it using:
+  action + scope + tool/context + business purpose
+  WITHOUT adding fake results.
+
+SUMMARY OUTPUT RULES:
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) overall job-fit diagnosis
   2) top missing skills/keywords to add
   3) biggest ATS/format risks
   4) top rewrite themes
-
-TRUTH RULES:
-- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
-- Do NOT mix languages.
-- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
-- If resume has no numbers, do NOT add any numbers in rewrites. Use action + scope + tools/context + business purpose wording without numbers.
+  5) why the optimized version should score better
+- The summary should clearly reflect the weighted scoring logic.
 
 JSON STRICTNESS:
 - KEYS must remain exactly: component_scores, missing_keywords, weak_sentences, optimized_cv, summary.
 - Do NOT translate keys.
-- No extra keys. No comments. No code fences.
+- No extra keys.
+- No comments.
+- No markdown.
+- No code fences.
 
 Return ONLY valid JSON.
 
@@ -602,6 +687,10 @@ Analyze the resume and return JSON in this exact schema:
   "summary": string
 }
 
+PRIMARY OBJECTIVE:
+- The optimized_cv must materially improve ATS readiness even without a job description.
+- Do not merely polish wording. Improve structure, clarity, recruiter readability, keyword strength, and bullet quality.
+
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
 - Evaluate each component score on a 0-100 scale:
@@ -610,88 +699,137 @@ HARD REQUIREMENTS:
   - bullet_strength
   - ats_safe_formatting
   - core_keyword_coverage
-- missing_keywords MUST include 25–35 items.
-- These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
-- missing_keywords MUST be unique, practical, and written in ${outLang}.
 
-WEAK SENTENCE RULES:
+SCORING LOGIC:
+- section_completeness should reflect whether the resume has strong ATS-friendly sections with useful content.
+- clarity_readability should reflect whether the resume is easy for recruiters to scan and understand.
+- bullet_strength should reflect whether bullets are specific, action-oriented, and professionally written.
+- ats_safe_formatting should reflect whether the resume uses clean ATS-readable structure and clear sectioning.
+- core_keyword_coverage should reflect whether the resume includes strong recruiter-friendly terms for the candidate’s likely role.
+
+MISSING KEYWORDS:
+- missing_keywords MUST include 25–35 items.
+- These are NOT job-specific missing keywords.
+- They must be recommended ATS/recruiter-friendly keywords based on the candidate's likely role, seniority, and experience.
+- missing_keywords MUST be unique, practical, and written in ${outLang}.
+- Prefer the most resume-improving keywords first.
+
+WEAK SENTENCES:
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only include a weak sentence if the rewrite meaningfully improves it.
-- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, professional tone.
+- Each rewrite must improve at least 2 of these:
+  - clarity
+  - ownership
+  - specificity
+  - scope
+  - action strength
+  - business context
+  - professional tone
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - Do NOT include rewrites that only sound different without becoming stronger.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If a sentence cannot be improved meaningfully, do not include it.
 - If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
 
-OPTIMIZED CV RULES:
+OPTIMIZED_CV — MOST IMPORTANT RULES:
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - optimized_cv MUST NOT be a lightly edited version of the original resume.
-- Every bullet in optimized_cv should be rewritten with stronger, cleaner, recruiter-ready phrasing.
+- optimized_cv should read like a stronger, cleaner, more recruiter-ready version of the candidate’s resume.
+- The purpose is to maximize ATS readiness and recruiter clarity for the candidate’s apparent target role.
+
+OPTIMIZED_CV STRUCTURE:
+- Preserve only truthful information from the input resume.
+- Use clear ATS-friendly sections when supported by the input, such as:
+  - PROFESSIONAL SUMMARY
+  - EXPERIENCE
+  - SKILLS
+  - EDUCATION
+- Do not invent new sections unless naturally justified by the existing input.
+
+OPTIMIZED_CV SUMMARY RULES:
+- Rewrite the summary to sound more role-focused, recruiter-ready, and keyword-aware.
+- Use stronger role-aligned wording based on the candidate’s apparent function and seniority.
+- Do not invent achievements, tools, domain experience, or scale.
+
+OPTIMIZED_CV EXPERIENCE RULES:
+- Every bullet in optimized_cv should be rewritten with stronger, cleaner recruiter-ready phrasing.
 - Do not copy original bullets unless a sentence is already highly optimized.
 - Prefer direct action verbs such as:
-  managed, executed, developed, coordinated, delivered, analyzed, optimized, partnered, prepared, oversaw
-- Avoid weak filler phrases such as:
-  helped, assisted, supported, contributed to, involved in, responsible for, played a key role in, worked closely with
-- If the original bullet is vague, rewrite it into a sharper scoped statement WITHOUT inventing metrics.
-- Keep each bullet concise, professional, and ATS-friendly.
-- optimized_cv should read like a resume a strong recruiter would expect to see, not like a lightly paraphrased draft.
-- Use stronger but truthful scope-building phrasing when metrics do not exist.
-- For example:
-  "Managed paid advertising campaigns across Google and social platforms."
-  should become something closer to
-  "Managed paid advertising campaigns across Google and social channels, overseeing campaign execution, optimization, and ongoing performance monitoring."
-  not just
-  "Executed paid acquisition campaigns across Google and social platforms."
-- Another example:
-  "Worked closely with sales and product teams."
-  should become something closer to
-  "Partnered with sales and product teams to align campaign priorities, messaging, and execution with broader business goals."
-- Another example:
-  "Assisted in budget planning and reporting."
-  should become something closer to
-  "Supported budget planning and prepared recurring performance reports to track spend, campaign activity, and marketing performance."
-- Another example:
-  "Supported digital marketing strategies."
-  should become something closer to
-  "Supported the execution of digital marketing strategies across paid, social, and content initiatives."
-- Another example:
-  "Contributed to content and SEO initiatives."
-  should become something closer to
-  "Contributed to content development and SEO execution to strengthen search visibility and support organic growth."
-- Even without metrics, make the bullets feel concrete, scoped, and professionally written.
+  - managed
+  - executed
+  - developed
+  - optimized
+  - coordinated
+  - analyzed
+  - improved
+  - delivered
+  - partnered
+  - collaborated
+  - prepared
+- Use "led" ONLY if leadership is clearly supported by the input.
+- Each bullet should, where truthfully possible, reflect one or more of:
+  - clearer role-specific responsibility
+  - stronger action language
+  - better business context
+  - sharper recruiter readability
+  - more ATS-friendly terminology
+- If the original bullet is vague, rewrite it into a sharper achievement-oriented statement WITHOUT inventing metrics.
 
 BANNED WEAK PHRASING IN optimized_cv:
-- supported
 - helped
 - assisted
+- supported
 - involved in
 - responsible for
 - contributed to
+- worked on
 - played a key role in
-- worked closely with
+- participated in
+- handled
 
 Replace these with stronger factual phrasing whenever possible, without inventing claims.
 
-SUMMARY RULES:
+SKILLS SECTION RULES:
+- Update the skills section to better reflect the candidate’s likely role.
+- Remove obviously weak/basic wording if a stronger truthful equivalent exists.
+- Prefer recruiter- and ATS-friendly phrasing.
+- Add strong general role-relevant keywords where they are clearly compatible with the resume content.
+- Do not invent tools or platforms the candidate never used unless the original resume strongly implies them.
+
+STYLE RULES:
+- Keep bullets concise, professional, and ATS-friendly.
+- Prefer direct action + scope + business context.
+- Avoid vague filler language.
+- Avoid inflated wording not supported by the resume.
+- Avoid generic buzzwords with no informational value.
+
+TRUTH RULES:
+- Keep claims truthful.
+- Do not invent employers, degrees, titles, dates, tools, certifications, projects, industries, or metrics.
+- Do NOT invent or assume numbers/percentages/results.
+- Use numbers ONLY if they exist in RESUME.
+- If the resume has no numbers, do NOT add any numbers in rewrites.
+- If a bullet has no measurable metric, strengthen it using:
+  action + scope + tool/context + business purpose
+  WITHOUT adding fake results.
+
+SUMMARY OUTPUT RULES:
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) general ATS readiness diagnosis
   2) top keyword gaps to improve
   3) biggest ATS/format risks
   4) top rewrite themes
+  5) why the optimized version is stronger
 - The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
-
-TRUTH RULES:
-- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
-- Do NOT mix languages.
-- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
-- If resume has no numbers, do NOT add any numbers in rewrites. Use action + scope + tools/context + business purpose wording without numbers.
 
 JSON STRICTNESS:
 - KEYS must remain exactly: component_scores, missing_keywords, weak_sentences, optimized_cv, summary.
 - Do NOT translate keys.
-- No extra keys. No comments. No code fences.
+- No extra keys.
+- No comments.
+- No markdown.
+- No code fences.
 
 Return ONLY valid JSON.
 
