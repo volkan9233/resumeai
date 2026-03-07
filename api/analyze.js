@@ -358,7 +358,16 @@ Analyze the resume vs job description and return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment.
+- ats_score must be derived from these weighted components for a JOB-SPECIFIC ATS MATCH:
+  - JD keyword match: 35
+  - Section completeness: 15
+  - Bullet strength: 20
+  - ATS-safe formatting: 15
+  - Role alignment: 15
+- First internally evaluate each component on a 0-100 scale.
+- Then calculate the final ats_score as the weighted overall result.
+- Return only the final ats_score number in JSON.
+- Do not return the component scores unless explicitly requested.
 - missing_keywords MUST include 25–35 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
