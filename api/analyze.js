@@ -448,6 +448,7 @@ HARD REQUIREMENTS:
   2) top keyword gaps to improve
   3) biggest ATS/format risks
   4) top rewrite themes
+  - The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
