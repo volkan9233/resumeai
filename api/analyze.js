@@ -343,9 +343,12 @@ REQUIREMENTS:
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
-- weak_sentences.rewrite must not be a near-copy of sentence.
-- If no strong rewrite is possible, choose a different sentence.
+- Only include a weak sentence if the rewrite meaningfully improves it.
+- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, role relevance, professional tone.
+- Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
+- The rewrite must feel materially stronger, more credible, and more recruiter-ready than the original.
+- If BEFORE and AFTER are too similar, reject that example and choose another sentence.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing low-quality examples.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - summary should reflect the scoring logic.
@@ -392,9 +395,12 @@ REQUIREMENTS:
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
-- weak_sentences.rewrite must not be a near-copy of sentence.
-- If no strong rewrite is possible, choose a different sentence.
+- Only include a weak sentence if the rewrite meaningfully improves it.
+- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, professional tone.
+- Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
+- The rewrite must feel materially stronger, clearer, and more professional than the original.
+- If BEFORE and AFTER are too similar, reject that example and choose another sentence.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing low-quality examples.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - summary should reflect the scoring logic.
@@ -438,10 +444,13 @@ HARD REQUIREMENTS:
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
 - Both sentence and rewrite MUST be in ${outLang}.
-- Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- weak_sentences.rewrite must feel materially stronger and more professional than sentence.
-- If a sentence cannot be improved meaningfully, do not include it; choose a different one.
+- Only include a weak sentence if the rewrite meaningfully improves it.
+- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, role relevance, professional tone.
+- Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
+- Do NOT include rewrites that only sound different without becoming stronger.
+- If BEFORE and AFTER are too similar, reject that example and choose another sentence.
+- If a sentence cannot be improved meaningfully, do not include it.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) overall job-fit diagnosis
   2) top missing skills/keywords to add
@@ -496,15 +505,19 @@ HARD REQUIREMENTS:
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
 - Both sentence and rewrite MUST be in ${outLang}.
-- Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- weak_sentences.rewrite must feel materially stronger and more professional than sentence.
-- If a sentence cannot be improved meaningfully, do not include it; choose a different one.
+- Only include a weak sentence if the rewrite meaningfully improves it.
+- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, professional tone.
+- Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
+- Do NOT include rewrites that only sound different without becoming stronger.
+- If BEFORE and AFTER are too similar, reject that example and choose another sentence.
+- If a sentence cannot be improved meaningfully, do not include it.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) general ATS readiness diagnosis
   2) top keyword gaps to improve
   3) biggest ATS/format risks
   4) top rewrite themes
+- The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
