@@ -216,22 +216,25 @@ a.link:hover{ text-decoration:underline; }
   justify-content:center;
   gap:8px;
 
-  padding:10px 12px;
-  border-radius:12px;
+  padding:10px 14px;
+  border-radius:16px;
 
-  background: linear-gradient(135deg, rgba(123,92,255,.95), rgba(91,61,255,.95));
-  color:#fff;
-  font-weight: 900;
-  font-size: 13px;
+  background: rgba(123,92,255,.10);
+  color:#f3f4f6;
+  font-weight:800;
+  font-size:13px;
   text-decoration:none;
 
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow:
-    0 10px 24px rgba(0,0,0,.25),
-    0 0 0 6px rgba(123,92,255,.10);
+  border:1px solid rgba(123,92,255,.28);
+  box-shadow: 0 6px 18px rgba(0,0,0,.14);
+  transition:.18s ease;
 }
 
-.resumeHelpBtn:hover{ filter: brightness(1.06); }
+.resumeHelpBtn:hover{
+  background: rgba(123,92,255,.16);
+  border-color: rgba(123,92,255,.42);
+  transform: translateY(-1px);
+}
 
 .resumeHelpBtn.ghost{
   background: rgba(255,255,255,.04);
