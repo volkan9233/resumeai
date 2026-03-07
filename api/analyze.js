@@ -343,6 +343,7 @@ REQUIREMENTS:
 - If no strong rewrite is possible, choose a different sentence.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
+- summary should reflect the weighted scoring logic above.
 - Do NOT add extra keys. Do NOT add optimized_cv.
 - Do NOT mix languages.
 - Proper nouns / technical terms may stay as-is.
