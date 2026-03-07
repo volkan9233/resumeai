@@ -284,7 +284,16 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment, not just general resume quality.
+- ats_score must be derived from these weighted components for a GENERAL ATS REVIEW:
+  - Section completeness: 25
+  - Clarity / readability: 20
+  - Bullet strength: 20
+  - ATS-safe formatting: 20
+  - Core keyword coverage: 15
+- First internally evaluate each component on a 0-100 scale.
+- Then calculate the final ats_score as the weighted overall result.
+- Return only the final ats_score number in JSON.
+- Do not return the component scores unless explicitly requested.
 - missing_keywords MUST include exactly 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include exactly 2 items picked from real resume sentences.
