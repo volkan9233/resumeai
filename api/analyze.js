@@ -411,7 +411,7 @@ if (reqMode === "linkedin") {
         ats_score: normalized.ats_score,
         summary: normalized.summary,
         missing_keywords: normalized.missing_keywords.slice(0, 5),
-        weak_sentences: normalized.weak_sentences.slice(0, 1),
+        weak_sentences: normalized.weak_sentences.slice(0, 2),
       });
     }
 
