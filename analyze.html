@@ -532,7 +532,7 @@ kwMetaJob: "{count} missing keywords found"
       kwPreviewNote: "Önizlemede yalnızca ilk 5 anahtar kelime gösterilir. Tam listeyi görmek için kilidi açın (25+ anahtar kelime).",
       weakLockedNote: "🔒 Tam listeyi görmek için kilidi açın (genelde 10–15 zayıf ifade).",
       optLocked: "🔒 Önizleme: Optimize edilmiş CV kilitli. Tam ATS uyumlu sürümü oluşturmak için kilidi açın.",
-      previewMode: "Önizleme Modu 🔒",
+      previewMode: "Önizleme Modu",
       fullMode: "Tam Mod ✅",
       back: "← Geri",
       title: "ATS Analizi",
@@ -579,7 +579,7 @@ kwMetaJob: "{count} eksik anahtar kelime bulundu"
       kwPreviewNote: "La vista previa muestra solo las primeras 5 palabras clave. Desbloquea para ver la lista completa (25+ palabras clave).",
       weakLockedNote: "🔒 Desbloquea para ver la lista completa (normalmente 10–15 frases débiles).",
       optLocked: "🔒 Vista previa: el CV optimizado está bloqueado. Desbloquea para generar la versión completa optimizada para ATS.",
-      previewMode: "Modo vista previa 🔒",
+      previewMode: "Modo vista previa",
       fullMode: "Modo completo ✅",
       back: "← Volver",
       title: "Análisis ATS",
@@ -626,7 +626,7 @@ kwMetaJob: "Se encontraron {count} palabras clave faltantes"
       kwPreviewNote: "В предпросмотре показаны только первые 5 ключевых слов. Откройте доступ, чтобы увидеть полный список (25+ ключевых слов).",
       weakLockedNote: "🔒 Откройте доступ, чтобы увидеть полный список (обычно 10–15 слабых фраз).",
       optLocked: "🔒 Предпросмотр: оптимизированное резюме заблокировано. Откройте доступ, чтобы сгенерировать полную ATS-версию.",
-      previewMode: "Режим предпросмотра 🔒",
+      previewMode: "Режим предпросмотра",
       fullMode: "Полный режим ✅",
       back: "← Назад",
       title: "ATS Анализ",
@@ -673,7 +673,7 @@ kwMetaJob: "Найдено недостающих ключевых слов: {co
       kwPreviewNote: "L’aperçu affiche seulement les 5 premiers mots-clés. Déverrouillez pour voir la liste complète (25+ mots-clés).",
       weakLockedNote: "🔒 Déverrouillez pour voir la liste complète (généralement 10–15 formulations faibles).",
       optLocked: "🔒 Aperçu : le CV optimisé est verrouillé. Déverrouillez pour générer la version complète optimisée ATS.",
-      previewMode: "Mode Aperçu 🔒",
+      previewMode: "Mode Aperçu",
       fullMode: "Mode Complet ✅",
       back: "← Retour",
       title: "Analyse ATS",
@@ -720,7 +720,7 @@ kwMetaJob: "{count} mots-clés manquants trouvés"
       kwPreviewNote: "تعرض المعاينة أول 5 كلمات مفتاحية فقط. افتح الوصول لرؤية القائمة الكاملة (25+ كلمة مفتاحية).",
       weakLockedNote: "🔒 افتح الوصول لرؤية القائمة الكاملة (عادةً 10–15 عبارة ضعيفة).",
       optLocked: "🔒 المعاينة: السيرة المحسّنة مقفلة. افتح الوصول لإنشاء النسخة الكاملة المتوافقة مع ATS.",
-      previewMode: "وضع المعاينة 🔒",
+      previewMode: "وضع المعاينة",
       fullMode: "الوضع الكامل ✅",
       back: "← رجوع",
       title: "تحليل ATS",
@@ -767,7 +767,7 @@ kwMetaJob: "تم العثور على {count} كلمة مفتاحية ناقصة"
       kwPreviewNote: "预览仅显示前 5 个关键词。解锁以查看完整列表（25+ 关键词）。",
       weakLockedNote: "🔒 解锁以查看完整列表（通常为 10–15 条薄弱表述）。",
       optLocked: "🔒 预览：优化后的简历已锁定。解锁以生成完整 ATS 优化版本。",
-      previewMode: "预览模式 🔒",
+      previewMode: "预览模式",
       fullMode: "完整模式 ✅",
       back: "← 返回",
       title: "ATS 分析",
@@ -1009,7 +1009,11 @@ kws.forEach(k => {
 
 // küçük özet
 if (kwMeta) {
-  kwMeta.textContent = kws.length ? `${kws.length} missing keywords found` : "";
+  const tpl = reviewMode === "job_specific"
+    ? (window.__kwMetaJob || "{count} missing keywords found")
+    : (window.__kwMetaGeneral || "{count} recommended keywords found");
+
+  kwMeta.textContent = kws.length ? tpl.replace("{count}", String(kws.length)) : "";
 }
 
     // weak
