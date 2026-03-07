@@ -457,6 +457,25 @@ HARD REQUIREMENTS:
   3) biggest ATS/format risks
   4) top rewrite themes
 - optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
+- optimized_cv MUST NOT be a lightly edited version of the original resume.
+- Every bullet in optimized_cv should be rewritten with stronger, cleaner recruiter-ready phrasing.
+- Do not copy original bullets unless a sentence is already highly optimized.
+- Prefer direct action verbs such as: managed, led, executed, developed, optimized, coordinated, analyzed, improved, delivered, partnered.
+- Avoid weak filler phrases such as: helped, assisted, supported, contributed to, involved in, responsible for, played a key role in.
+- If the original bullet is vague, rewrite it into a sharper achievement-oriented statement WITHOUT inventing metrics.
+- Keep each bullet concise, professional, and ATS-friendly.
+- optimized_cv should read like a resume a strong recruiter would expect to see, not like a lightly paraphrased draft.
+
+BANNED WEAK PHRASING IN optimized_cv:
+- supported
+- helped
+- assisted
+- involved in
+- responsible for
+- contributed to
+- played a key role in
+
+Replace these with stronger factual phrasing whenever possible, without inventing claims.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
 - Do NOT mix languages.
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
