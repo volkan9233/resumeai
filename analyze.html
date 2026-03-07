@@ -325,7 +325,7 @@ a.link:hover{ text-decoration:underline; }
   <a class="resumeHelpBtn" href="/create.html">✨ Build one in 2 minutes</a>
 
 </div>
-    <div class="resumeHelpText" style="margin-top:8px;">
+    <div class="resumeHelpText" id="noJobHelp" style="margin-top:8px;">
   No job description? You’ll still get a general ATS review.
 </div>
   </div>
@@ -505,7 +505,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "Preview mode: PDF is locked. Unlock to download.",
       copyOk: "Copied ✅",
       copyFail: "Copy failed.",
-      nothingToCopy: "Nothing to copy."
+      nothingToCopy: "Nothing to copy.",
+      noJobHelp: "No job description? You’ll still get a general ATS review."
     },
 
     tr: {
@@ -540,7 +541,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "Önizleme modunda PDF kilitlidir. İndirmek için kilidi açın.",
       copyOk: "Kopyalandı ✅",
       copyFail: "Kopyalama başarısız.",
-      nothingToCopy: "Kopyalanacak bir şey yok."
+      nothingToCopy: "Kopyalanacak bir şey yok.",
+      noJobHelp: "İş ilanı yok mu? Yine de genel bir ATS değerlendirmesi alırsınız."
     },
 
     es: {
@@ -575,7 +577,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "Modo vista previa: el PDF está bloqueado. Desbloquéalo para descargar.",
       copyOk: "Copiado ✅",
       copyFail: "Error al copiar.",
-      nothingToCopy: "Nada que copiar."
+      nothingToCopy: "Nada que copiar.",
+      noJobHelp: "¿No tienes descripción del puesto? Aun así recibirás una revisión ATS general."
     },
 
     ru: {
@@ -610,7 +613,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "В режиме предпросмотра PDF заблокирован. Откройте доступ, чтобы скачать.",
       copyOk: "Скопировано ✅",
       copyFail: "Не удалось скопировать.",
-      nothingToCopy: "Нечего копировать."
+      nothingToCopy: "Нечего копировать.",
+      noJobHelp: "Нет описания вакансии? Вы всё равно получите общий ATS-анализ."
     },
 
     fr: {
@@ -645,7 +649,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "En mode aperçu, le PDF est verrouillé. Déverrouillez pour le télécharger.",
       copyOk: "Copié ✅",
       copyFail: "Échec de la copie.",
-      nothingToCopy: "Rien à copier."
+      nothingToCopy: "Rien à copier.",
+      noJobHelp: "Pas d’offre d’emploi ? Vous recevrez quand même une analyse ATS générale."
     },
 
     ar: {
@@ -680,7 +685,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "في وضع المعاينة، ملف PDF مقفل. افتح الوصول للتنزيل.",
       copyOk: "تم النسخ ✅",
       copyFail: "فشل النسخ.",
-      nothingToCopy: "لا يوجد شيء لنسخه."
+      nothingToCopy: "لا يوجد شيء لنسخه.",
+      noJobHelp: "ليس لديك وصف وظيفي؟ ستحصل مع ذلك على مراجعة ATS عامة."
     },
 
     zh: {
@@ -715,7 +721,8 @@ if (!localStorage.getItem(convKey)) {
       pdfLocked: "预览模式下 PDF 已锁定。解锁后可下载。",
       copyOk: "已复制 ✅",
       copyFail: "复制失败。",
-      nothingToCopy: "没有可复制的内容。"
+      nothingToCopy: "没有可复制的内容。",
+      noJobHelp: "没有职位描述？你仍然会获得一份通用 ATS 分析。"
     }
   };
 
@@ -759,10 +766,11 @@ if (!localStorage.getItem(convKey)) {
   setText("#downloadModern", t.dlModern);
 
   setText("#previewTitle", t.previewTitle);
-  setText("#previewDesc", t.previewDesc);
-  setText("#unlockLink", t.unlockBtn);
-  setText("#kwPreviewNote", "🔒 " + t.kwPreviewNote.replace(/^🔒\s*/, ""));
-  setText("#weakLockBanner", t.weakLockedNote);
+setText("#previewDesc", t.previewDesc);
+setText("#unlockLink", t.unlockBtn);
+setText("#kwPreviewNote", "🔒 " + t.kwPreviewNote.replace(/^🔒\s*/, ""));
+setText("#weakLockBanner", t.weakLockedNote);
+setText("#noJobHelp", t.noJobHelp);
 
   window.__scoreLabel = t.scoreLabel;
   window.__needBoth = t.needBoth;
