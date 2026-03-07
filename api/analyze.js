@@ -100,95 +100,6 @@ function computeWeightedScore(componentScores, hasJD) {
   return clampScore(score);
 }
 
-async function rewriteOptimizedCvStrong({
-  apiKey,
-  model,
-  outLang,
-  cvText,
-  currentOptimizedCv,
-  jdText,
-}) {
-  const rewriteSystem = `
-You are a senior executive resume writer and ATS resume rewriter.
-
-Return ONLY valid JSON.
-No markdown.
-No commentary.
-
-CRITICAL RULES:
-- All output values must be written only in ${outLang}.
-- Do NOT invent numbers, metrics, employers, dates, titles, tools, certifications, or achievements.
-- Keep all claims truthful to the original resume/job description.
-- The goal is to materially strengthen the resume wording, not lightly paraphrase it.
-- Every bullet should sound sharper, more recruiter-ready, and more action-oriented.
-- Avoid weak phrasing such as: helped, assisted, supported, worked on, responsible for, involved in, contributed to, participated in, handled.
-- Prefer stronger factual verbs when justified, such as: managed, executed, developed, coordinated, analyzed, optimized, delivered, collaborated, prepared.
-- Use "led" only if leadership is clearly supported by the source text.
-- Do not add fake metrics.
-- Do not exaggerate ownership beyond what the original text supports.
-- Keep the resume structure clean and ATS-friendly.
-- Preserve section order and core facts.
-`.trim();
-
-  const rewriteUser = `
-Return JSON in this exact schema:
-
-{
-  "optimized_cv": string
-}
-
-TASK:
-Rewrite the CURRENT OPTIMIZED CV into a noticeably stronger final version.
-
-RULES:
-- Do NOT lightly polish. Make it materially better.
-- Every weak bullet should be rewritten more strongly if possible.
-- Remove generic filler wording.
-- Keep it concise, professional, and recruiter-ready.
-- Preserve truth from the original source resume.
-- Do not invent metrics or achievements.
-- Keep output as a full resume text.
-
-SOURCE RESUME:
-${cvText}
-
-JOB DESCRIPTION:
-${jdText || "(none)"}
-
-CURRENT OPTIMIZED CV TO IMPROVE:
-${currentOptimizedCv}
-`.trim();
-
-  const r = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      max_tokens: 1800,
-      messages: [
-        { role: "system", content: rewriteSystem },
-        { role: "user", content: rewriteUser },
-      ],
-    }),
-  });
-
-  const raw2 = await r.text();
-  if (!r.ok) {
-    throw new Error("Optimized CV rewrite failed: " + raw2.slice(0, 500));
-  }
-
-  const parsed2 = JSON.parse(raw2);
-  const text2 = parsed2?.choices?.[0]?.message?.content || "{}";
-  const data2 = JSON.parse(text2);
-
-  return typeof data2?.optimized_cv === "string" ? data2.optimized_cv : currentOptimizedCv;
-}
-
 export default async function handler(req, res) {
   const startedAt = Date.now();
 
@@ -253,33 +164,68 @@ export default async function handler(req, res) {
     const hasJD = typeof jd === "string" && jd.trim().length > 0;
 
     const system = `
-CRITICAL RULES (must follow):
-- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
-- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer neutral phrasing (e.g., “improved”, “supported”, “contributed”, “helped drive”) with no numbers.
-- If the input contains a number, keep it exact; do not round up/down or change it.
-- DO NOT invent employers, titles, degrees, dates, certifications, tools, or projects.
-- Rewrites must be materially better than the original.
-- Do NOT make shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
-- Prefer stronger professional phrasing, but keep all claims truthful.
-- In optimized_cv, do NOT preserve weak wording when a stronger truthful rewrite is possible.
-- Avoid weak verbs such as: helped, assisted, supported, worked on, involved in, participated in, contributed to, responsible for, handled.
-- Replace weak verbs with stronger truth-preserving verbs whenever justified by the original text, such as: executed, managed, developed, coordinated, delivered, analyzed, optimized, collaborated, prepared, led (ONLY if leadership is clearly supported by the input).
-- optimized_cv must not feel like a lightly polished copy of the original resume.
-- Every experience bullet in optimized_cv should be rewritten to sound more specific, recruiter-ready, and action-oriented, while staying factually faithful.
-- If a bullet rewrite is too similar to the original, rewrite it again more strongly.
-- Prefer direct action + scope + business context phrasing over vague corporate language.
-- Avoid generic filler phrases such as: helped improve, worked closely, responsible for, involved in, contributed to, assisted with.
-- Do not use inflated wording that invents leadership or ownership, but do maximize strength within the truth of the original text.
-You are an ATS resume analyzer.
-Return ONLY valid JSON. No markdown. No extra text.
-CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
-This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
-Do not add any extra keys except component_scores when requested.
+You are an ATS resume analyzer and resume rewriting expert.
+
+RETURN FORMAT:
+- Return ONLY valid JSON.
+- No markdown.
+- No code fences.
+- No explanations outside JSON.
+- All output VALUES must be written ONLY in ${outLang}.
+- JSON keys must remain in English exactly as requested.
+
+GLOBAL TRUTH RULES:
+- Never invent employers, titles, degrees, dates, tools, certifications, industries, projects, KPIs, budgets, clients, scale, or outcomes.
+- Never invent numbers, percentages, timeframes, team size, revenue, pipeline, traffic, or business impact.
+- Use numbers ONLY if they are explicitly present in the user's input.
+- If a number is present, preserve it exactly.
+- Do not round, expand, interpret, or enhance numbers.
+
+REWRITE QUALITY STANDARD:
+- Rewrites must be materially better, not cosmetically different.
+- Avoid shallow synonym swaps.
+- Every good rewrite should improve at least two of these:
+  clarity, specificity, action strength, recruiter readability, business context, ATS quality.
+- If a rewrite is too similar to the original, rewrite it again.
+- If a sentence cannot be meaningfully improved without inventing facts, keep it plain and factual rather than inflated.
+
+ANTI-EMBELLISHMENT RULES:
+- Do NOT exaggerate seniority, ownership, strategy, leadership, or business impact.
+- Do NOT turn execution work into leadership work unless clearly supported by the input.
+- Do NOT imply outcomes that are not explicitly supported.
+- Avoid inflated language like:
+  dynamic, innovative, strategic, high-impact, best-in-class, robust, comprehensive, proven track record, results-driven, significantly, dramatically, successfully, spearheaded
+  unless directly justified by the input.
+- Prefer clean, recruiter-ready, believable phrasing.
+
+WEAK PHRASING RULES:
+- Avoid weak filler phrasing when a stronger truthful rewrite is possible.
+- Weak phrasing includes:
+  helped, assisted, supported, worked on, involved in, responsible for, contributed to, participated in, handled
+- Replace weak phrasing only with stronger but truthful verbs supported by the original input, such as:
+  managed, executed, developed, created, coordinated, maintained, prepared, analyzed, collaborated, delivered, monitored
+- Use "led" ONLY if leadership is clearly supported.
+- Use "owned" ONLY if ownership is clearly supported.
+- Use "drove" ONLY if business impact is clearly supported.
+
+OPTIMIZED CV STANDARD:
+- optimized_cv must not feel like a lightly polished copy.
+- Every experience bullet should be rewritten into stronger, cleaner, sharper recruiter-ready language.
+- Do not preserve weak original bullets unless they are already strong.
+- Keep bullets concise, ATS-friendly, and credible.
+- If a bullet is vague, sharpen it into a clearer factual task/action statement WITHOUT inventing metrics or impact.
+- Do NOT use fake achievements.
+- Do NOT inject fake business outcomes.
+- Do NOT overuse buzzwords.
+
+SUMMARY STANDARD:
+- Summary should diagnose real strengths and weaknesses honestly.
+- Do not overpraise the candidate.
+- Do not imply stronger fit than the resume supports.
+
+LANGUAGE RULE:
+- All output values must be in ${outLang}.
+- Proper nouns and standard tool names may remain as-is if necessary.
 `.trim();
 
     const linkedinSystem = `
@@ -442,17 +388,16 @@ REQUIREMENTS:
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
 - Only include a weak sentence if the rewrite meaningfully improves it.
-- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, role relevance, professional tone.
+- Each rewrite must improve at least 2 of these: clarity, specificity, action strength, role relevance, professional tone.
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
-- The rewrite must feel materially stronger, more credible, and more recruiter-ready than the original.
+- The rewrite must feel materially stronger and more recruiter-ready, while staying factually faithful.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
-- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing low-quality examples.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing weak examples.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - summary should reflect the scoring logic.
 - Do NOT add optimized_cv.
 - Do NOT mix languages.
-- Proper nouns / technical terms may stay as-is.
 
 Return ONLY valid JSON.
 
@@ -494,17 +439,16 @@ REQUIREMENTS:
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
 - Only include a weak sentence if the rewrite meaningfully improves it.
-- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, professional tone.
+- Each rewrite must improve at least 2 of these: clarity, specificity, action strength, professional tone.
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - The rewrite must feel materially stronger, clearer, and more professional than the original.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
-- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing low-quality examples.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing weak examples.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - summary should reflect the scoring logic.
 - Do NOT add optimized_cv.
 - Do NOT mix languages.
-- Proper nouns / technical terms may stay as-is.
 
 Return ONLY valid JSON.
 
@@ -543,41 +487,37 @@ HARD REQUIREMENTS:
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only include a weak sentence if the rewrite meaningfully improves it.
-- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, role relevance, professional tone.
+- Each rewrite must improve at least 2 of these: clarity, specificity, action strength, business context, role relevance, professional tone.
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - Do NOT include rewrites that only sound different without becoming stronger.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If a sentence cannot be improved meaningfully, do not include it.
-- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list.
+
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) overall job-fit diagnosis
   2) top missing skills/keywords to add
   3) biggest ATS/format risks
   4) top rewrite themes
+
 - optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
 - optimized_cv MUST NOT be a lightly edited version of the original resume.
-- Every bullet in optimized_cv should be rewritten with stronger, cleaner recruiter-ready phrasing.
-- Do not copy original bullets unless a sentence is already highly optimized.
-- Prefer direct action verbs such as: managed, led, executed, developed, optimized, coordinated, analyzed, improved, delivered, partnered.
-- Avoid weak filler phrases such as: helped, assisted, supported, contributed to, involved in, responsible for, played a key role in.
-- If the original bullet is vague, rewrite it into a sharper achievement-oriented statement WITHOUT inventing metrics.
-- Keep each bullet concise, professional, and ATS-friendly.
-- optimized_cv should read like a resume a strong recruiter would expect to see, not like a lightly paraphrased draft.
+- Rewrite every weak or average bullet into stronger recruiter-ready language.
+- Keep tone clean, factual, sharp, and believable.
+- Prefer direct action phrasing over vague corporate filler.
+- Do NOT use unsupported seniority, ownership, strategy, scale, or impact.
+- Avoid buzzword inflation and exaggerated adjectives.
+- BANNED weak filler phrasing in optimized_cv unless literally unavoidable:
+  helped, assisted, supported, worked on, involved in, responsible for, contributed to, participated in
+- Replace them with stronger factual phrasing only if supported by the source text.
+- Do NOT replace them with fake leadership or fake achievements.
+- If the original bullet is vague, rewrite it into a sharper factual action statement WITHOUT inventing metrics.
+- Keep bullet length controlled and ATS-friendly.
 
-BANNED WEAK PHRASING IN optimized_cv:
-- supported
-- helped
-- assisted
-- involved in
-- responsible for
-- contributed to
-- played a key role in
-
-Replace these with stronger factual phrasing whenever possible, without inventing claims.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
 - Do NOT mix languages.
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
-- If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
+- If resume has no numbers, do NOT add any numbers in rewrites.
 
 JSON STRICTNESS:
 - KEYS must remain exactly: component_scores, missing_keywords, weak_sentences, optimized_cv, summary.
@@ -623,43 +563,39 @@ HARD REQUIREMENTS:
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only include a weak sentence if the rewrite meaningfully improves it.
-- Each rewrite must improve at least 2 of these: clarity, ownership, specificity, scope, action strength, business context, professional tone.
+- Each rewrite must improve at least 2 of these: clarity, specificity, action strength, business context, professional tone.
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - Do NOT include rewrites that only sound different without becoming stronger.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If a sentence cannot be improved meaningfully, do not include it.
-- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list.
+
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) general ATS readiness diagnosis
   2) top keyword gaps to improve
   3) biggest ATS/format risks
   4) top rewrite themes
 - The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
+
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - optimized_cv MUST NOT be a lightly edited version of the original resume.
-- Every bullet in optimized_cv should be rewritten with stronger, cleaner recruiter-ready phrasing.
-- Do not copy original bullets unless a sentence is already highly optimized.
-- Prefer direct action verbs such as: managed, led, executed, developed, optimized, coordinated, analyzed, improved, delivered, partnered.
-- Avoid weak filler phrases such as: helped, assisted, supported, contributed to, involved in, responsible for, played a key role in.
-- If the original bullet is vague, rewrite it into a sharper achievement-oriented statement WITHOUT inventing metrics.
-- Keep each bullet concise, professional, and ATS-friendly.
-- optimized_cv should read like a resume a strong recruiter would expect to see, not like a lightly paraphrased draft.
-
-BANNED WEAK PHRASING IN optimized_cv:
-- supported
-- helped
-- assisted
-- involved in
-- responsible for
-- contributed to
-- played a key role in
-
-Replace these with stronger factual phrasing whenever possible, without inventing claims.
+- Rewrite every weak or average bullet into stronger recruiter-ready language.
+- Keep tone clean, factual, sharp, and believable.
+- Prefer direct action phrasing over vague corporate filler.
+- Do NOT use unsupported seniority, ownership, strategy, scale, or impact.
+- Avoid buzzword inflation and exaggerated adjectives.
+- BANNED weak filler phrasing in optimized_cv unless literally unavoidable:
+  helped, assisted, supported, worked on, involved in, responsible for, contributed to, participated in
+- Replace them with stronger factual phrasing only if supported by the source text.
+- Do NOT replace them with fake leadership or fake achievements.
+- If the original bullet is vague, rewrite it into a sharper factual action statement WITHOUT inventing metrics.
+- Keep bullet length controlled and ATS-friendly.
 - It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
+
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
 - Do NOT mix languages.
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
-- If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
+- If resume has no numbers, do NOT add any numbers in rewrites.
 
 JSON STRICTNESS:
 - KEYS must remain exactly: component_scores, missing_keywords, weak_sentences, optimized_cv, summary.
@@ -689,9 +625,9 @@ ${cv}
       },
       body: JSON.stringify({
         model,
-        temperature: 0.3,
+        temperature: 0.1,
         response_format: { type: "json_object" },
-        max_tokens: isPreview ? 1100 : 2200,
+        max_tokens: isPreview ? 1200 : 2800,
         messages: [
           { role: "system", content: chosenSystem },
           { role: "user", content: userPrompt },
@@ -772,34 +708,15 @@ ${cv}
 
     const finalScore = computeWeightedScore(componentScores, hasJD);
 
-    let strongOptimizedCv = "";
-
-    if (!isPreview) {
-      strongOptimizedCv = typeof data?.optimized_cv === "string" ? data.optimized_cv : "";
-
-      if (reqMode !== "linkedin" && strongOptimizedCv.trim()) {
-        try {
-          strongOptimizedCv = await rewriteOptimizedCvStrong({
-            apiKey,
-            model,
-            outLang,
-            cvText: cv,
-            currentOptimizedCv: strongOptimizedCv,
-            jdText: jd || "",
-          });
-        } catch (e) {
-          console.warn("second pass rewrite failed:", e?.message || e);
-        }
-      }
-    }
-
     const normalized = {
       ats_score: finalScore,
       component_scores: componentScores,
       missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
       weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
       summary: typeof data?.summary === "string" ? data.summary : "",
-      ...(isPreview ? {} : { optimized_cv: strongOptimizedCv }),
+      ...(isPreview
+        ? {}
+        : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
     };
 
     if (isPreview) {
