@@ -60,6 +60,46 @@ async function ensureMinDelay(startedAt, minMs) {
   }
 }
 
+function clampScore(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+function computeWeightedScore(componentScores, hasJD) {
+  if (hasJD) {
+    const jd_keyword_match = clampScore(componentScores?.jd_keyword_match);
+    const section_completeness = clampScore(componentScores?.section_completeness);
+    const bullet_strength = clampScore(componentScores?.bullet_strength);
+    const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
+    const role_alignment = clampScore(componentScores?.role_alignment);
+
+    const score =
+      jd_keyword_match * 0.35 +
+      section_completeness * 0.15 +
+      bullet_strength * 0.2 +
+      ats_safe_formatting * 0.15 +
+      role_alignment * 0.15;
+
+    return clampScore(score);
+  }
+
+  const section_completeness = clampScore(componentScores?.section_completeness);
+  const clarity_readability = clampScore(componentScores?.clarity_readability);
+  const bullet_strength = clampScore(componentScores?.bullet_strength);
+  const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
+  const core_keyword_coverage = clampScore(componentScores?.core_keyword_coverage);
+
+  const score =
+    section_completeness * 0.25 +
+    clarity_readability * 0.2 +
+    bullet_strength * 0.2 +
+    ats_safe_formatting * 0.2 +
+    core_keyword_coverage * 0.15;
+
+  return clampScore(score);
+}
+
 export default async function handler(req, res) {
   const startedAt = Date.now();
 
@@ -141,7 +181,7 @@ You are an ATS resume analyzer.
 Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
-Do not add any extra keys.
+Do not add any extra keys except component_scores when requested.
 `.trim();
 
     const linkedinSystem = `
@@ -276,7 +316,13 @@ ${jd || "(none)"}
 Return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "jd_keyword_match": number,
+    "section_completeness": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "role_alignment": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
@@ -284,16 +330,13 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must be derived from these weighted components for a JOB-SPECIFIC ATS MATCH:
-  - JD keyword match: 35
-  - Section completeness: 15
-  - Bullet strength: 20
-  - ATS-safe formatting: 15
-  - Role alignment: 15
-- First internally evaluate each component on a 0-100 scale.
-- Then calculate the final ats_score as the weighted overall result.
-- Return only the final ats_score number in JSON.
-- Do not return the component scores unless explicitly requested.
+- Evaluate each component score on a 0-100 scale:
+  - jd_keyword_match
+  - section_completeness
+  - bullet_strength
+  - ats_safe_formatting
+  - role_alignment
+- component_scores must reflect the actual resume-to-job alignment.
 - missing_keywords MUST include exactly 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include exactly 2 items picked from real resume sentences.
@@ -305,8 +348,8 @@ REQUIREMENTS:
 - If no strong rewrite is possible, choose a different sentence.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
-- summary should reflect the weighted scoring logic above.
-- Do NOT add extra keys. Do NOT add optimized_cv.
+- summary should reflect the scoring logic.
+- Do NOT add optimized_cv.
 - Do NOT mix languages.
 - Proper nouns / technical terms may stay as-is.
 
@@ -322,7 +365,13 @@ ${jd}
 Return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "section_completeness": number,
+    "clarity_readability": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "core_keyword_coverage": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
@@ -330,16 +379,12 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must be derived from these weighted components for a GENERAL ATS REVIEW:
-  - Section completeness: 25
-  - Clarity / readability: 20
-  - Bullet strength: 20
-  - ATS-safe formatting: 20
-  - Core keyword coverage: 15
-- First internally evaluate each component on a 0-100 scale.
-- Then calculate the final ats_score as the weighted overall result.
-- Return only the final ats_score number in JSON.
-- Do not return the component scores unless explicitly requested.
+- Evaluate each component score on a 0-100 scale:
+  - section_completeness
+  - clarity_readability
+  - bullet_strength
+  - ats_safe_formatting
+  - core_keyword_coverage
 - missing_keywords MUST include exactly 5-7 items.
 - These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume keywords based on the candidate's apparent role and experience.
 - missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
@@ -352,8 +397,8 @@ REQUIREMENTS:
 - If no strong rewrite is possible, choose a different sentence.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
-- summary should reflect the weighted scoring logic above.
-- Do NOT add extra keys. Do NOT add optimized_cv.
+- summary should reflect the scoring logic.
+- Do NOT add optimized_cv.
 - Do NOT mix languages.
 - Proper nouns / technical terms may stay as-is.
 
@@ -368,7 +413,13 @@ ${cv}
 Analyze the resume vs job description and return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "jd_keyword_match": number,
+    "section_completeness": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "role_alignment": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "optimized_cv": string,
@@ -377,16 +428,12 @@ Analyze the resume vs job description and return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must be derived from these weighted components for a JOB-SPECIFIC ATS MATCH:
-  - JD keyword match: 35
-  - Section completeness: 15
-  - Bullet strength: 20
-  - ATS-safe formatting: 15
-  - Role alignment: 15
-- First internally evaluate each component on a 0-100 scale.
-- Then calculate the final ats_score as the weighted overall result.
-- Return only the final ats_score number in JSON.
-- Do not return the component scores unless explicitly requested.
+- Evaluate each component score on a 0-100 scale:
+  - jd_keyword_match
+  - section_completeness
+  - bullet_strength
+  - ats_safe_formatting
+  - role_alignment
 - missing_keywords MUST include 25–35 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
@@ -407,7 +454,7 @@ HARD REQUIREMENTS:
 - If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
 
 JSON STRICTNESS:
-- KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
+- KEYS must remain exactly: component_scores, missing_keywords, weak_sentences, optimized_cv, summary.
 - Do NOT translate keys.
 - No extra keys. No comments. No code fences.
 
@@ -423,7 +470,13 @@ ${jd}
 Analyze the resume and return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "section_completeness": number,
+    "clarity_readability": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "core_keyword_coverage": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "optimized_cv": string,
@@ -432,16 +485,12 @@ Analyze the resume and return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must be derived from these weighted components for a GENERAL ATS REVIEW:
-  - Section completeness: 25
-  - Clarity / readability: 20
-  - Bullet strength: 20
-  - ATS-safe formatting: 20
-  - Core keyword coverage: 15
-- First internally evaluate each component on a 0-100 scale.
-- Then calculate the final ats_score as the weighted overall result.
-- Return only the final ats_score number in JSON.
-- Do not return the component scores unless explicitly requested.
+- Evaluate each component score on a 0-100 scale:
+  - section_completeness
+  - clarity_readability
+  - bullet_strength
+  - ats_safe_formatting
+  - core_keyword_coverage
 - missing_keywords MUST include 25–35 items.
 - These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
@@ -456,7 +505,6 @@ HARD REQUIREMENTS:
   2) top keyword gaps to improve
   3) biggest ATS/format risks
   4) top rewrite themes
-- The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
@@ -465,7 +513,7 @@ HARD REQUIREMENTS:
 - If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
 
 JSON STRICTNESS:
-- KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
+- KEYS must remain exactly: component_scores, missing_keywords, weak_sentences, optimized_cv, summary.
 - Do NOT translate keys.
 - No extra keys. No comments. No code fences.
 
@@ -494,7 +542,7 @@ ${cv}
         model,
         temperature: 0.3,
         response_format: { type: "json_object" },
-        max_tokens: isPreview ? 900 : 1800,
+        max_tokens: isPreview ? 1100 : 2200,
         messages: [
           { role: "system", content: chosenSystem },
           { role: "user", content: userPrompt },
@@ -568,8 +616,16 @@ ${cv}
       return res.status(200).json(out);
     }
 
+    const componentScores =
+      data?.component_scores && typeof data.component_scores === "object"
+        ? data.component_scores
+        : {};
+
+    const finalScore = computeWeightedScore(componentScores, hasJD);
+
     const normalized = {
-      ats_score: Number.isFinite(data?.ats_score) ? data.ats_score : 0,
+      ats_score: finalScore,
+      component_scores: componentScores,
       missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
       weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
       summary: typeof data?.summary === "string" ? data.summary : "",
@@ -591,7 +647,11 @@ ${cv}
     }
 
     return res.status(200).json({
-      ...normalized,
+      ats_score: normalized.ats_score,
+      missing_keywords: normalized.missing_keywords,
+      weak_sentences: normalized.weak_sentences,
+      optimized_cv: normalized.optimized_cv,
+      summary: normalized.summary,
       review_mode: hasJD ? "job_specific" : "general",
     });
   } catch (err) {
