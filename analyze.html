@@ -347,9 +347,16 @@ a.link:hover{ text-decoration:underline; }
 </div>
 
     <div class="out" id="out" style="display:none;">
-      <div class="row">
-        <div class="pill scorePill" id="scorePill">ATS Match Score: —</div>
-      </div>
+  <div style="margin-bottom:14px;">
+    <h2 id="resultModeTitle" style="margin:0 0 6px 0;font-size:22px;">ATS Analysis Result</h2>
+    <div id="resultModeDesc" style="color:#94a3b8;font-size:13px;line-height:1.6;">
+      Review summary will appear here.
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="pill scorePill" id="scorePill">ATS Match Score: —</div>
+  </div>
 
       <div class="actions" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn" type="button" id="copyMissing">Copy Keywords</button>
@@ -504,7 +511,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "Copied ✅",
       copyFail: "Copy failed.",
       nothingToCopy: "Nothing to copy.",
-      noJobHelp: "No job description? You’ll still get a general ATS review."
+      noJobHelp: "No job description? You’ll still get a general ATS review.",
+      resultGeneralTitle: "General ATS Review",
+resultGeneralDesc: "Based on resume structure, clarity, and ATS-friendly best practices.",
+resultJobTitle: "Job-Specific ATS Match",
+resultJobDesc: "Based on your resume’s alignment with this target job description.",
+missingGeneral: "Recommended ATS Keywords",
+missingJob: "Missing Keywords for This Job"
     },
 
     tr: {
@@ -540,7 +553,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "Kopyalandı ✅",
       copyFail: "Kopyalama başarısız.",
       nothingToCopy: "Kopyalanacak bir şey yok.",
-      noJobHelp: "İş ilanı yok mu? Yine de genel bir ATS değerlendirmesi alırsınız."
+      noJobHelp: "İş ilanı yok mu? Yine de genel bir ATS değerlendirmesi alırsınız.",
+      resultGeneralTitle: "Genel ATS Değerlendirmesi",
+resultGeneralDesc: "CV yapısı, netlik ve ATS uyumlu en iyi uygulamalara göre hazırlanmıştır.",
+resultJobTitle: "İlana Özel ATS Eşleşmesi",
+resultJobDesc: "CV’nizin bu hedef iş ilanıyla uyumuna göre hazırlanmıştır.",
+missingGeneral: "Önerilen ATS Anahtar Kelimeleri",
+missingJob: "Bu İş İçin Eksik Anahtar Kelimeler"
     },
 
     es: {
@@ -576,7 +595,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "Copiado ✅",
       copyFail: "Error al copiar.",
       nothingToCopy: "Nada que copiar.",
-      noJobHelp: "¿No tienes descripción del puesto? Aun así recibirás una revisión ATS general."
+      noJobHelp: "¿No tienes descripción del puesto? Aun así recibirás una revisión ATS general.",
+      resultGeneralTitle: "Revisión ATS General",
+resultGeneralDesc: "Basado en la estructura del CV, la claridad y las mejores prácticas compatibles con ATS.",
+resultJobTitle: "Coincidencia ATS Específica para el Puesto",
+resultJobDesc: "Basado en la alineación de tu CV con esta descripción del puesto.",
+missingGeneral: "Palabras clave ATS recomendadas",
+missingJob: "Palabras clave faltantes para este puesto"
     },
 
     ru: {
@@ -612,7 +637,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "Скопировано ✅",
       copyFail: "Не удалось скопировать.",
       nothingToCopy: "Нечего копировать.",
-      noJobHelp: "Нет описания вакансии? Вы всё равно получите общий ATS-анализ."
+      noJobHelp: "Нет описания вакансии? Вы всё равно получите общий ATS-анализ.",
+      resultGeneralTitle: "Общая ATS-проверка",
+resultGeneralDesc: "Основано на структуре резюме, ясности и лучших практиках ATS.",
+resultJobTitle: "ATS-соответствие для конкретной вакансии",
+resultJobDesc: "Основано на соответствии вашего резюме данной вакансии.",
+missingGeneral: "Рекомендуемые ATS-ключевые слова",
+missingJob: "Недостающие ключевые слова для этой вакансии"
     },
 
     fr: {
@@ -648,7 +679,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "Copié ✅",
       copyFail: "Échec de la copie.",
       nothingToCopy: "Rien à copier.",
-      noJobHelp: "Pas d’offre d’emploi ? Vous recevrez quand même une analyse ATS générale."
+      noJobHelp: "Pas d’offre d’emploi ? Vous recevrez quand même une analyse ATS générale.",
+      resultGeneralTitle: "Revue ATS Générale",
+resultGeneralDesc: "Basé sur la structure du CV, la clarté et les bonnes pratiques compatibles ATS.",
+resultJobTitle: "Correspondance ATS Spécifique au Poste",
+resultJobDesc: "Basé sur l’alignement de votre CV avec cette offre d’emploi.",
+missingGeneral: "Mots-clés ATS recommandés",
+missingJob: "Mots-clés manquants pour ce poste"
     },
 
     ar: {
@@ -684,7 +721,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "تم النسخ ✅",
       copyFail: "فشل النسخ.",
       nothingToCopy: "لا يوجد شيء لنسخه.",
-      noJobHelp: "ليس لديك وصف وظيفي؟ ستحصل مع ذلك على مراجعة ATS عامة."
+      noJobHelp: "ليس لديك وصف وظيفي؟ ستحصل مع ذلك على مراجعة ATS عامة.",
+      resultGeneralTitle: "مراجعة ATS عامة",
+resultGeneralDesc: "استنادًا إلى هيكل السيرة الذاتية والوضوح وأفضل الممارسات المتوافقة مع ATS.",
+resultJobTitle: "مطابقة ATS مخصصة للوظيفة",
+resultJobDesc: "استنادًا إلى مدى توافق سيرتك الذاتية مع هذا الوصف الوظيفي.",
+missingGeneral: "الكلمات المفتاحية المقترحة لـ ATS",
+missingJob: "الكلمات المفتاحية الناقصة لهذه الوظيفة"
     },
 
     zh: {
@@ -720,7 +763,13 @@ if (!localStorage.getItem(convKey)) {
       copyOk: "已复制 ✅",
       copyFail: "复制失败。",
       nothingToCopy: "没有可复制的内容。",
-      noJobHelp: "没有职位描述？你仍然会获得一份通用 ATS 分析。"
+      noJobHelp: "没有职位描述？你仍然会获得一份通用 ATS 分析。",
+      resultGeneralTitle: "通用 ATS 评估",
+resultGeneralDesc: "基于简历结构、清晰度和 ATS 友好最佳实践。",
+resultJobTitle: "岗位专属 ATS 匹配",
+resultJobDesc: "基于你的简历与该职位描述的匹配程度。",
+missingGeneral: "推荐的 ATS 关键词",
+missingJob: "该职位缺失的关键词"
     }
   };
 
@@ -781,6 +830,12 @@ setText("#noJobHelp", t.noJobHelp);
   window.__copyOk = t.copyOk;
   window.__copyFail = t.copyFail;
   window.__nothingToCopy = t.nothingToCopy;
+  window.__resultGeneralTitle = t.resultGeneralTitle;
+window.__resultGeneralDesc = t.resultGeneralDesc;
+window.__resultJobTitle = t.resultJobTitle;
+window.__resultJobDesc = t.resultJobDesc;
+window.__missingGeneral = t.missingGeneral;
+window.__missingJob = t.missingJob;
 })();
 
 /* =======================
@@ -858,6 +913,7 @@ async function run(){
     const rawText = await r.text();
     let data = {};
     try { data = JSON.parse(rawText); } catch {}
+    const reviewMode = data.review_mode || "general";
 
     if (!r.ok) {
       if (r.status === 429) {
@@ -874,6 +930,19 @@ async function run(){
       const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
       throw new Error(msg);
     }
+    const resultModeTitle = document.getElementById("resultModeTitle");
+const resultModeDesc = document.getElementById("resultModeDesc");
+const missingTitleEl = document.querySelector(".out .sec h3");
+
+if (reviewMode === "job_specific") {
+  if (resultModeTitle) resultModeTitle.textContent = window.__resultJobTitle || "Job-Specific ATS Match";
+  if (resultModeDesc) resultModeDesc.textContent = window.__resultJobDesc || "Based on your resume’s alignment with this target job description.";
+  if (missingTitleEl) missingTitleEl.textContent = window.__missingJob || "Missing Keywords for This Job";
+} else {
+  if (resultModeTitle) resultModeTitle.textContent = window.__resultGeneralTitle || "General ATS Review";
+  if (resultModeDesc) resultModeDesc.textContent = window.__resultGeneralDesc || "Based on resume structure, clarity, and ATS-friendly best practices.";
+  if (missingTitleEl) missingTitleEl.textContent = window.__missingGeneral || "Recommended ATS Keywords";
+}
 
     // SCORE
     const pill = document.getElementById('scorePill');
