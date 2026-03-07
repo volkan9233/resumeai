@@ -1109,7 +1109,7 @@ photoHead.className = "itemHead";
 
 const photoTitle = document.createElement("div");
 photoTitle.className = "title";
-photoTitle.textContent = "Photo (optional)";
+photoTitle.textContent = t.fields.photo;
 photoHead.appendChild(photoTitle);
 
 photoCard.appendChild(photoHead);
@@ -1136,7 +1136,7 @@ if (state.basics.photo) img.src = state.basics.photo;
 const rm = document.createElement("button");
 rm.type = "button";
 rm.className = "chipBtn";
-rm.textContent = "Remove";
+rm.textContent = t.fields.removePhoto;
 rm.style.display = state.basics.photo ? "inline-block" : "none";
 rm.addEventListener("click", ()=>{
   state.basics.photo = "";
@@ -1148,9 +1148,8 @@ file.addEventListener("change", async ()=>{
   const f = file.files && file.files[0];
   if(!f) return;
 
-  // 1.5MB limit
   if (f.size > 1_500_000) {
-    alert("Photo too large. Please use ~1–1.5MB.");
+    alert(t.fields.photoTooLarge);
     file.value = "";
     return;
   }
@@ -1171,7 +1170,7 @@ photoRow.appendChild(rm);
 const hint = document.createElement("div");
 hint.className = "muted";
 hint.style.marginTop = "10px";
-hint.textContent = "JPG/PNG recommended. Keep it small (1–1.5MB).";
+hint.textContent = t.fields.photoHint;
 
 photoCard.appendChild(photoRow);
 photoCard.appendChild(hint);
