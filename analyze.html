@@ -986,7 +986,9 @@ if (reviewMode === "job_specific") {
     // SCORE
     const pill = document.getElementById('scorePill');
     const score = Number(data.ats_score || 0);
-    const label = window.__scoreLabel || "ATS Match Score:";
+    const label = reviewMode === "job_specific"
+  ? (window.__scoreLabelJob || "ATS Match Score:")
+  : (window.__scoreLabelGeneral || "ATS Readiness Score:");
     pill.classList.remove("score-low","score-mid","score-high");
     pill.classList.add(score >= 70 ? "score-high" : score >= 45 ? "score-mid" : "score-low");
     pill.innerHTML = `<span class="scoreDot"></span><span>${label}</span><span class="scoreValue">${score}%</span>`;
