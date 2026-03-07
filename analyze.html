@@ -1285,10 +1285,35 @@ for (const l of lines) {
   const location = pickLocation();
 
   // summary
-  const summary = (sections.summary || [])
-    .map(l => isBullet(l) ? stripBullet(l) : l)
-    .join("\n")
-    .trim();
+let summaryLines = (sections.summary || [])
+  .map(l => isBullet(l) ? stripBullet(l) : l)
+  .filter(Boolean);
+
+// Eğer SUMMARY/ÖZET başlığı hiç çıkmadıysa,
+// name/title/email/phone dışındaki ilk açıklama paragrafını summary olarak yakala
+if (!summaryLines.length) {
+  const contactLike = (s) =>
+    /@/.test(s) ||
+    /(\+?\d[\d\s().-]{7,}\d)/.test(s) ||
+    /^https?:\/\//i.test(s) ||
+    /linkedin|github|portfolio/i.test(s);
+
+  const fallbackSummary = (sections.other || []).filter(l => {
+    const v = String(l || "").trim();
+    if (!v) return false;
+    if (v === fullName) return false;
+    if (v === title) return false;
+    if (isHeading(v)) return false;
+    if (isBullet(v)) return false;
+    if (contactLike(v)) return false;
+    if (v.length < 35) return false; // kısa satırlar summary sayılmasın
+    return true;
+  });
+
+  summaryLines = fallbackSummary;
+}
+
+const summary = summaryLines.join("\n").trim();
 
   // skills
   let skills = [];
