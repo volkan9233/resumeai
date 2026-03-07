@@ -386,9 +386,7 @@ a.link:hover{ text-decoration:underline; }
    PROBE + global error
 ======================= */
 (function () {
-  const s = document.getElementById("status");
-  if (s) s.textContent = "JS LOADED ✅";
-  console.log("JS LOADED ✅", new Date().toISOString());
+  console.log("analyze.js loaded");
 })();
 window.onerror = function (msg, src, line, col) {
   const s = document.getElementById("status");
@@ -981,10 +979,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btn = document.getElementById("btn");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    const s = document.getElementById("status");
-    if (s) s.textContent = "CLICK ✅ running...";
-    run();
-  });
+  run();
+});
 });
 
 /* =======================
@@ -1031,9 +1027,10 @@ function copyText(text){
     .catch(()=> alert(window.__copyFail || "Copy failed (iOS sometimes blocks)."));
 }
 document.getElementById("copyMissing")?.addEventListener("click", ()=>{
-  const items = [...document.querySelectorAll("#missing li")]
-    .map(li=>li.textContent.trim()).filter(Boolean);
-  copyText(items.map(x=>"- " + x).join("\n"));
+  const items = [...document.querySelectorAll("#missing .kwChip")]
+    .map(el => el.textContent.trim())
+    .filter(Boolean);
+  copyText(items.map(x => "- " + x).join("\n"));
 });
 
 document.getElementById("copyWeak")?.addEventListener("click", ()=>{
