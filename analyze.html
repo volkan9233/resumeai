@@ -766,10 +766,10 @@ async function run(){
   // 🔥 preview server-state driven (forced by ?preview=1 OR locked)
   const isPreview = !!window.__isPreview;
 
-  if(!resume || !job){
-    status.textContent = window.__needBoth || "Please paste both resume and job description.";
-    return;
-  }
+  if(!resume){
+  status.textContent = window.__needBoth || "Please paste your resume.";
+  return;
+}
 
   btn.disabled = true;
   status.textContent = "";
