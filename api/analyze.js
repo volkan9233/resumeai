@@ -52,9 +52,18 @@ function verifySession(req) {
   return true;
 }
 
+async function ensureMinDelay(startedAt, minMs) {
+  const elapsed = Date.now() - startedAt;
+  const remain = minMs - elapsed;
+  if (remain > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remain));
+  }
+}
+
 export default async function handler(req, res) {
+  const startedAt = Date.now();
+
   try {
-    const startedAt = Date.now();
     if (req.method !== "POST") {
       return res.status(405).json({ error: "POST required" });
     }
@@ -532,15 +541,21 @@ ${cv}
     };
 
     if (isPreview) {
+      await ensureMinDelay(startedAt, 15000);
+
       return res.status(200).json({
         ats_score: normalized.ats_score,
         summary: normalized.summary,
         missing_keywords: normalized.missing_keywords.slice(0, 5),
         weak_sentences: normalized.weak_sentences.slice(0, 2),
+        review_mode: hasJD ? "job_specific" : "general",
       });
     }
 
-    return res.status(200).json(normalized);
+    return res.status(200).json({
+      ...normalized,
+      review_mode: hasJD ? "job_specific" : "general",
+    });
   } catch (err) {
     return res
       .status(500)
