@@ -54,6 +54,7 @@ function verifySession(req) {
 
 export default async function handler(req, res) {
   try {
+    const startedAt = Date.now();
     if (req.method !== "POST") {
       return res.status(405).json({ error: "POST required" });
     }
