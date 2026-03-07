@@ -247,14 +247,27 @@
     }
 
     .chipBtn{
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: rgba(255,255,255,.86);
-      font-weight: 800;
-      cursor: pointer;
-    }
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(123,92,255,.28);
+  background: rgba(123,92,255,.10);
+  color: #f3f4f6;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,.14);
+  transition: .18s ease;
+}
+
+.chipBtn:hover{
+  background: rgba(123,92,255,.16);
+  border-color: rgba(123,92,255,.42);
+  transform: translateY(-1px);
+}
+
+.chipBtn:active{
+  transform: translateY(0);
+  background: rgba(123,92,255,.20);
+}
 
     .toggle{
       display:flex; align-items:center; gap:10px;
