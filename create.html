@@ -1222,7 +1222,7 @@ sec.appendChild(photoCard);
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "chipBtn";
-  addBtn.textContent = t.fields.addLink;
+  addBtn.textContent = "+ " + t.fields.addLink;
   addBtn.addEventListener("click", ()=>{
     state.basics.links.push({ label:"", url:"" });
     renderAll();
@@ -1331,7 +1331,7 @@ function renderStepExperience(container){
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "chipBtn";
-  addBtn.textContent = t.fields.addJob;
+  addBtn.textContent = "+ " + t.fields.addJob;
   addBtn.addEventListener("click", ()=>{
     state.experience.push({
       position:"", company:"",
@@ -1450,7 +1450,7 @@ function renderStepEducation(container){
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "chipBtn";
-  addBtn.textContent = t.fields.addEdu;
+  addBtn.textContent = "+ " + t.fields.addEdu;
   addBtn.addEventListener("click", ()=>{
     state.education.push({ school:"", degree:"", start:"", end:"" });
     renderAll();
