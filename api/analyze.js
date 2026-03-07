@@ -284,12 +284,12 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must be derived from these weighted components for a GENERAL ATS REVIEW:
-  - Section completeness: 25
-  - Clarity / readability: 20
+- ats_score must be derived from these weighted components for a JOB-SPECIFIC ATS MATCH:
+  - JD keyword match: 35
+  - Section completeness: 15
   - Bullet strength: 20
-  - ATS-safe formatting: 20
-  - Core keyword coverage: 15
+  - ATS-safe formatting: 15
+  - Role alignment: 15
 - First internally evaluate each component on a 0-100 scale.
 - Then calculate the final ats_score as the weighted overall result.
 - Return only the final ats_score number in JSON.
@@ -330,7 +330,16 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must reflect general ATS readiness: structure, section completeness, clarity, bullet strength, and keyword coverage.
+- ats_score must be derived from these weighted components for a GENERAL ATS REVIEW:
+  - Section completeness: 25
+  - Clarity / readability: 20
+  - Bullet strength: 20
+  - ATS-safe formatting: 20
+  - Core keyword coverage: 15
+- First internally evaluate each component on a 0-100 scale.
+- Then calculate the final ats_score as the weighted overall result.
+- Return only the final ats_score number in JSON.
+- Do not return the component scores unless explicitly requested.
 - missing_keywords MUST include exactly 5-7 items.
 - These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume keywords based on the candidate's apparent role and experience.
 - missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
@@ -423,17 +432,16 @@ Analyze the resume and return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must be derived from these weighted components for a JOB-SPECIFIC ATS MATCH:
-  - JD keyword match: 35
-  - Section completeness: 15
+- ats_score must be derived from these weighted components for a GENERAL ATS REVIEW:
+  - Section completeness: 25
+  - Clarity / readability: 20
   - Bullet strength: 20
-  - ATS-safe formatting: 15
-  - Role alignment: 15
+  - ATS-safe formatting: 20
+  - Core keyword coverage: 15
 - First internally evaluate each component on a 0-100 scale.
 - Then calculate the final ats_score as the weighted overall result.
 - Return only the final ats_score number in JSON.
 - Do not return the component scores unless explicitly requested.
-- Score based on: section completeness, clarity, bullet quality, ATS-safe structure, and core keyword coverage.
 - missing_keywords MUST include 25–35 items.
 - These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
@@ -448,7 +456,7 @@ HARD REQUIREMENTS:
   2) top keyword gaps to improve
   3) biggest ATS/format risks
   4) top rewrite themes
-  - The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
+- The summary should clearly reflect the weighted scoring logic and explain the biggest factors affecting the score.
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
