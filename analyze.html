@@ -1306,6 +1306,10 @@ if (!summaryLines.length) {
     /^https?:\/\//i.test(s) ||
     /linkedin|github|portfolio/i.test(s);
 
+  const looksLikeLocation = (s) =>
+    s.length <= 40 &&
+    /^[A-Za-zÇĞİÖŞÜçğıöşü\s.-]+,\s*[A-Za-zÇĞİÖŞÜçğıöşü\s.-]+$/.test(s);
+
   const fallbackSummary = (sections.other || []).filter(l => {
     const v = String(l || "").trim();
     if (!v) return false;
@@ -1314,11 +1318,12 @@ if (!summaryLines.length) {
     if (isHeading(v)) return false;
     if (isBullet(v)) return false;
     if (contactLike(v)) return false;
-    if (v.length < 35) return false; // kısa satırlar summary sayılmasın
+    if (looksLikeLocation(v)) return false;
+    if (v.length < 35) return false;
     return true;
   });
 
-  summaryLines = fallbackSummary;
+  summaryLines = fallbackSummary.slice(0, 2);
 }
 
 const summary = summaryLines.join("\n").trim();
