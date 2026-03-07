@@ -100,6 +100,95 @@ function computeWeightedScore(componentScores, hasJD) {
   return clampScore(score);
 }
 
+async function rewriteOptimizedCvStrong({
+  apiKey,
+  model,
+  outLang,
+  cvText,
+  currentOptimizedCv,
+  jdText,
+}) {
+  const rewriteSystem = `
+You are a senior executive resume writer and ATS resume rewriter.
+
+Return ONLY valid JSON.
+No markdown.
+No commentary.
+
+CRITICAL RULES:
+- All output values must be written only in ${outLang}.
+- Do NOT invent numbers, metrics, employers, dates, titles, tools, certifications, or achievements.
+- Keep all claims truthful to the original resume/job description.
+- The goal is to materially strengthen the resume wording, not lightly paraphrase it.
+- Every bullet should sound sharper, more recruiter-ready, and more action-oriented.
+- Avoid weak phrasing such as: helped, assisted, supported, worked on, responsible for, involved in, contributed to, participated in, handled.
+- Prefer stronger factual verbs when justified, such as: managed, executed, developed, coordinated, analyzed, optimized, delivered, collaborated, prepared.
+- Use "led" only if leadership is clearly supported by the source text.
+- Do not add fake metrics.
+- Do not exaggerate ownership beyond what the original text supports.
+- Keep the resume structure clean and ATS-friendly.
+- Preserve section order and core facts.
+`.trim();
+
+  const rewriteUser = `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+Rewrite the CURRENT OPTIMIZED CV into a noticeably stronger final version.
+
+RULES:
+- Do NOT lightly polish. Make it materially better.
+- Every weak bullet should be rewritten more strongly if possible.
+- Remove generic filler wording.
+- Keep it concise, professional, and recruiter-ready.
+- Preserve truth from the original source resume.
+- Do not invent metrics or achievements.
+- Keep output as a full resume text.
+
+SOURCE RESUME:
+${cvText}
+
+JOB DESCRIPTION:
+${jdText || "(none)"}
+
+CURRENT OPTIMIZED CV TO IMPROVE:
+${currentOptimizedCv}
+`.trim();
+
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      max_tokens: 1800,
+      messages: [
+        { role: "system", content: rewriteSystem },
+        { role: "user", content: rewriteUser },
+      ],
+    }),
+  });
+
+  const raw2 = await r.text();
+  if (!r.ok) {
+    throw new Error("Optimized CV rewrite failed: " + raw2.slice(0, 500));
+  }
+
+  const parsed2 = JSON.parse(raw2);
+  const text2 = parsed2?.choices?.[0]?.message?.content || "{}";
+  const data2 = JSON.parse(text2);
+
+  return typeof data2?.optimized_cv === "string" ? data2.optimized_cv : currentOptimizedCv;
+}
+
 export default async function handler(req, res) {
   const startedAt = Date.now();
 
@@ -683,15 +772,34 @@ ${cv}
 
     const finalScore = computeWeightedScore(componentScores, hasJD);
 
+    let strongOptimizedCv = "";
+
+    if (!isPreview) {
+      strongOptimizedCv = typeof data?.optimized_cv === "string" ? data.optimized_cv : "";
+
+      if (reqMode !== "linkedin" && strongOptimizedCv.trim()) {
+        try {
+          strongOptimizedCv = await rewriteOptimizedCvStrong({
+            apiKey,
+            model,
+            outLang,
+            cvText: cv,
+            currentOptimizedCv: strongOptimizedCv,
+            jdText: jd || "",
+          });
+        } catch (e) {
+          console.warn("second pass rewrite failed:", e?.message || e);
+        }
+      }
+    }
+
     const normalized = {
       ats_score: finalScore,
       component_scores: componentScores,
       missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
       weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
       summary: typeof data?.summary === "string" ? data.summary : "",
-      ...(isPreview
-        ? {}
-        : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
+      ...(isPreview ? {} : { optimized_cv: strongOptimizedCv }),
     };
 
     if (isPreview) {
