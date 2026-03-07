@@ -123,6 +123,11 @@ CRITICAL RULES (must follow):
 - If unsure, prefer neutral phrasing (e.g., “improved”, “supported”, “contributed”, “helped drive”) with no numbers.
 - If the input contains a number, keep it exact; do not round up/down or change it.
 - DO NOT invent employers, titles, degrees, dates, certifications, tools, or projects.
+- Rewrites must be materially better than the original.
+- Do NOT make shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
+- Prefer stronger professional phrasing, but keep all claims truthful.
 You are an ATS resume analyzer.
 Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
@@ -146,6 +151,10 @@ Return ONLY valid JSON. No markdown. No extra text.
 CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 Do not invent employers, titles, degrees, dates, certifications, or metrics.
 If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
+- Rewrites must be materially better than the original.
+- Do NOT make shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
 No extra keys.
 `.trim();
     // --- LinkedIn meta normalize ---
@@ -256,7 +265,13 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - missing_keywords MUST include exactly 5 items (unique, role-relevant) and MUST be written in ${outLang}.
-- weak_sentences MUST include exactly 2 item (pick a real sentence from RESUME). Both sentence and rewrite MUST be in ${outLang}.
+- weak_sentences MUST include exactly 2 items (pick real sentences from RESUME).
+- Both sentence and rewrite MUST be in ${outLang}.
+- Select only sentences where a clearly better rewrite is possible.
+- Do NOT select sentences that can only be improved with tiny synonym swaps.
+- Each rewrite must feel meaningfully stronger, clearer, and more professional.
+- weak_sentences.rewrite must not be a near-copy of sentence.
+- If no strong rewrite is possible, choose a different sentence.
 - summary MUST be 4–6 bullet lines in ${outLang}.
 - Do NOT add extra keys. Do NOT add optimized_cv.
 - Do NOT mix languages.
@@ -284,7 +299,12 @@ Analyze the resume vs job description and return JSON in this exact schema:
 
 HARD REQUIREMENTS (do NOT be brief):
 - missing_keywords MUST include 25–30 items (unique, role-relevant) and MUST be written in ${outLang}.
-- weak_sentences MUST include 12–18 items (each from the resume text, with a stronger rewrite). Both sentence and rewrite MUST be in ${outLang}.
+- weak_sentences MUST include 12–18 items (each from the resume text, with a stronger rewrite).
+- Both sentence and rewrite MUST be in ${outLang}.
+- Do NOT use shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- weak_sentences.rewrite must feel materially stronger and more professional than sentence.
+- If a sentence cannot be improved meaningfully, do not include it; choose a different one.
 - summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
   1) overall fit diagnosis
   2) top 5 missing skills/keywords to add
