@@ -176,6 +176,7 @@ function isBodySectionHeader(line = "") {
     String(line).trim()
   );
 }
+
 function extractExperienceTitles(cv = "") {
   const lines = getNonEmptyLines(cv);
   const titles = [];
@@ -226,7 +227,7 @@ function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-  function hasSummarySection(cv = "") {
+function hasSummarySection(cv = "") {
   return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/im.test(
     String(cv || "")
   );
@@ -263,10 +264,7 @@ function extractSummarySection(cv = "") {
     }
   }
 
-  return lines
-    .slice(start, end)
-    .join("\n")
-    .trim();
+  return lines.slice(start, end).join("\n").trim();
 }
 
 function replaceIdentityBlock(originalCv = "", optimizedCv = "") {
@@ -496,16 +494,6 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (origNorm === optNorm) return true;
 
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
-  if (!optimizedCv || !String(optimizedCv).trim()) return true;
-
-  const origNorm = normalizeCompareText(originalCv);
-  const optNorm = normalizeCompareText(optimizedCv);
-
-  if (!optNorm) return true;
-  if (origNorm === optNorm) return true;
-
-  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
   if (total > 0 && same / total >= 0.65) return true;
 
   const optimizedBullets = getBulletLines(optimizedCv);
@@ -518,9 +506,6 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (hasSummarySection(originalCv) && !hasSummarySection(optimizedCv)) {
     return true;
   }
-
-  return false;
-}
 
   return false;
 }
@@ -1044,11 +1029,65 @@ Return JSON in this exact schema:
 RULES:
 - Output VALUES must be in ${outLang} (proper nouns/tools can stay).
 - headlines: exactly 1 item.
-- about.short: 600-900 chars, punchy, no emojis.
+- about.short: 250-450 chars, punchy, concise, no emojis.
 - experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
-- skills.top: 7-10 items.
-- recruiter.keywords: 5-8 items.
+- skills.top: 5-7 items.
+- recruiter.keywords: 4-6 items.
+- Keep output compact and concise for preview mode.
 - No extra keys. Return ONLY valid JSON.
+
+TARGETING META:
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone}
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
+}
+
+function buildLinkedInFullPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string, "normal": string, "bold": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[], "tools": string[], "industry": string[] },
+  "recruiter": { "keywords": string[], "boolean": string }
+}
+
+QUALITY RULES:
+- Output VALUES must be in ${outLang}. Do not mix languages.
+- Do NOT invent employers, titles, dates, degrees, or metrics.
+- If resume has no numbers, improve bullets without guessing numbers.
+- Headline max 220 chars each. No emojis.
+- about.short: 300-500 chars.
+- about.normal: 600-900 chars.
+- about.bold: 600-900 chars.
+- headlines: exactly 5 items with labels Search, Impact, Niche, Leadership, Clean.
+- experience_fix: 4-6 items maximum, only if there are real, materially stronger rewrites.
+- skills.top: 10-14
+- skills.tools: 6-10
+- skills.industry: 8-14
+- recruiter.keywords: 8-12
+- recruiter.boolean: a single boolean string using OR groups + a few AND terms.
+- Return ONLY valid JSON. No extra keys.
 
 TARGETING META:
 - target_role: ${liTargetRole || "(not provided)"}
