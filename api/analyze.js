@@ -37,11 +37,7 @@ function verifySession(req) {
   if (parts.length !== 2) return false;
 
   const [data, sig] = parts;
-  const expected = crypto
-    .createHmac("sha256", appSecret)
-    .update(data)
-    .digest("base64url");
-
+  const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
   if (sig !== expected) return false;
 
   let payload;
@@ -68,7 +64,13 @@ function isGpt5Model(model = "") {
   return /^gpt-5/i.test(String(model).trim());
 }
 
-function buildOpenAIPayload({ model, temperature = 0.3, maxTokens = 1800, messages }) {
+function buildOpenAIPayload({
+  model,
+  temperature = 0.3,
+  maxTokens = 1800,
+  messages,
+  reasoningEffort,
+}) {
   const body = {
     model,
     response_format: { type: "json_object" },
@@ -77,12 +79,234 @@ function buildOpenAIPayload({ model, temperature = 0.3, maxTokens = 1800, messag
 
   if (isGpt5Model(model)) {
     body.max_completion_tokens = maxTokens;
+    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
   } else {
     body.max_tokens = maxTokens;
     body.temperature = temperature;
   }
 
   return body;
+}
+
+function safeJsonParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const s = String(text || "");
+    const start = s.indexOf("{");
+    const end = s.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(s.slice(start, end + 1));
+    }
+    throw new Error("Model did not return valid JSON");
+  }
+}
+
+function extractMessageText(parsed) {
+  const content = parsed?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") return content.trim();
+
+  if (Array.isArray(content)) {
+    const combined = content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part?.type === "text" && typeof part?.text === "string") return part.text;
+        if (typeof part?.content === "string") return part.content;
+        return "";
+      })
+      .join("")
+      .trim();
+
+    if (combined) return combined;
+  }
+
+  if (content && typeof content === "object") {
+    try {
+      return JSON.stringify(content);
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+}
+
+function asStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((x) => String(x || "").trim()).filter(Boolean);
+}
+
+function asWeakSentencesArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => ({
+      sentence: String(item?.sentence || "").trim(),
+      rewrite: String(item?.rewrite || "").trim(),
+    }))
+    .filter((item) => item.sentence && item.rewrite);
+}
+
+function ensureFiniteScore(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function validateAtsData(data, { isPreview }) {
+  const atsScore = ensureFiniteScore(data?.ats_score);
+  const missingKeywords = asStringArray(data?.missing_keywords);
+  const weakSentences = asWeakSentencesArray(data?.weak_sentences);
+  const summary = typeof data?.summary === "string" ? data.summary.trim() : "";
+
+  if (atsScore === null) {
+    throw new Error("Model output missing valid ats_score");
+  }
+  if (!Array.isArray(data?.missing_keywords)) {
+    throw new Error("Model output missing missing_keywords");
+  }
+  if (!Array.isArray(data?.weak_sentences)) {
+    throw new Error("Model output missing weak_sentences");
+  }
+  if (!summary) {
+    throw new Error("Model output missing summary");
+  }
+
+  const normalized = {
+    ats_score: atsScore,
+    missing_keywords: missingKeywords,
+    weak_sentences: weakSentences,
+    summary,
+  };
+
+  if (!isPreview) {
+    const optimizedCv =
+      typeof data?.optimized_cv === "string" ? data.optimized_cv.trim() : "";
+    if (!optimizedCv) {
+      throw new Error("Model output missing optimized_cv");
+    }
+    normalized.optimized_cv = optimizedCv;
+  }
+
+  return normalized;
+}
+
+function validateLinkedInData(data, { isPreview }) {
+  const headlines = Array.isArray(data?.headlines) ? data.headlines : [];
+  const about = data?.about && typeof data.about === "object" ? data.about : {};
+  const experienceFix = Array.isArray(data?.experience_fix) ? data.experience_fix : [];
+  const skills = data?.skills && typeof data.skills === "object" ? data.skills : {};
+  const recruiter = data?.recruiter && typeof data.recruiter === "object" ? data.recruiter : {};
+
+  if (!headlines.length) {
+    throw new Error("Model output missing headlines");
+  }
+
+  if (isPreview) {
+    const short = String(about?.short || "").trim();
+    if (!short) {
+      throw new Error("Model output missing about.short");
+    }
+  } else {
+    const short = String(about?.short || "").trim();
+    const normal = String(about?.normal || "").trim();
+    const bold = String(about?.bold || "").trim();
+    if (!short || !normal || !bold) {
+      throw new Error("Model output missing full about variants");
+    }
+  }
+
+  return {
+    headlines,
+    about,
+    experience_fix: experienceFix,
+    skills,
+    recruiter,
+  };
+}
+
+async function callOpenAIJson({
+  apiKey,
+  model,
+  system,
+  userPrompt,
+  temperature = 0.3,
+  maxTokens = 1800,
+  reasoningEffort,
+  fallbackReasoningEffort,
+}) {
+  const attempt = async (effort) => {
+    const payload = buildOpenAIPayload({
+      model,
+      temperature,
+      maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userPrompt },
+      ],
+      reasoningEffort: effort,
+    });
+
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(50000),
+    });
+
+    const raw = await openaiRes.text();
+
+    if (!openaiRes.ok) {
+      const err = new Error("OpenAI error");
+      err.status = openaiRes.status;
+      err.details = raw.slice(0, 2000);
+      throw err;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const err = new Error("OpenAI returned non-JSON response envelope");
+      err.status = 502;
+      err.details = raw.slice(0, 2000);
+      throw err;
+    }
+
+    const text = extractMessageText(parsed);
+
+    if (!text) {
+      const err = new Error("Model returned empty content");
+      err.status = 502;
+      err.details = raw.slice(0, 2000);
+      throw err;
+    }
+
+    try {
+      return safeJsonParse(text);
+    } catch (parseErr) {
+      const err = new Error(parseErr?.message || "Model did not return valid JSON");
+      err.status = 502;
+      err.details = `RAW_ENVELOPE:\n${raw.slice(0, 1500)}\n\nEXTRACTED_CONTENT:\n${text.slice(0, 1500)}`;
+      throw err;
+    }
+  };
+
+  try {
+    return await attempt(reasoningEffort);
+  } catch (err) {
+    const canRetry =
+      isGpt5Model(model) &&
+      fallbackReasoningEffort &&
+      fallbackReasoningEffort !== reasoningEffort;
+
+    if (!canRetry) throw err;
+
+    return await attempt(fallbackReasoningEffort);
+  }
 }
 
 export default async function handler(req, res) {
@@ -106,6 +330,7 @@ export default async function handler(req, res) {
       sessionOk,
       isPreview,
       hasCookie: !!req.headers.cookie,
+      reqMode,
     });
 
     const ip = getClientIp(req);
@@ -471,100 +696,82 @@ ${cv}
 
     const chosenSystem = reqMode === "linkedin" ? linkedinSystem : system;
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(
-        buildOpenAIPayload({
-          model,
-          temperature: 0.3,
-          maxTokens: isPreview ? 900 : 1800,
-          messages: [
-            { role: "system", content: chosenSystem },
-            { role: "user", content: userPrompt },
-          ],
-        })
-      ),
-    });
+    let data;
+    try {
+      data = await callOpenAIJson({
+        apiKey,
+        model,
+        system: chosenSystem,
+        userPrompt,
+        temperature: 0.3,
+        maxTokens: reqMode === "linkedin"
+          ? (isPreview ? 1200 : 2600)
+          : (isPreview ? 1200 : 2600),
+        reasoningEffort: isGpt5Model(model)
+          ? (isPreview ? "medium" : "high")
+          : undefined,
+        fallbackReasoningEffort: isGpt5Model(model)
+          ? (isPreview ? "low" : "medium")
+          : undefined,
+      });
+    } catch (err) {
+      console.error("OPENAI CALL FAILED", {
+        model,
+        reqMode,
+        isPreview,
+        status: err?.status,
+        details: err?.details,
+      });
 
-    const raw = await openaiRes.text();
-
-    if (!openaiRes.ok) {
-      return res.status(openaiRes.status).json({
-        error: "OpenAI error",
-        status: openaiRes.status,
-        details: raw.slice(0, 2000),
+      return res.status(err?.status || 500).json({
+        error: err?.message || "OpenAI error",
+        status: err?.status || 500,
+        details: err?.details || String(err),
       });
     }
 
-    const parsed = JSON.parse(raw);
-    const text = parsed?.choices?.[0]?.message?.content || "{}";
+    if (reqMode === "linkedin") {
+      try {
+        const out = validateLinkedInData(data, { isPreview });
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      const s = String(text);
-      const start = s.indexOf("{");
-      const end = s.lastIndexOf("}");
-      if (start !== -1 && end !== -1 && end > start) {
-        try {
-          data = JSON.parse(s.slice(start, end + 1));
-        } catch {
-          return res.status(500).json({
-            error: "Model did not return valid JSON",
-            model_output: s.slice(0, 2000),
+        if (isPreview) {
+          return res.status(200).json({
+            headlines: out.headlines.slice(0, 1),
+            about: { short: String(out.about.short || "") },
+            experience_fix: out.experience_fix.slice(0, 1),
+            skills: {
+              top: Array.isArray(out.skills.top) ? out.skills.top.slice(0, 10) : [],
+            },
+            recruiter: {
+              keywords: Array.isArray(out.recruiter.keywords)
+                ? out.recruiter.keywords.slice(0, 8)
+                : [],
+            },
           });
         }
-      } else {
-        return res.status(500).json({
-          error: "Model did not return valid JSON",
-          model_output: s.slice(0, 2000),
+
+        return res.status(200).json(out);
+      } catch (err) {
+        console.error("LINKEDIN OUTPUT INVALID", { model, err: err?.message, data });
+        return res.status(502).json({
+          error: "Model returned incomplete LinkedIn JSON",
+          details: err?.message || String(err),
+          model_output: JSON.stringify(data).slice(0, 2000),
         });
       }
     }
 
-    if (reqMode === "linkedin") {
-      const out = {
-        headlines: Array.isArray(data?.headlines) ? data.headlines : [],
-        about: data?.about && typeof data.about === "object" ? data.about : {},
-        experience_fix: Array.isArray(data?.experience_fix) ? data.experience_fix : [],
-        skills: data?.skills && typeof data.skills === "object" ? data.skills : {},
-        recruiter:
-          data?.recruiter && typeof data.recruiter === "object" ? data.recruiter : {},
-      };
-
-      if (isPreview) {
-        return res.status(200).json({
-          headlines: out.headlines.slice(0, 1),
-          about: { short: String(out.about.short || "") },
-          experience_fix: out.experience_fix.slice(0, 1),
-          skills: {
-            top: Array.isArray(out.skills.top) ? out.skills.top.slice(0, 10) : [],
-          },
-          recruiter: {
-            keywords: Array.isArray(out.recruiter.keywords)
-              ? out.recruiter.keywords.slice(0, 8)
-              : [],
-          },
-        });
-      }
-
-      return res.status(200).json(out);
+    let normalized;
+    try {
+      normalized = validateAtsData(data, { isPreview });
+    } catch (err) {
+      console.error("ATS OUTPUT INVALID", { model, err: err?.message, data });
+      return res.status(502).json({
+        error: "Model returned incomplete ATS JSON",
+        details: err?.message || String(err),
+        model_output: JSON.stringify(data).slice(0, 2000),
+      });
     }
-
-    const normalized = {
-      ats_score: Number.isFinite(data?.ats_score) ? data.ats_score : 0,
-      missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
-      weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
-      summary: typeof data?.summary === "string" ? data.summary : "",
-      ...(isPreview
-        ? {}
-        : { optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "" }),
-    };
 
     if (isPreview) {
       await ensureMinDelay(startedAt, 15000);
@@ -579,12 +786,18 @@ ${cv}
     }
 
     return res.status(200).json({
-      ...normalized,
+      ats_score: normalized.ats_score,
+      missing_keywords: normalized.missing_keywords,
+      weak_sentences: normalized.weak_sentences,
+      optimized_cv: normalized.optimized_cv,
+      summary: normalized.summary,
       review_mode: hasJD ? "job_specific" : "general",
     });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ error: "Server error", details: err?.message || String(err) });
+    console.error("SERVER ERROR", err);
+    return res.status(500).json({
+      error: "Server error",
+      details: err?.message || String(err),
+    });
   }
 }
