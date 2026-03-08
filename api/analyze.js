@@ -74,10 +74,6 @@ function isGpt5Model(model = "") {
   return /^gpt-5/i.test(String(model).trim());
 }
 
-function isGpt51Model(model = "") {
-  return /^gpt-5\.1/i.test(String(model).trim());
-}
-
 function buildOpenAIPayload({
   model,
   messages,
@@ -95,7 +91,7 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
-    // GPT-5.1 / GPT-5.x reasoning modlarında temperature göndermiyoruz.
+    // GPT-5 reasoning modlarında temperature göndermiyoruz.
     // Sadece none kullandığımız preview / fallback denemelerinde veriyoruz.
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
@@ -170,7 +166,13 @@ function getBulletLines(str = "") {
 }
 
 function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|EĞİTİM)$/i.test(
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|YETENEKLER|EĞİTİM|YABANCI DİL|DİLLER|SERTİFİKALAR)$/i.test(
+    String(line).trim()
+  );
+}
+
+function isBodySectionHeader(line = "") {
+  return /^(EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|YETENEKLER|EĞİTİM|YABANCI DİL|DİLLER|SERTİFİKALAR)$/i.test(
     String(line).trim()
   );
 }
@@ -180,11 +182,11 @@ function extractHeaderBlock(cv = "") {
   const header = [];
 
   for (const line of lines) {
-    if (isSectionHeader(line)) break;
+    if (isBodySectionHeader(line)) break;
     header.push(line);
   }
 
-  return header.slice(0, 4);
+  return header;
 }
 
 function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
@@ -192,9 +194,11 @@ function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
   if (!originalHeader.length) return String(optimizedCv || "").trim();
 
   const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
-  const sectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
+  const sectionIdx = lines.findIndex((x) => isBodySectionHeader(String(x).trim()));
 
-  if (sectionIdx === -1) return String(optimizedCv || "").trim();
+  if (sectionIdx === -1) {
+    return `${originalHeader.join("\n")}\n\n${String(optimizedCv || "").trim()}`.trim();
+  }
 
   const body = lines.slice(sectionIdx).join("\n").trim();
   return `${originalHeader.join("\n")}\n\n${body}`.trim();
@@ -376,12 +380,14 @@ function computeHeuristicAtsScore(cv = "", jd = "") {
   const header = extractHeaderBlock(cv).join(" ");
 
   const hasSummary =
-    /^(PROFESSIONAL SUMMARY|SUMMARY|PROFESYONEL ÖZET|ÖZET)$/im.test(cv);
+    /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/im.test(
+      cv
+    );
   const hasExperience =
     /^(EXPERIENCE|WORK EXPERIENCE|DENEYİM|İŞ DENEYİMİ)$/im.test(cv);
   const hasEducation = /^(EDUCATION|EĞİTİM)$/im.test(cv);
   const hasSkills =
-    /^(SKILLS|BECERİLER|YETKİNLİKLER)$/im.test(cv);
+    /^(SKILLS|BECERİLER|YETKİNLİKLER|YETENEKLER)$/im.test(cv);
 
   if (!hasSummary) score -= 8;
   if (!hasExperience) score -= 25;
@@ -419,7 +425,7 @@ function computeFinalAtsScore(modelScore, cv = "", jd = "") {
   const model = clampScore(modelScore);
   const heuristic = computeHeuristicAtsScore(cv, jd);
 
-  // Heuristic biraz daha baskın olsun ki kötü CV'ler gereksiz yüksek kalmasın
+  // Heuristic biraz daha baskın
   return clampScore(Math.round(model * 0.4 + heuristic * 0.6));
 }
 
@@ -459,19 +465,9 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
   if (passType === "repair") {
     return [
       {
-        reasoningEffort: "medium",
-        temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
-      },
-      {
-        reasoningEffort: "medium",
-        temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4800),
-      },
-      {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
       },
     ];
   }
@@ -481,12 +477,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 1400),
-      },
-      {
-        reasoningEffort: "none",
-        temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 2400),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1200),
       },
     ];
   }
@@ -495,17 +486,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
-    },
-    {
-      reasoningEffort: "low",
-      temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
     },
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
     },
   ];
 }
@@ -783,6 +769,11 @@ HARD REQUIREMENTS:
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
 - If resume has no numbers, do NOT add any numbers in rewrites.
 - Keep the header identity block and existing experience titles unchanged.
+- Keep or rewrite the existing profile/summary section. Do NOT remove it.
+- Do NOT remove non-empty sections such as Languages or Certifications.
+- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
+- Avoid overly long paragraph-like bullets.
+- Each bullet should be direct, keyword-relevant, and recruiter-friendly.
 
 SCORING RUBRIC:
 - 0-20 = very poor resume: missing core sections, weak or no bullets, little usable signal, very low ATS readiness.
@@ -843,6 +834,11 @@ HARD REQUIREMENTS:
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
 - If resume has no numbers, do NOT add any numbers in rewrites.
 - Keep the header identity block and existing experience titles unchanged.
+- Keep or rewrite the existing profile/summary section. Do NOT remove it.
+- Do NOT remove non-empty sections such as Languages or Certifications.
+- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
+- Avoid overly long paragraph-like bullets.
+- Each bullet should be direct, keyword-relevant, and recruiter-friendly.
 
 SCORING RUBRIC:
 - 0-20 = very poor resume: missing core sections, weak or no bullets, little usable signal, very low ATS readiness.
@@ -896,6 +892,10 @@ STRICT RULES:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
 - Prefer direct action + scope + business context wording.
+- Keep or rewrite the existing profile/summary section. Do NOT remove it.
+- Do NOT remove non-empty sections such as Languages or Certifications.
+- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
+- Avoid overly long paragraph-like bullets.
 - The result must not read like a lightly polished copy.
 - The result must still be a truthful ATS-friendly resume aligned to the job description.
 
@@ -932,6 +932,10 @@ STRICT RULES:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
 - Prefer direct action + scope + business context wording.
+- Keep or rewrite the existing profile/summary section. Do NOT remove it.
+- Do NOT remove non-empty sections such as Languages or Certifications.
+- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
+- Avoid overly long paragraph-like bullets.
 - The result must not read like a lightly polished copy.
 
 RESUME (original):
@@ -1086,7 +1090,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "OPENAI_API_KEY is missing on Vercel" });
     }
 
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const previewModel = process.env.OPENAI_MODEL_PREVIEW || "gpt-5-mini";
+    const fullModel = process.env.OPENAI_MODEL_FULL || "gpt-5.1";
+    const model = isPreview ? previewModel : fullModel;
 
     const LANG_MAP = {
       en: "English",
@@ -1141,7 +1147,7 @@ export default async function handler(req, res) {
               }),
           isPreview,
           passType: "main",
-          maxCompletionTokens: isPreview ? 1400 : 2600,
+          maxCompletionTokens: isPreview ? 1200 : 2000,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1190,7 +1196,7 @@ export default async function handler(req, res) {
           : buildFullAtsPrompt({ cv, jd, hasJD, outLang }),
         isPreview,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1400 : 2800,
+        maxCompletionTokens: isPreview ? 1200 : 1800,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -1229,7 +1235,7 @@ export default async function handler(req, res) {
             }),
             isPreview: false,
             passType: "repair",
-            maxCompletionTokens: 3200,
+            maxCompletionTokens: 2200,
           });
 
           if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
