@@ -1065,7 +1065,7 @@ ${jd || "(none)"}
 `.trim();
 }
 
-function buildLinkedInFullPrompt({
+function buildLinkedInPreviewPrompt({
   cv,
   jd,
   outLang,
@@ -1080,28 +1080,21 @@ Return JSON in this exact schema:
 
 {
   "headlines": [{"label": string, "text": string}],
-  "about": { "short": string, "normal": string, "bold": string },
+  "about": { "short": string },
   "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[], "tools": string[], "industry": string[] },
-  "recruiter": { "keywords": string[], "boolean": string }
+  "skills": { "top": string[] },
+  "recruiter": { "keywords": string[] }
 }
 
-QUALITY RULES:
-- Output VALUES must be in ${outLang}. Do not mix languages.
-- Do NOT invent employers, titles, dates, degrees, or metrics.
-- If resume has no numbers, improve bullets without guessing numbers.
-- Headline max 220 chars each. No emojis.
-- about.short: 500-800 chars.
-- about.normal: 900-1400 chars.
-- about.bold: 900-1400 chars.
-- headlines: exactly 5 items with labels Search, Impact, Niche, Leadership, Clean.
-- experience_fix: 4-6 items maximum, only if there are real, materially stronger rewrites.
-- skills.top: 12-18
-- skills.tools: 8-16
-- skills.industry: 12-20
-- recruiter.keywords: 10-20
-- recruiter.boolean: a single boolean string using OR groups + a few AND terms.
-- Return ONLY valid JSON. No extra keys.
+RULES:
+- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
+- headlines: exactly 1 item.
+- about.short: 250-450 chars, punchy, concise, no emojis.
+- experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
+- skills.top: 5-7 items.
+- recruiter.keywords: 4-6 items.
+- Keep output compact and concise for preview mode.
+- No extra keys. Return ONLY valid JSON.
 
 TARGETING META:
 - target_role: ${liTargetRole || "(not provided)"}
@@ -1117,7 +1110,6 @@ TARGET ROLE / JOB (optional):
 ${jd || "(none)"}
 `.trim();
 }
-
 export default async function handler(req, res) {
   const startedAt = Date.now();
 
