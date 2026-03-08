@@ -434,7 +434,7 @@ function computeHeuristicAtsScore(cv = "", jd = "") {
   const weakVerbHits = countWeakVerbHits(cv);
   const metricHits = countMetricHits(cv);
   const lines = getNonEmptyLines(cv);
-  const header = extractHeaderBlock(cv).join(" ");
+  const header = extractIdentityBlock(cv).join(" ");
 
   const hasSummary =
     /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/im.test(
