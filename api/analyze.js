@@ -496,14 +496,31 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (origNorm === optNorm) return true;
 
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.4) return true;
+  function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
+  if (!optimizedCv || !String(optimizedCv).trim()) return true;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm) return true;
+  if (origNorm === optNorm) return true;
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  if (total > 0 && same / total >= 0.65) return true;
 
   const optimizedBullets = getBulletLines(optimizedCv);
-  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.7))) {
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.6))) {
     return true;
   }
 
-  if (countWeakVerbHits(optimizedCv) >= 2) return true;
+  if (countWeakVerbHits(optimizedCv) >= 4) return true;
+
+  if (hasSummarySection(originalCv) && !hasSummarySection(optimizedCv)) {
+    return true;
+  }
+
+  return false;
+}
 
   return false;
 }
