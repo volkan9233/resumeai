@@ -1065,51 +1065,6 @@ ${jd || "(none)"}
 `.trim();
 }
 
-function buildLinkedInPreviewPrompt({
-  cv,
-  jd,
-  outLang,
-  liTargetRole,
-  liSeniority,
-  liIndustry,
-  liLocation,
-  liTone,
-}) {
-  return `
-Return JSON in this exact schema:
-
-{
-  "headlines": [{"label": string, "text": string}],
-  "about": { "short": string },
-  "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[] },
-  "recruiter": { "keywords": string[] }
-}
-
-RULES:
-- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
-- headlines: exactly 1 item.
-- about.short: 250-450 chars, punchy, concise, no emojis.
-- experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
-- skills.top: 5-7 items.
-- recruiter.keywords: 4-6 items.
-- Keep output compact and concise for preview mode.
-- No extra keys. Return ONLY valid JSON.
-
-TARGETING META:
-- target_role: ${liTargetRole || "(not provided)"}
-- seniority: ${liSeniority}
-- industry: ${liIndustry || "(not provided)"}
-- location: ${liLocation || "(not provided)"}
-- tone: ${liTone}
-
-RESUME:
-${cv}
-
-TARGET ROLE / JOB (optional):
-${jd || "(none)"}
-`.trim();
-}
 export default async function handler(req, res) {
   const startedAt = Date.now();
 
