@@ -74,10 +74,6 @@ function isGpt5Model(model = "") {
   return /^gpt-5/i.test(String(model).trim());
 }
 
-function isGpt51Model(model = "") {
-  return /^gpt-5\.1/i.test(String(model).trim());
-}
-
 function buildOpenAIPayload({
   model,
   messages,
@@ -95,8 +91,7 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
-    // GPT-5.1 full low/medium'da temperature göndermiyoruz.
-    // Sadece none kullandığımız preview / fallback için veriyoruz.
+    // GPT-5.1'de temperature sadece reasoning_effort = none iken gönderilir.
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -170,7 +165,7 @@ function getBulletLines(str = "") {
 }
 
 function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|EĞİTİM)$/i.test(
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|EĞİTİM|YABANCI DİL|DİL|SERTİFİKALAR)$/i.test(
     String(line).trim()
   );
 }
@@ -280,6 +275,51 @@ function countWeakVerbHits(cv = "") {
   ).length;
 }
 
+function uniqueTrimmedStrings(items = [], maxItems = null) {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const s = String(item || "").trim();
+    if (!s) continue;
+    const key = normalizeCompareText(s);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+    if (maxItems && out.length >= maxItems) break;
+  }
+
+  return out;
+}
+
+function normalizeWeakSentences(items = [], maxItems = null) {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const sentence = String(item?.sentence || "").trim();
+    const rewrite = String(item?.rewrite || "").trim();
+
+    if (!sentence || !rewrite) continue;
+
+    const sentenceKey = normalizeCompareText(sentence);
+    const rewriteKey = normalizeCompareText(rewrite);
+
+    if (!sentenceKey || !rewriteKey) continue;
+    if (sentenceKey === rewriteKey) continue;
+
+    const comboKey = `${sentenceKey}__${rewriteKey}`;
+    if (seen.has(comboKey)) continue;
+
+    seen.add(comboKey);
+    out.push({ sentence, rewrite });
+
+    if (maxItems && out.length >= maxItems) break;
+  }
+
+  return out;
+}
+
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
@@ -290,10 +330,10 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (origNorm === optNorm) return true;
 
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.4) return true;
+  if (total > 0 && same / total >= 0.5) return true;
 
   const optimizedBullets = getBulletLines(optimizedCv);
-  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.7))) {
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.65))) {
     return true;
   }
 
@@ -323,12 +363,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4800),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
       },
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3400),
       },
     ];
   }
@@ -357,7 +397,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 4000),
     },
     {
       reasoningEffort: "none",
@@ -472,8 +512,8 @@ function buildAtsSystem(outLang) {
   return `
 CRITICAL RULES (must follow):
 - Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Only use metrics and facts that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using clearer professional phrasing WITHOUT adding numbers.
 - Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
 - If unsure, prefer neutral phrasing with no numbers.
 - If the input contains a number, keep it exact; do not round up/down or change it.
@@ -482,8 +522,23 @@ CRITICAL RULES (must follow):
 - If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
 - Rewrites must be materially better than the original.
 - Do NOT make shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
+- Each rewrite must improve at least two of these: clarity, specificity, scannability, professional tone, recruiter readability, or action strength.
+- If a rewrite is too similar to the original, rewrite it again with stronger but truthful professional phrasing.
+
+SPARSE / JUNIOR / LOW-INFORMATION CV RULES:
+- If the source resume is junior, vague, short, support-oriented, or low-detail, prefer conservative truthful rewrites.
+- Do NOT expand a vague bullet into a detailed workflow unless those details are clearly supported by the original text.
+- Do NOT invent weekly/monthly cadence, content calendars, brief preparation, stakeholder presentations, approval flows, campaign setup mechanics, funnel ownership, optimization levers, reporting cadence, supplier management, or strategic planning unless explicitly supported by the input.
+- A concise and truthful rewrite is better than a longer but speculative rewrite.
+- For sparse resumes, keep bullets compact and realistic.
+
+SCORING RULES:
+- ATS score should measure ATS readiness and recruiter clarity, not seniority prestige.
+- Do not penalize a junior candidate merely for being junior.
+- Reward truthful structure, clearer wording, relevant keywords, and ATS-safe formatting.
+- Penalize unsupported specificity, inflated ownership, and invented professional scope.
+
+OUTPUT RULES:
 - Return ONLY valid JSON. No markdown. No extra text.
 - All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 `.trim();
@@ -494,7 +549,7 @@ function buildLinkedInSystem(outLang) {
 CRITICAL RULES (must follow):
 - Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
 - Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- If a bullet has no measurable metric, rewrite it using clearer professional phrasing WITHOUT adding numbers.
 - Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
 - If unsure, prefer neutral phrasing with no numbers.
 - If the input contains a number, keep it exact; do not round up/down or change it.
@@ -519,15 +574,16 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment, not just general resume quality.
+- ats_score must reflect resume-to-job alignment, ATS clarity, truthfulness, and recruiter readability.
 - missing_keywords MUST include 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include up to 2 items picked from real resume sentences.
+- weak_sentences MUST include 0-2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
+- If the resume is sparse, prefer fewer but stronger rewrite examples.
+- Each rewrite must feel meaningfully stronger, clearer, and more professional without sounding more senior than the source.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -552,16 +608,17 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must reflect general ATS readiness: structure, section completeness, clarity, bullet strength, and keyword coverage.
+- ats_score must reflect general ATS readiness: structure, section completeness, clarity, bullet strength, keyword relevance, and truthfulness.
 - missing_keywords MUST include 5-7 items.
 - These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume keywords based on the candidate's apparent role and experience.
 - missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include up to 2 items picked from real resume sentences.
+- weak_sentences MUST include 0-2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
+- If the resume is sparse, prefer fewer but stronger rewrite examples.
+- Each rewrite must feel meaningfully stronger, clearer, and more professional without sounding more senior than the source.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -586,20 +643,26 @@ Analyze the resume vs job description and return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment.
-- missing_keywords MUST include 18-30 items genuinely missing or underrepresented from the JOB DESCRIPTION.
+- ats_score must reflect resume-to-job alignment, ATS clarity, truthfulness, and recruiter readability.
+- missing_keywords MUST include 18-28 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include 6-10 items from the resume text.
+- weak_sentences MUST include 4-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- Each rewrite must improve at least two of these: clarity, specificity, scannability, professional tone, recruiter readability, or action strength.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
 - optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
 - If resume has no numbers, do NOT add any numbers in rewrites.
 - Keep the header identity block and existing experience titles unchanged.
+
+LOW-INFORMATION CV RULES:
+- If the resume is junior, sparse, vague, or support-oriented, optimize conservatively.
+- Do NOT fabricate strategy ownership, campaign mechanics, reporting cadence, operational workflows, stakeholder processes, or business impact details.
+- Do NOT turn a basic support bullet into a multi-step expert bullet.
+- For sparse bullets, shorter truthful rewrites are preferred over longer speculative rewrites.
 
 Return ONLY valid JSON.
 
@@ -625,14 +688,14 @@ Analyze the resume and return JSON in this exact schema:
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
 - ats_score must reflect general ATS readiness, not job match.
-- missing_keywords MUST include 15-25 items.
+- missing_keywords MUST include 14-22 items.
 - These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
-- weak_sentences MUST include 6-10 items from the resume text.
+- weak_sentences MUST include 4-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- Each rewrite must improve at least two of these: clarity, specificity, scannability, professional tone, recruiter readability, or action strength.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
@@ -640,6 +703,12 @@ HARD REQUIREMENTS:
 - Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
 - If resume has no numbers, do NOT add any numbers in rewrites.
 - Keep the header identity block and existing experience titles unchanged.
+
+LOW-INFORMATION CV RULES:
+- If the resume is junior, sparse, vague, or support-oriented, optimize conservatively.
+- Do NOT fabricate strategy ownership, campaign mechanics, reporting cadence, operational workflows, stakeholder processes, or business impact details.
+- Do NOT turn a basic support bullet into a multi-step expert bullet.
+- For sparse bullets, shorter truthful rewrites are preferred over longer speculative rewrites.
 
 Return ONLY valid JSON.
 
@@ -676,6 +745,11 @@ STRICT RULES:
 - The result must not read like a lightly polished copy.
 - The result must still be a truthful ATS-friendly resume aligned to the job description.
 
+LOW-INFORMATION CV RULES:
+- If the source resume is junior, sparse, or vague, do NOT over-expand it.
+- Do NOT invent process details, cadence, strategy ownership, stakeholder routines, or business outcomes.
+- Keep sparse bullets compact, realistic, and truthful.
+
 RESUME (original):
 ${cv}
 
@@ -710,6 +784,11 @@ STRICT RULES:
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
 - Prefer direct action + scope + business context wording.
 - The result must not read like a lightly polished copy.
+
+LOW-INFORMATION CV RULES:
+- If the source resume is junior, sparse, or vague, do NOT over-expand it.
+- Do NOT invent process details, cadence, strategy ownership, stakeholder routines, or business outcomes.
+- Keep sparse bullets compact, realistic, and truthful.
 
 RESUME (original):
 ${cv}
@@ -979,9 +1058,15 @@ export default async function handler(req, res) {
 
     const normalized = {
       ats_score: clampScore(data?.ats_score),
-      missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
-      weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
-      summary: typeof data?.summary === "string" ? data.summary : "",
+      missing_keywords: uniqueTrimmedStrings(
+        Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
+        isPreview ? 7 : 30
+      ),
+      weak_sentences: normalizeWeakSentences(
+        Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
+        isPreview ? 2 : 8
+      ),
+      summary: typeof data?.summary === "string" ? data.summary.trim() : "",
       ...(isPreview
         ? {}
         : {
@@ -1013,7 +1098,7 @@ export default async function handler(req, res) {
             currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
           }
         } catch {
-          // İlk optimize edilmiş sürüm kullanılmaya devam eder
+          // ilk optimize edilmiş sürüm kullanılmaya devam eder
         }
       }
 
