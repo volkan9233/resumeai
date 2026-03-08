@@ -189,7 +189,7 @@ async function callOpenAIJson({
     model,
     reasoning_effort: reasoningEffort,
     response_format: { type: "json_object" },
-    max_tokens: maxTokens,
+    max_completion_tokens: maxTokens,
     messages: [
       { role: "system", content: system },
       { role: "user", content: userPrompt },
