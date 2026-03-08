@@ -358,7 +358,7 @@ function containsSupportToOwnershipShift(originalCv = "", optimizedCv = "") {
   return false;
 }
 
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "") {
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", hasJD = false) {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
   const origNorm = normalizeCompareText(originalCv);
@@ -367,16 +367,24 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "") {
   if (!optNorm) return true;
   if (origNorm === optNorm) return true;
 
-  if (hasInventedNumbers(originalCv, optimizedCv, jd)) return true;
-  if (hasBasicUpgrade(originalCv, optimizedCv)) return true;
-  if (containsForbiddenNewTerms(originalCv, optimizedCv, jd)) return true;
-  if (containsSupportToOwnershipShift(originalCv, optimizedCv)) return true;
-  if (experienceTitlesChanged(originalCv, optimizedCv)) return true;
-
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.3) return true;
+  if (total > 0 && same / total >= 0.34) return true;
 
-  if (countWeakVerbHits(optimizedCv) >= 1) return true;
+  const optimizedBullets = getBulletLines(optimizedCv);
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.8))) {
+    return true;
+  }
+
+  const weakVerbHits = optimizedBullets.filter((b) =>
+    /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|destek oldum|destek verdim|katkı sağladım|görev aldım)\b/i.test(
+      b
+    )
+  ).length;
+
+  if (weakVerbHits >= 2) return true;
+
+  const flagged = getFlaggedOptimizedBullets(originalCv, optimizedCv, jd, hasJD);
+  if (flagged.length > 0) return true;
 
   return false;
 }
