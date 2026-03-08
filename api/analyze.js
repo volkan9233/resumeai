@@ -176,34 +176,6 @@ function isBodySectionHeader(line = "") {
     String(line).trim()
   );
 }
-
-function extractHeaderBlock(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const header = [];
-
-  for (const line of lines) {
-    if (isBodySectionHeader(line)) break;
-    header.push(line);
-  }
-
-  return header;
-}
-
-function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
-  const originalHeader = extractHeaderBlock(originalCv);
-  if (!originalHeader.length) return String(optimizedCv || "").trim();
-
-  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
-  const sectionIdx = lines.findIndex((x) => isBodySectionHeader(String(x).trim()));
-
-  if (sectionIdx === -1) {
-    return `${originalHeader.join("\n")}\n\n${String(optimizedCv || "").trim()}`.trim();
-  }
-
-  const body = lines.slice(sectionIdx).join("\n").trim();
-  return `${originalHeader.join("\n")}\n\n${body}`.trim();
-}
-
 function extractExperienceTitles(cv = "") {
   const lines = getNonEmptyLines(cv);
   const titles = [];
@@ -254,9 +226,94 @@ function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+  function hasSummarySection(cv = "") {
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/im.test(
+    String(cv || "")
+  );
+}
+
+function extractIdentityBlock(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const out = [];
+
+  for (const line of lines) {
+    if (isSectionHeader(line)) break;
+    out.push(line);
+    if (out.length >= 4) break;
+  }
+
+  return out;
+}
+
+function extractSummarySection(cv = "") {
+  const lines = String(cv || "").replace(/\r/g, "").split("\n");
+  const start = lines.findIndex((x) =>
+    /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/i.test(
+      String(x).trim()
+    )
+  );
+
+  if (start === -1) return "";
+
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (isBodySectionHeader(String(lines[i]).trim())) {
+      end = i;
+      break;
+    }
+  }
+
+  return lines
+    .slice(start, end)
+    .join("\n")
+    .trim();
+}
+
+function replaceIdentityBlock(originalCv = "", optimizedCv = "") {
+  const identity = extractIdentityBlock(originalCv);
+  if (!identity.length) return String(optimizedCv || "").trim();
+
+  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
+  const firstSectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
+
+  const body =
+    firstSectionIdx === -1
+      ? String(optimizedCv || "").trim()
+      : lines.slice(firstSectionIdx).join("\n").trim();
+
+  return `${identity.join("\n")}\n\n${body}`.trim();
+}
+
+function ensureSummarySection(originalCv = "", optimizedCv = "") {
+  const out = String(optimizedCv || "").trim();
+  if (!out) return out;
+
+  if (hasSummarySection(out)) return out;
+
+  const originalSummary = extractSummarySection(originalCv);
+  if (!originalSummary) return out;
+
+  const lines = out.replace(/\r/g, "").split("\n");
+  const firstBodyIdx = lines.findIndex((x) =>
+    isBodySectionHeader(String(x).trim())
+  );
+
+  if (firstBodyIdx === -1) {
+    return `${out}\n\n${originalSummary}`.replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  const beforeBody = lines.slice(0, firstBodyIdx).join("\n").trim();
+  const body = lines.slice(firstBodyIdx).join("\n").trim();
+
+  return `${beforeBody}\n\n${originalSummary}\n\n${body}`
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function forceSafeResume(originalCv = "", optimizedCv = "") {
   let out = String(optimizedCv || "").trim();
-  out = replaceHeaderBlock(originalCv, out);
+  out = replaceIdentityBlock(originalCv, out);
+  out = ensureSummarySection(originalCv, out);
   out = restoreExperienceTitles(originalCv, out);
   return out.trim();
 }
