@@ -127,13 +127,35 @@ function normalizeCompareText(str = "") {
     .trim();
 }
 
-function getBulletLines(str = "") {
+function getNonEmptyLines(str = "") {
   return String(str)
+    .replace(/\r/g, "")
     .split("\n")
     .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function getBulletLines(str = "") {
+  return getNonEmptyLines(str)
     .filter((x) => /^[-•·‣▪▫◦]\s+/.test(x))
     .map((x) => x.replace(/^[-•·‣▪▫◦]\s+/, "").trim())
     .filter(Boolean);
+}
+
+function extractNumbers(str = "") {
+  return new Set(String(str).match(/\b\d+(?:[.,]\d+)?\b/g) || []);
+}
+
+function hasInventedNumbers(originalCv = "", optimizedCv = "", jd = "") {
+  const allowed = new Set([
+    ...extractNumbers(originalCv),
+    ...extractNumbers(jd),
+  ]);
+
+  for (const n of extractNumbers(optimizedCv)) {
+    if (!allowed.has(n)) return true;
+  }
+  return false;
 }
 
 function countUnchangedBullets(originalCv = "", optimizedCv = "") {
@@ -141,14 +163,34 @@ function countUnchangedBullets(originalCv = "", optimizedCv = "") {
   const optSet = new Set(
     getBulletLines(optimizedCv).map(normalizeCompareText).filter(Boolean)
   );
+
   let same = 0;
   for (const line of orig) {
     if (optSet.has(line)) same++;
   }
+
   return { same, total: orig.length };
 }
 
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
+function countWeakVerbHits(text = "") {
+  const bullets = getBulletLines(text);
+  return bullets.filter((b) =>
+    /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled)\b/i.test(
+      b
+    )
+  ).length;
+}
+
+function hasBasicToExpertUpgrade(original = "", optimized = "") {
+  const basicRe =
+    /\b(basic|temel|beginner|entry-level|introductory|foundation)\b/i;
+  const expertRe =
+    /\b(expert|advanced|uzman|expertise|ileri|specialist-level|mastery)\b/i;
+
+  return basicRe.test(original) && expertRe.test(optimized) && !expertRe.test(original);
+}
+
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
   const origNorm = normalizeCompareText(originalCv);
@@ -156,24 +198,63 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
 
   if (!optNorm) return true;
   if (origNorm === optNorm) return true;
+  if (hasInventedNumbers(originalCv, optimizedCv, jd)) return true;
+  if (hasBasicToExpertUpgrade(originalCv, optimizedCv)) return true;
 
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.34) return true;
+  if (total > 0 && same / total >= 0.25) return true;
 
   const optimizedBullets = getBulletLines(optimizedCv);
   if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.8))) {
     return true;
   }
 
-  const weakVerbHits = optimizedBullets.filter((b) =>
-    /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled)\b/i.test(
-      b
-    )
-  ).length;
-
-  if (weakVerbHits >= 2) return true;
+  if (countWeakVerbHits(optimizedCv) >= 1) return true;
 
   return false;
+}
+
+function uniqueStrings(items = [], limit = 999) {
+  const out = [];
+  const seen = new Set();
+
+  for (const raw of items || []) {
+    const value = String(raw || "").trim();
+    if (!value) continue;
+
+    const key = normalizeCompareText(value);
+    if (!key || seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(value);
+
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}
+
+function normalizeWeakSentences(items = [], limit = 999) {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of items || []) {
+    if (!item || typeof item !== "object") continue;
+
+    const sentence = String(item.sentence || "").trim();
+    const rewrite = String(item.rewrite || "").trim();
+    if (!sentence || !rewrite) continue;
+
+    const pairKey = `${normalizeCompareText(sentence)}__${normalizeCompareText(rewrite)}`;
+    if (seen.has(pairKey)) continue;
+
+    seen.add(pairKey);
+    out.push({ sentence, rewrite });
+
+    if (out.length >= limit) break;
+  }
+
+  return out;
 }
 
 async function callOpenAIJson({
@@ -216,83 +297,21 @@ async function callOpenAIJson({
   return safeJsonParse(text);
 }
 
-export default async function handler(req, res) {
-  const startedAt = Date.now();
-
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "POST required" });
-    }
-
-    const { cv, jd, preview, lang, mode, linkedin_meta } = req.body || {};
-    const reqMode =
-      typeof mode === "string" && mode.trim() ? mode.trim().toLowerCase() : "ats";
-
-    const sessionOk = verifySession(req);
-    const requestedPreview = !!preview;
-    const isPreview = requestedPreview || !sessionOk;
-
-    console.log("ANALYZE FLAGS", {
-      requestedPreview,
-      sessionOk,
-      isPreview,
-      hasCookie: !!req.headers.cookie,
-    });
-
-    const ip = getClientIp(req);
-    const limiter = isPreview ? rlPreview : rlFull;
-
-    const { success, reset } = await limiter.limit(ip);
-
-    if (!success) {
-      const retrySec = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
-      return res.status(429).json({
-        error: "Too many requests",
-        retry_after_seconds: retrySec,
-      });
-    }
-
-    if (!cv) {
-      return res.status(400).json({ error: "cv is required" });
-    }
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return res
-        .status(500)
-        .json({ error: "OPENAI_API_KEY is missing on Vercel" });
-    }
-
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-
-    const LANG_MAP = {
-      en: "English",
-      tr: "Turkish",
-      es: "Spanish",
-      ru: "Russian",
-      fr: "French",
-      ar: "Arabic",
-      zh: "Chinese (Simplified)",
-    };
-
-    const langCode =
-      typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
-    const outLang = LANG_MAP[langCode] || "English";
-    const hasJD = typeof jd === "string" && jd.trim().length > 0;
-
-    const system = `
+function buildAtsSystem(outLang) {
+  return `
 CRITICAL TRUTH RULES:
 - Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
 - Only use facts explicitly supported by the user's resume and, if present, the job description.
 - If the resume states a specific duration such as "6 years", keep it exact. Do NOT convert it into "5+ years" or any other variation.
-- Do NOT invent employers, titles, degrees, dates, certifications, tools, platforms, channels, or projects.
-- Do NOT replace generic wording with a specific tool/platform unless that tool/platform is explicitly present in the input.
+- Do NOT invent employers, titles, degrees, dates, certifications, tools, platforms, channels, projects, responsibilities, or industries.
+- Do NOT replace generic wording with a more specific tool/platform/channel unless that exact tool/platform/channel is explicitly present in the input.
 - Example: if the resume says "social media platforms", do NOT rewrite it as "Meta" unless Meta is explicitly present.
-- Do NOT upgrade proficiency levels. Example: if the resume says "basic data analysis", do NOT rewrite it as full "data analysis expertise" unless clearly supported.
-- You may strengthen support-type tasks, but do NOT convert support into ownership or leadership unless clearly supported by the input.
-- Use "led" ONLY if leadership is explicitly or very clearly supported.
+- Do NOT upgrade proficiency levels. Example: if the resume says "basic data analysis", do NOT rewrite it as "advanced data analysis" or "data analysis expertise" unless clearly supported.
+- You may strengthen support-type tasks, but do NOT convert support into ownership, management, or leadership unless clearly supported by the input.
+- Use "led" ONLY if leadership is explicitly or very clearly supported by the input.
+- Keep the candidate's real role/title truthful. Do NOT silently change the person into a more senior, more niche, or different specialist role unless that shift is clearly supported by the resume itself.
 - If a bullet has no measurable metric, rewrite it using:
-  action + scope + tools/platforms + business context + purpose/outcome wording
+  action + scope + tools/platforms/channels already present + business context + purpose/outcome wording
   WITHOUT numbers.
 
 QUALITY STANDARD:
@@ -314,21 +333,25 @@ QUALITY STANDARD:
   handled
   supported
 - Replace weak verbs with stronger truth-preserving verbs whenever justified by the original text, such as:
-  managed, executed, developed, coordinated, delivered, analyzed, optimized, partnered, prepared, oversaw, collaborated.
-- Do not use inflated language that invents seniority, scope, or ownership.
+  managed, executed, developed, coordinated, delivered, analyzed, optimized, partnered, prepared, collaborated, oversaw.
+- Do not use inflated language that invents seniority, scope, ownership, or measurable impact.
 
 OPTIMIZED CV RULES:
 - optimized_cv MUST NOT feel like a lightly polished copy of the original resume.
 - Every experience bullet in optimized_cv should be rewritten to sound more specific, action-oriented, recruiter-ready, and ATS-friendly while staying factually faithful.
 - Do not preserve weak wording when a stronger truthful rewrite is possible.
 - Prefer this pattern when no metrics exist:
-  action verb + what was handled + channel/tool/context + business purpose
+  action verb + what was handled + tool/channel/context already present + business purpose
 - Even without numbers, bullets should sound concrete and professionally scoped.
 - Avoid copying original bullets unless they are already highly optimized.
 - Keep bullets concise, clean, and recruiter-friendly.
+- The optimized_cv must improve ATS performance on:
+  section completeness, clarity/readability, bullet strength, ATS-safe formatting, and role relevance.
+- If a job description exists, optimized_cv must also improve genuine alignment to that job description without inventing claims.
+- If no job description exists, optimize the resume as a strong standalone ATS-friendly resume for the candidate's apparent role based only on the resume's own content.
 
 SUMMARY RULES:
-- The summary should reflect real strengths and weaknesses from the resume.
+- The summary must reflect real strengths and weaknesses from the resume.
 - The summary must explain the biggest reasons affecting the ATS score.
 
 OUTPUT RULES:
@@ -337,46 +360,63 @@ OUTPUT RULES:
 - No markdown.
 - No extra text.
 - All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
-- This includes: missing_keywords items, weak_sentences.sentence, weak_sentences.rewrite, summary, optimized_cv.
+- This includes:
+  missing_keywords items,
+  weak_sentences.sentence,
+  weak_sentences.rewrite,
+  summary,
+  optimized_cv.
 - Do not add any extra keys except component_scores when requested.
 `.trim();
+}
 
-    const linkedinSystem = `
-CRITICAL RULES (must follow):
+function buildLinkedinSystem(outLang) {
+  return `
+CRITICAL RULES:
 - Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Only use metrics explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using:
+  scope + actions + tools/platforms already present + context + outcome wording
+  WITHOUT numbers.
 - Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer neutral phrasing with no numbers.
+- If unsure, prefer truthful neutral phrasing with no numbers.
 - If the input contains a number, keep it exact; do not round up/down or change it.
 - Do NOT invent employers, titles, degrees, dates, certifications, or metrics.
 - Do NOT replace generic platform language with a specific platform unless it is explicitly present.
+- Do NOT upgrade support-level work into leadership unless clearly supported.
 
-For BEFORE → AFTER rewrites:
+FOR BEFORE -> AFTER REWRITES:
 - AFTER must preserve factual truth.
 - It can improve clarity and strength but must not add new facts.
 - If BEFORE has no metric, AFTER must not contain any metric.
 
-You are a LinkedIn profile optimization expert.
-Return ONLY valid JSON. No markdown. No extra text.
-CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
-- If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
+QUALITY STANDARD:
 - Rewrites must be materially better than the original.
 - Do NOT make shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- Each rewrite must improve at least two of these:
+  clarity, ownership, specificity, scope, action strength, business context.
 - If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
+
+You are a LinkedIn profile optimization expert.
+Return ONLY valid JSON.
+No markdown.
+No extra text.
+CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 No extra keys.
 `.trim();
+}
 
-    const liMeta =
-      linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
-    const liTargetRole = String(liMeta.target_role || "").trim();
-    const liSeniority = String(liMeta.seniority || "mid").trim();
-    const liIndustry = String(liMeta.industry || "").trim();
-    const liLocation = String(liMeta.location || "").trim();
-    const liTone = String(liMeta.tone || "clean").trim();
-
-    const linkedinPreviewUser = `
+function buildLinkedinPreviewPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
 Return JSON in this exact schema:
 
 {
@@ -388,10 +428,11 @@ Return JSON in this exact schema:
 }
 
 RULES:
-- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
+- Output VALUES must be in ${outLang}. Proper nouns/tools may stay as-is.
 - headlines: exactly 1 item.
 - about.short: 600–900 chars, punchy, no emojis.
-- experience_fix: exactly 1 item. "before" must be a real bullet/sentence from the resume.
+- experience_fix: exactly 1 item.
+- "before" must be a real bullet/sentence from the resume.
 - "after" must be materially stronger than "before", not a light synonym swap.
 - Choose only a sentence where a clearly better rewrite is possible.
 - If the rewrite is too similar to the original, choose another sentence.
@@ -399,15 +440,16 @@ RULES:
 - recruiter.keywords: 5–8 items.
 - No extra keys. Return ONLY valid JSON.
 
-TARGETING META (use strictly):
+TARGETING META:
 - target_role: ${liTargetRole || "(not provided)"}
 - seniority: ${liSeniority}
 - industry: ${liIndustry || "(not provided)"}
 - location: ${liLocation || "(not provided)"}
-- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
+- tone: ${liTone}
 
 HARD RULE:
-- If target_role is provided, tailor every output to that role and seniority. Prefer role-specific keywords and tools.
+- If target_role is provided, tailor every output to that role and seniority.
+- Prefer role-specific keywords and phrasing only when truthfully supported.
 
 RESUME:
 ${cv}
@@ -415,8 +457,19 @@ ${cv}
 TARGET ROLE / JOB (optional):
 ${jd || "(none)"}
 `.trim();
+}
 
-    const linkedinFullUser = `
+function buildLinkedinFullPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
 Return JSON in this exact schema:
 
 {
@@ -429,22 +482,26 @@ Return JSON in this exact schema:
 
 QUALITY RULES:
 - Output VALUES must be in ${outLang}. Do not mix languages.
-- Do NOT invent employers, titles, dates, degrees, or metrics.
-- If resume has no numbers, improve bullets using scope + tools + outcome WITHOUT guessing numbers.
+- Do NOT invent employers, titles, dates, degrees, tools, or metrics.
+- If resume has no numbers, improve bullets using scope + tools already present + outcome wording WITHOUT guessing numbers.
 - Headline max 220 chars each. No emojis.
 - About:
   - short: 500–800 chars
   - normal: 900–1400 chars
-  - bold: 900–1400 chars (more confident, still truthful)
+  - bold: 900–1400 chars, more confident but still truthful
 - headlines: exactly 5 items with labels:
   1) "Search"
   2) "Impact"
   3) "Niche"
   4) "Leadership"
   5) "Clean"
-- experience_fix: exactly 5-6 items. Each "before" must be from the resume text. "after" must be LinkedIn-ready bullet. "why" must explain (clarity/impact/scope/keywords).
+- experience_fix: exactly 5–6 items.
+- Each "before" must be from the resume text.
+- Each "after" must be LinkedIn-ready and materially stronger.
+- "why" must explain clarity/impact/scope/keywords.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each "after" must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- Each "after" must improve at least two of these:
+  clarity, ownership, specificity, scope, action strength, business context.
 - If a sentence cannot be improved meaningfully, do not include it.
 - skills.top: 12–18
 - skills.tools: 8–16
@@ -453,15 +510,16 @@ QUALITY RULES:
 - recruiter.boolean: a single boolean string using OR groups + a few AND terms, ready to paste in LinkedIn Recruiter.
 - Return ONLY valid JSON. No extra keys.
 
-TARGETING META (must drive output strongly):
+TARGETING META:
 - target_role: ${liTargetRole || "(not provided)"}
 - seniority: ${liSeniority}
 - industry: ${liIndustry || "(not provided)"}
 - location: ${liLocation || "(not provided)"}
-- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
+- tone: ${liTone}
 
 HARD RULE:
 - If target_role is provided, every headline + about + skills + recruiter keywords MUST align to target_role + seniority.
+- Only use role-specific phrasing where truthfully supported by the resume.
 
 RESUME:
 ${cv}
@@ -469,9 +527,11 @@ ${cv}
 TARGET ROLE / JOB (optional):
 ${jd || "(none)"}
 `.trim();
+}
 
-    const previewUser = hasJD
-      ? `
+function buildAtsPreviewPrompt({ cv, jd, hasJD, outLang }) {
+  if (hasJD) {
+    return `
 Return JSON in this exact schema:
 
 {
@@ -489,14 +549,10 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- Evaluate each component score on a 0-100 scale:
-  - jd_keyword_match
-  - section_completeness
-  - bullet_strength
-  - ats_safe_formatting
-  - role_alignment
-- component_scores must reflect the real resume-to-job alignment.
-- missing_keywords MUST include exactly 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
+- Evaluate each component score on a 0–100 scale:
+  jd_keyword_match, section_completeness, bullet_strength, ats_safe_formatting, role_alignment.
+- component_scores must reflect real resume-to-job alignment.
+- missing_keywords MUST include exactly 5–7 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, practical, and written in ${outLang}.
 
 WEAK SENTENCE RULES:
@@ -510,7 +566,6 @@ WEAK SENTENCE RULES:
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing weak examples.
-- Prefer recruiter-ready scoped phrasing even when no numbers are available.
 
 SUMMARY RULES:
 - summary MUST be 4–6 bullet lines in ${outLang}.
@@ -527,8 +582,10 @@ ${cv}
 
 JOB DESCRIPTION:
 ${jd}
-`.trim()
-      : `
+`.trim();
+  }
+
+  return `
 Return JSON in this exact schema:
 
 {
@@ -546,15 +603,11 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- Evaluate each component score on a 0-100 scale:
-  - section_completeness
-  - clarity_readability
-  - bullet_strength
-  - ats_safe_formatting
-  - core_keyword_coverage
-- missing_keywords MUST include exactly 5-7 items.
+- Evaluate each component score on a 0–100 scale:
+  section_completeness, clarity_readability, bullet_strength, ats_safe_formatting, core_keyword_coverage.
+- missing_keywords MUST include exactly 5–7 items.
 - These are NOT job-specific missing keywords.
-- They should be recommended ATS/recruiter-friendly resume terms based on the candidate's apparent role and existing experience.
+- They should be recommended ATS/recruiter-friendly resume terms based on the candidate's apparent role and existing experience already visible in the resume.
 - missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
 
 WEAK SENTENCE RULES:
@@ -568,7 +621,6 @@ WEAK SENTENCE RULES:
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If there are not enough strong rewrite candidates, return fewer weak_sentences rather than forcing weak examples.
-- Prefer recruiter-ready scoped phrasing even when no numbers are available.
 
 SUMMARY RULES:
 - summary MUST be 4–6 bullet lines in ${outLang}.
@@ -583,9 +635,11 @@ Return ONLY valid JSON.
 RESUME:
 ${cv}
 `.trim();
+}
 
-    const fullUser = hasJD
-      ? `
+function buildAtsFullPrompt({ cv, jd, hasJD, outLang }) {
+  if (hasJD) {
+    return `
 Analyze the resume vs job description and return JSON in this exact schema:
 
 {
@@ -603,21 +657,17 @@ Analyze the resume vs job description and return JSON in this exact schema:
 }
 
 PRIMARY OBJECTIVE:
-- The optimized_cv must be rewritten to materially improve ATS alignment for THIS SAME job description.
+- The optimized_cv must materially improve ATS alignment for THIS SAME job description.
 - If this optimized_cv is analyzed again against the same JD, it should score meaningfully higher than the original resume.
-- Do not merely polish wording. Improve keyword coverage, role alignment, section strength, recruiter clarity, and ATS relevance.
+- Do not merely polish wording. Improve real keyword coverage, role alignment, section strength, recruiter clarity, and ATS relevance.
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- Evaluate each component score on a 0-100 scale:
-  - jd_keyword_match
-  - section_completeness
-  - bullet_strength
-  - ats_safe_formatting
-  - role_alignment
+- Evaluate each component score on a 0–100 scale:
+  jd_keyword_match, section_completeness, bullet_strength, ats_safe_formatting, role_alignment.
 
 SCORING LOGIC:
-- jd_keyword_match should reflect whether the resume naturally includes the most important skills, responsibilities, and domain terms from the job description.
+- jd_keyword_match should reflect whether the resume naturally includes the most important skills, responsibilities, workflows, and domain terms from the job description.
 - section_completeness should reflect whether the resume has strong ATS-friendly sections with useful content.
 - bullet_strength should reflect whether bullets are specific, action-oriented, and recruiter-ready.
 - ats_safe_formatting should reflect whether the resume uses clean ATS-readable structure and clear sectioning.
@@ -627,7 +677,7 @@ MISSING KEYWORDS:
 - missing_keywords MUST include 25–35 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - Prefer the most score-impacting missing terms first.
-- Include a balanced mix of hard skills, process terms, responsibility terms, analysis/reporting terms, and stakeholder terms.
+- Include a balanced mix of hard skills, tools already compatible with the role, process terms, responsibility terms, analysis/reporting terms, and stakeholder terms.
 - Do NOT include generic fluff unless it is clearly relevant in the JD.
 
 WEAK SENTENCES:
@@ -639,17 +689,17 @@ WEAK SENTENCES:
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If a sentence cannot be improved meaningfully, do not include it.
-- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list.
 
 OPTIMIZED_CV — MOST IMPORTANT RULES:
 - optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
 - optimized_cv MUST NOT be a lightly edited version of the original resume.
-- The output should feel like a stronger, more targeted, recruiter-ready version of the candidate’s resume.
+- The output should feel like a stronger, more targeted, recruiter-ready version of the candidate’s real resume.
 - Preserve only truthful information from the input resume.
 - Use clean ATS-friendly structure.
 - Rewrite the summary so it clearly aligns the candidate to the target role in the JD.
 - The summary must naturally include high-value JD language where truthful and relevant.
-- Do not add fake achievements, fake industries, fake tools, fake platforms, or fake scale.
+- Do not add fake achievements, fake platforms, fake tools, fake industries, fake scale, or fake seniority.
 
 OPTIMIZED_CV EXPERIENCE RULES:
 - Every bullet in optimized_cv should be rewritten with stronger, cleaner recruiter-ready phrasing.
@@ -658,7 +708,7 @@ OPTIMIZED_CV EXPERIENCE RULES:
   managed, executed, developed, optimized, coordinated, analyzed, improved, delivered, partnered, collaborated, prepared.
 - Use "led" ONLY if leadership is clearly supported by the input.
 - Each bullet should, where truthfully possible, reflect one or more of:
-  skill relevance from the JD, business context, functional ownership, scope of work, clear purpose, outcome-oriented direction without invented metrics.
+  JD relevance, business context, functional ownership, scope of work, clear purpose, outcome-oriented direction without invented metrics.
 - Weave JD-relevant terminology into bullets naturally, but only where factually supportable from the original resume.
 - Do NOT replace a generic platform/channel with a specific one unless explicitly present in the input.
 
@@ -729,8 +779,10 @@ ${cv}
 
 JOB DESCRIPTION:
 ${jd}
-`.trim()
-      : `
+`.trim();
+  }
+
+  return `
 Analyze the resume and return JSON in this exact schema:
 
 {
@@ -750,16 +802,12 @@ Analyze the resume and return JSON in this exact schema:
 PRIMARY OBJECTIVE:
 - The optimized_cv must materially improve ATS readiness even without a job description.
 - Do not merely polish wording.
-- Improve structure, clarity, recruiter readability, keyword strength, bullet quality, and overall role fit based on the resume’s own content.
+- Improve structure, clarity, recruiter readability, keyword strength, bullet quality, and overall role fit based only on the resume’s own content.
 
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- Evaluate each component score on a 0-100 scale:
-  - section_completeness
-  - clarity_readability
-  - bullet_strength
-  - ats_safe_formatting
-  - core_keyword_coverage
+- Evaluate each component score on a 0–100 scale:
+  section_completeness, clarity_readability, bullet_strength, ats_safe_formatting, core_keyword_coverage.
 
 SCORING LOGIC:
 - section_completeness should reflect whether the resume has strong ATS-friendly sections with useful content.
@@ -784,12 +832,12 @@ WEAK SENTENCES:
 - Do NOT use shallow synonym swaps, cosmetic rewrites, or near-duplicate rewrites.
 - If BEFORE and AFTER are too similar, reject that example and choose another sentence.
 - If a sentence cannot be improved meaningfully, do not include it.
-- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list with weak examples.
+- If there are not enough strong rewrite candidates, return fewer weak_sentences rather than padding the list.
 
 OPTIMIZED_CV — MOST IMPORTANT RULES:
 - optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
 - optimized_cv MUST NOT be a lightly edited version of the original resume.
-- optimized_cv should read like a stronger, cleaner, more recruiter-ready version of the candidate’s resume.
+- optimized_cv should read like a stronger, cleaner, more recruiter-ready version of the candidate’s real resume.
 - The purpose is to maximize ATS readiness and recruiter clarity for the candidate’s apparent role without depending on a job description.
 
 OPTIMIZED_CV STRUCTURE:
@@ -871,15 +919,212 @@ Return ONLY valid JSON.
 RESUME:
 ${cv}
 `.trim();
+}
 
-    let userPrompt;
-    if (reqMode === "linkedin") {
-      userPrompt = isPreview ? linkedinPreviewUser : linkedinFullUser;
-    } else {
-      userPrompt = isPreview ? previewUser : fullUser;
+function buildRepairPrompt({
+  cv,
+  jd,
+  currentOptimizedCv,
+  hasJD,
+  outLang,
+  level = 1,
+}) {
+  const stricter =
+    level >= 2
+      ? `
+EXTRA STRICT REQUIREMENTS:
+- Rewrite more aggressively than before.
+- Any bullet that remains too close to the original must be rewritten again.
+- Remove weak phrasing completely.
+- Preserve exact truth, but maximize bullet strength, scope clarity, and recruiter readability.
+- Keep explicit facts exact, including explicit years such as "6 years".
+- Do NOT introduce any new number not present in the original resume or job description.
+`
+      : "";
+
+  if (hasJD) {
+    return `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+STRICT RULES:
+- Keep all facts truthful.
+- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged in meaning.
+- Do NOT invent metrics, tools, platforms, channels, achievements, or industries.
+- Do NOT replace generic platform/channel language with specific platforms unless explicitly present.
+- Do NOT upgrade "basic" skills to advanced proficiency unless clearly supported.
+- Every experience bullet should be materially stronger than the original resume bullet.
+- Avoid these weak phrases:
+  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled
+- Prefer direct action + scope + business context wording.
+- The result must not read like a lightly polished copy.
+- The result must still be a truthful ATS-friendly resume aligned to the job description.
+${stricter}
+OUTPUT RULES:
+- Write the optimized_cv fully in ${outLang}.
+- No markdown. No extra keys. No extra text.
+
+RESUME (original):
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
+${currentOptimizedCv}
+`.trim();
+  }
+
+  return `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+STRICT RULES:
+- Keep all facts truthful.
+- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged in meaning.
+- Do NOT invent metrics, tools, platforms, channels, achievements, or industries.
+- Do NOT replace generic platform/channel language with specific platforms unless explicitly present.
+- Do NOT upgrade "basic" skills to advanced proficiency unless clearly supported.
+- This is GENERAL optimization without a job description.
+- Optimize for ATS readiness and recruiter clarity based on the resume’s own content and apparent role.
+- Every experience bullet should be materially stronger than the original resume bullet.
+- Avoid these weak phrases:
+  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled
+- Prefer direct action + scope + business context wording.
+- The result must not read like a lightly polished copy.
+${stricter}
+OUTPUT RULES:
+- Write the optimized_cv fully in ${outLang}.
+- No markdown. No extra keys. No extra text.
+
+RESUME (original):
+${cv}
+
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
+${currentOptimizedCv}
+`.trim();
+}
+
+export default async function handler(req, res) {
+  const startedAt = Date.now();
+
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "POST required" });
     }
 
-    const chosenSystem = reqMode === "linkedin" ? linkedinSystem : system;
+    const { cv, jd, preview, lang, mode, linkedin_meta } = req.body || {};
+    const reqMode =
+      typeof mode === "string" && mode.trim() ? mode.trim().toLowerCase() : "ats";
+
+    const sessionOk = verifySession(req);
+    const requestedPreview = !!preview;
+    const isPreview = requestedPreview || !sessionOk;
+
+    console.log("ANALYZE FLAGS", {
+      requestedPreview,
+      sessionOk,
+      isPreview,
+      hasCookie: !!req.headers.cookie,
+    });
+
+    const ip = getClientIp(req);
+    const limiter = isPreview ? rlPreview : rlFull;
+    const { success, reset } = await limiter.limit(ip);
+
+    if (!success) {
+      const retrySec = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      return res.status(429).json({
+        error: "Too many requests",
+        retry_after_seconds: retrySec,
+      });
+    }
+
+    if (!cv || !String(cv).trim()) {
+      return res.status(400).json({ error: "cv is required" });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "OPENAI_API_KEY is missing on Vercel",
+      });
+    }
+
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    const LANG_MAP = {
+      en: "English",
+      tr: "Turkish",
+      es: "Spanish",
+      ru: "Russian",
+      fr: "French",
+      ar: "Arabic",
+      zh: "Chinese (Simplified)",
+    };
+
+    const langCode =
+      typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
+    const outLang = LANG_MAP[langCode] || "English";
+    const hasJD = typeof jd === "string" && jd.trim().length > 0;
+
+    const liMeta =
+      linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
+    const liTargetRole = String(liMeta.target_role || "").trim();
+    const liSeniority = String(liMeta.seniority || "mid").trim();
+    const liIndustry = String(liMeta.industry || "").trim();
+    const liLocation = String(liMeta.location || "").trim();
+    const liTone = String(liMeta.tone || "clean").trim();
+
+    const atsSystem = buildAtsSystem(outLang);
+    const linkedinSystem = buildLinkedinSystem(outLang);
+
+    let userPrompt;
+    let chosenSystem;
+
+    if (reqMode === "linkedin") {
+      chosenSystem = linkedinSystem;
+      userPrompt = isPreview
+        ? buildLinkedinPreviewPrompt({
+            cv,
+            jd,
+            outLang,
+            liTargetRole,
+            liSeniority,
+            liIndustry,
+            liLocation,
+            liTone,
+          })
+        : buildLinkedinFullPrompt({
+            cv,
+            jd,
+            outLang,
+            liTargetRole,
+            liSeniority,
+            liIndustry,
+            liLocation,
+            liTone,
+          });
+    } else {
+      chosenSystem = atsSystem;
+      userPrompt = isPreview
+        ? buildAtsPreviewPrompt({ cv, jd, hasJD, outLang })
+        : buildAtsFullPrompt({ cv, jd, hasJD, outLang });
+    }
 
     let data;
     try {
@@ -889,7 +1134,7 @@ ${cv}
         system: chosenSystem,
         userPrompt,
         temperature: 0.1,
-        maxTokens: isPreview ? 1200 : 2800,
+        maxTokens: reqMode === "linkedin" ? (isPreview ? 1200 : 2800) : (isPreview ? 1300 : 3200),
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -937,108 +1182,69 @@ ${cv}
         ? data.component_scores
         : {};
 
-    const finalScore = computeWeightedScore(componentScores, hasJD);
+    const hasComponentScores = Object.keys(componentScores).length > 0;
+    const finalScore = hasComponentScores
+      ? computeWeightedScore(componentScores, hasJD)
+      : clampScore(data?.ats_score);
 
     const normalized = {
       ats_score: finalScore,
       component_scores: componentScores,
-      missing_keywords: Array.isArray(data?.missing_keywords)
-        ? data.missing_keywords
-        : [],
-      weak_sentences: Array.isArray(data?.weak_sentences)
-        ? data.weak_sentences
-        : [],
-      summary: typeof data?.summary === "string" ? data.summary : "",
+      missing_keywords: uniqueStrings(
+        Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
+        isPreview ? 7 : 35
+      ),
+      weak_sentences: normalizeWeakSentences(
+        Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
+        isPreview ? 2 : 18
+      ),
+      summary: typeof data?.summary === "string" ? data.summary.trim() : "",
       ...(isPreview
         ? {}
         : {
             optimized_cv:
-              typeof data?.optimized_cv === "string" ? data.optimized_cv : "",
+              typeof data?.optimized_cv === "string" ? data.optimized_cv.trim() : "",
           }),
     };
 
-    if (!isPreview && normalized.optimized_cv && shouldRepairOptimizedCv(cv, normalized.optimized_cv)) {
-      const repairPrompt = hasJD
-        ? `
-Return JSON in this exact schema:
+    if (!isPreview && normalized.optimized_cv) {
+      let repairLevel = 0;
 
-{
-  "optimized_cv": string
-}
+      while (
+        repairLevel < 2 &&
+        shouldRepairOptimizedCv(cv, normalized.optimized_cv, jd || "")
+      ) {
+        repairLevel += 1;
 
-TASK:
-You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
-Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+        try {
+          const repaired = await callOpenAIJson({
+            apiKey,
+            model,
+            system: atsSystem,
+            userPrompt: buildRepairPrompt({
+              cv,
+              jd,
+              currentOptimizedCv: normalized.optimized_cv,
+              hasJD,
+              outLang,
+              level: repairLevel,
+            }),
+            temperature: 0.1,
+            maxTokens: 2600,
+          });
 
-STRICT RULES:
-- Keep all facts truthful.
-- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
-- Do NOT invent metrics, tools, platforms, or achievements.
-- Do NOT replace generic platform language with specific platforms unless explicitly present.
-- Do NOT upgrade "basic" skills to advanced proficiency unless clearly supported.
-- Every experience bullet should be materially stronger than the original resume bullet.
-- Avoid these weak phrases:
-  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled
-- Prefer direct action + scope + business context wording.
-- The result must not read like a lightly polished copy.
-- The result must still be a truthful ATS-friendly resume aligned to the job description.
-
-RESUME (original):
-${cv}
-
-JOB DESCRIPTION:
-${jd}
-
-CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
-${normalized.optimized_cv}
-`.trim()
-        : `
-Return JSON in this exact schema:
-
-{
-  "optimized_cv": string
-}
-
-TASK:
-You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
-Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
-
-STRICT RULES:
-- Keep all facts truthful.
-- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
-- Do NOT invent metrics, tools, platforms, or achievements.
-- Do NOT replace generic platform language with specific platforms unless explicitly present.
-- Do NOT upgrade "basic" skills to advanced proficiency unless clearly supported.
-- This is GENERAL optimization without a job description.
-- Optimize for ATS readiness and recruiter clarity based on the resume’s own content and apparent role.
-- Every experience bullet should be materially stronger than the original resume bullet.
-- Avoid these weak phrases:
-  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled
-- Prefer direct action + scope + business context wording.
-- The result must not read like a lightly polished copy.
-
-RESUME (original):
-${cv}
-
-CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
-${normalized.optimized_cv}
-`.trim();
-
-      try {
-        const repaired = await callOpenAIJson({
-          apiKey,
-          model,
-          system,
-          userPrompt: repairPrompt,
-          temperature: 0.1,
-          maxTokens: 2200,
-        });
-
-        if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
-          normalized.optimized_cv = repaired.optimized_cv.trim();
+          if (
+            repaired &&
+            typeof repaired.optimized_cv === "string" &&
+            repaired.optimized_cv.trim()
+          ) {
+            normalized.optimized_cv = repaired.optimized_cv.trim();
+          } else {
+            break;
+          }
+        } catch {
+          break;
         }
-      } catch {
-        // Sessiz geç: ilk optimize edilmiş sürüm kullanılmaya devam eder
       }
     }
 
