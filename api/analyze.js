@@ -37,7 +37,11 @@ function verifySession(req) {
   if (parts.length !== 2) return false;
 
   const [data, sig] = parts;
-  const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
+  const expected = crypto
+    .createHmac("sha256", appSecret)
+    .update(data)
+    .digest("base64url");
+
   if (sig !== expected) return false;
 
   let payload;
@@ -60,16 +64,26 @@ async function ensureMinDelay(startedAt, minMs) {
   }
 }
 
+function clampScore(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
 function isGpt5Model(model = "") {
   return /^gpt-5/i.test(String(model).trim());
 }
 
+function isGpt51Model(model = "") {
+  return /^gpt-5\.1/i.test(String(model).trim());
+}
+
 function buildOpenAIPayload({
   model,
-  temperature = 0.3,
-  maxTokens = 1800,
   messages,
-  reasoningEffort,
+  reasoningEffort = null,
+  temperature = null,
+  maxCompletionTokens = 1800,
 }) {
   const body = {
     model,
@@ -78,14 +92,40 @@ function buildOpenAIPayload({
   };
 
   if (isGpt5Model(model)) {
-    body.max_completion_tokens = maxTokens;
+    body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+
+    // GPT-5.1 full low/medium'da temperature göndermiyoruz.
+    // Sadece none kullandığımız preview / fallback için veriyoruz.
+    if (reasoningEffort === "none" && typeof temperature === "number") {
+      body.temperature = temperature;
+    }
   } else {
-    body.max_tokens = maxTokens;
-    body.temperature = temperature;
+    body.max_tokens = maxCompletionTokens;
+    if (typeof temperature === "number") body.temperature = temperature;
   }
 
   return body;
+}
+
+function extractAssistantText(parsed) {
+  const content = parsed?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") return content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (typeof part?.text === "string") return part.text;
+        if (typeof part?.content === "string") return part.content;
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  return "";
 }
 
 function safeJsonParse(text) {
@@ -102,127 +142,229 @@ function safeJsonParse(text) {
   }
 }
 
-function extractMessageText(parsed) {
-  const content = parsed?.choices?.[0]?.message?.content;
+function normalizeCompareText(str = "") {
+  return String(str)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s+%/-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  if (typeof content === "string") return content.trim();
+function getNonEmptyLines(str = "") {
+  return String(str)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
 
-  if (Array.isArray(content)) {
-    const combined = content
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (part?.type === "text" && typeof part?.text === "string") return part.text;
-        if (typeof part?.content === "string") return part.content;
-        return "";
-      })
-      .join("")
-      .trim();
+function getBulletLines(str = "") {
+  return String(str)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter((x) => /^[-•·‣▪▫◦]\s+/.test(x))
+    .map((x) => x.replace(/^[-•·‣▪▫◦]\s+/, "").trim())
+    .filter(Boolean);
+}
 
-    if (combined) return combined;
+function isSectionHeader(line = "") {
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|EĞİTİM)$/i.test(
+    String(line).trim()
+  );
+}
+
+function extractHeaderBlock(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const header = [];
+
+  for (const line of lines) {
+    if (isSectionHeader(line)) break;
+    header.push(line);
   }
 
-  if (content && typeof content === "object") {
-    try {
-      return JSON.stringify(content);
-    } catch {
-      return "";
+  return header.slice(0, 4);
+}
+
+function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
+  const originalHeader = extractHeaderBlock(originalCv);
+  if (!originalHeader.length) return String(optimizedCv || "").trim();
+
+  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
+  const sectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
+
+  if (sectionIdx === -1) return String(optimizedCv || "").trim();
+
+  const body = lines.slice(sectionIdx).join("\n").trim();
+  return `${originalHeader.join("\n")}\n\n${body}`.trim();
+}
+
+function extractExperienceTitles(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const titles = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (
+      /\|\s*.*(\d{4}|Present|Günümüz|Current)/i.test(line) ||
+      /(\d{4}).*(Present|Günümüz|Current)/i.test(line)
+    ) {
+      const prev = lines[i - 1];
+      if (
+        prev &&
+        !isSectionHeader(prev) &&
+        !prev.includes("@") &&
+        !/^\d/.test(prev)
+      ) {
+        titles.push(prev);
+      }
     }
   }
 
-  return "";
+  return titles;
 }
 
-function asStringArray(value) {
-  if (!Array.isArray(value)) return [];
-  return value.map((x) => String(x || "").trim()).filter(Boolean);
-}
+function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
+  const origTitles = extractExperienceTitles(originalCv);
+  if (!origTitles.length) return String(optimizedCv || "").trim();
 
-function asWeakSentencesArray(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => ({
-      sentence: String(item?.sentence || "").trim(),
-      rewrite: String(item?.rewrite || "").trim(),
-    }))
-    .filter((item) => item.sentence && item.rewrite);
-}
+  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
+  let titleIdx = 0;
 
-function ensureFiniteScore(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.min(100, Math.round(n)));
-}
-
-function validateAtsData(data, { isPreview }) {
-  const atsScore = ensureFiniteScore(data?.ats_score);
-  const missingKeywords = asStringArray(data?.missing_keywords);
-  const weakSentences = asWeakSentencesArray(data?.weak_sentences);
-  const summary = typeof data?.summary === "string" ? data.summary.trim() : "";
-
-  if (atsScore === null) {
-    throw new Error("Model output missing valid ats_score");
-  }
-  if (!Array.isArray(data?.missing_keywords)) {
-    throw new Error("Model output missing missing_keywords");
-  }
-  if (!Array.isArray(data?.weak_sentences)) {
-    throw new Error("Model output missing weak_sentences");
-  }
-  if (!summary) {
-    throw new Error("Model output missing summary");
-  }
-
-  const normalized = {
-    ats_score: atsScore,
-    missing_keywords: missingKeywords,
-    weak_sentences: weakSentences,
-    summary,
-  };
-
-  if (!isPreview) {
-    const optimizedCv =
-      typeof data?.optimized_cv === "string" ? data.optimized_cv.trim() : "";
-    if (!optimizedCv) {
-      throw new Error("Model output missing optimized_cv");
+  for (let i = 1; i < lines.length; i++) {
+    const line = String(lines[i]).trim();
+    if (
+      /\|\s*.*(\d{4}|Present|Günümüz|Current)/i.test(line) ||
+      /(\d{4}).*(Present|Günümüz|Current)/i.test(line)
+    ) {
+      let j = i - 1;
+      while (j >= 0 && !String(lines[j]).trim()) j--;
+      if (j >= 0 && titleIdx < origTitles.length) {
+        lines[j] = origTitles[titleIdx];
+        titleIdx += 1;
+      }
     }
-    normalized.optimized_cv = optimizedCv;
   }
 
-  return normalized;
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function validateLinkedInData(data, { isPreview }) {
-  const headlines = Array.isArray(data?.headlines) ? data.headlines : [];
-  const about = data?.about && typeof data.about === "object" ? data.about : {};
-  const experienceFix = Array.isArray(data?.experience_fix) ? data.experience_fix : [];
-  const skills = data?.skills && typeof data.skills === "object" ? data.skills : {};
-  const recruiter = data?.recruiter && typeof data.recruiter === "object" ? data.recruiter : {};
+function forceSafeResume(originalCv = "", optimizedCv = "") {
+  let out = String(optimizedCv || "").trim();
+  out = replaceHeaderBlock(originalCv, out);
+  out = restoreExperienceTitles(originalCv, out);
+  return out.trim();
+}
 
-  if (!headlines.length) {
-    throw new Error("Model output missing headlines");
+function countUnchangedBullets(originalCv = "", optimizedCv = "") {
+  const orig = getBulletLines(originalCv).map(normalizeCompareText).filter(Boolean);
+  const optSet = new Set(
+    getBulletLines(optimizedCv).map(normalizeCompareText).filter(Boolean)
+  );
+
+  let same = 0;
+  for (const line of orig) {
+    if (optSet.has(line)) same++;
+  }
+
+  return { same, total: orig.length };
+}
+
+function countWeakVerbHits(cv = "") {
+  const bullets = getBulletLines(cv);
+  return bullets.filter((b) =>
+    /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|destek verdim|destek oldum|katkı sağladım|görev aldım|yardımcı oldum)\b/i.test(
+      b
+    )
+  ).length;
+}
+
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
+  if (!optimizedCv || !String(optimizedCv).trim()) return true;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm) return true;
+  if (origNorm === optNorm) return true;
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  if (total > 0 && same / total >= 0.4) return true;
+
+  const optimizedBullets = getBulletLines(optimizedCv);
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.7))) {
+    return true;
+  }
+
+  if (countWeakVerbHits(optimizedCv) >= 2) return true;
+
+  return false;
+}
+
+function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
+  if (!isGpt5Model(model)) {
+    return [
+      {
+        reasoningEffort: null,
+        temperature: isPreview ? 0.2 : 0.3,
+        maxCompletionTokens,
+      },
+    ];
+  }
+
+  if (passType === "repair") {
+    return [
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+      },
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4800),
+      },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
+      },
+    ];
   }
 
   if (isPreview) {
-    const short = String(about?.short || "").trim();
-    if (!short) {
-      throw new Error("Model output missing about.short");
-    }
-  } else {
-    const short = String(about?.short || "").trim();
-    const normal = String(about?.normal || "").trim();
-    const bold = String(about?.bold || "").trim();
-    if (!short || !normal || !bold) {
-      throw new Error("Model output missing full about variants");
-    }
+    return [
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1400),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2400),
+      },
+    ];
   }
 
-  return {
-    headlines,
-    about,
-    experience_fix: experienceFix,
-    skills,
-    recruiter,
-  };
+  return [
+    {
+      reasoningEffort: "low",
+      temperature: null,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+    },
+    {
+      reasoningEffort: "low",
+      temperature: null,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+    },
+    {
+      reasoningEffort: "none",
+      temperature: 0.2,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+    },
+  ];
 }
 
 async function callOpenAIJson({
@@ -230,83 +372,449 @@ async function callOpenAIJson({
   model,
   system,
   userPrompt,
-  temperature = 0.3,
-  maxTokens = 1800,
-  reasoningEffort,
-  fallbackReasoningEffort,
+  isPreview = false,
+  passType = "main",
+  maxCompletionTokens = 1800,
 }) {
-  const attempt = async (effort) => {
-    const payload = buildOpenAIPayload({
-      model,
-      temperature,
-      maxTokens,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: userPrompt },
-      ],
-      reasoningEffort: effort,
-    });
+  const attempts = buildAttempts({
+    model,
+    isPreview,
+    passType,
+    maxCompletionTokens,
+  });
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(50000),
-    });
+  let lastError = null;
 
-    const raw = await openaiRes.text();
-
-    if (!openaiRes.ok) {
-      const err = new Error("OpenAI error");
-      err.status = openaiRes.status;
-      err.details = raw.slice(0, 2000);
-      throw err;
-    }
-
-    let parsed;
+  for (const attempt of attempts) {
     try {
-      parsed = JSON.parse(raw);
-    } catch {
-      const err = new Error("OpenAI returned non-JSON response envelope");
-      err.status = 502;
-      err.details = raw.slice(0, 2000);
-      throw err;
+      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          buildOpenAIPayload({
+            model,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: userPrompt },
+            ],
+            reasoningEffort: attempt.reasoningEffort,
+            temperature: attempt.temperature,
+            maxCompletionTokens: attempt.maxCompletionTokens,
+          })
+        ),
+      });
+
+      const raw = await openaiRes.text();
+
+      if (!openaiRes.ok) {
+        const err = new Error("OpenAI error");
+        err.status = openaiRes.status;
+        err.details = raw.slice(0, 3000);
+        throw err;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const err = new Error("OpenAI returned non-JSON API payload");
+        err.status = 500;
+        err.details = raw.slice(0, 3000);
+        throw err;
+      }
+
+      const finishReason = parsed?.choices?.[0]?.finish_reason || "";
+      const text = extractAssistantText(parsed);
+
+      if (!text || !text.trim()) {
+        lastError = new Error("Model returned empty content");
+        if (finishReason === "length") continue;
+        continue;
+      }
+
+      let data;
+      try {
+        data = safeJsonParse(text);
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+
+      if (
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        Object.keys(data).length === 0
+      ) {
+        lastError = new Error("Model returned empty JSON object");
+        continue;
+      }
+
+      return data;
+    } catch (err) {
+      lastError = err;
+      if (err?.status && err.status >= 400 && err.status < 500 && err.status !== 429) {
+        throw err;
+      }
     }
-
-    const text = extractMessageText(parsed);
-
-    if (!text) {
-      const err = new Error("Model returned empty content");
-      err.status = 502;
-      err.details = raw.slice(0, 2000);
-      throw err;
-    }
-
-    try {
-      return safeJsonParse(text);
-    } catch (parseErr) {
-      const err = new Error(parseErr?.message || "Model did not return valid JSON");
-      err.status = 502;
-      err.details = `RAW_ENVELOPE:\n${raw.slice(0, 1500)}\n\nEXTRACTED_CONTENT:\n${text.slice(0, 1500)}`;
-      throw err;
-    }
-  };
-
-  try {
-    return await attempt(reasoningEffort);
-  } catch (err) {
-    const canRetry =
-      isGpt5Model(model) &&
-      fallbackReasoningEffort &&
-      fallbackReasoningEffort !== reasoningEffort;
-
-    if (!canRetry) throw err;
-
-    return await attempt(fallbackReasoningEffort);
   }
+
+  const err = new Error(lastError?.message || "Model did not return usable JSON");
+  err.status = lastError?.status || 500;
+  err.details = lastError?.details || String(lastError || "Unknown error");
+  throw err;
+}
+
+function buildAtsSystem(outLang) {
+  return `
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
+- If unsure, prefer neutral phrasing with no numbers.
+- If the input contains a number, keep it exact; do not round up/down or change it.
+- DO NOT invent employers, titles, degrees, dates, certifications, tools, platforms, acronyms, or projects.
+- Do NOT replace generic wording with a specific tool/platform unless that tool/platform is explicitly present in the input.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Rewrites must be materially better than the original.
+- Do NOT make shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
+- Return ONLY valid JSON. No markdown. No extra text.
+- All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
+`.trim();
+}
+
+function buildLinkedInSystem(outLang) {
+  return `
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
+- If unsure, prefer neutral phrasing with no numbers.
+- If the input contains a number, keep it exact; do not round up/down or change it.
+- Do NOT invent employers, titles, degrees, dates, certifications, or metrics.
+- Do NOT replace generic platform language with a specific platform unless it is explicitly present.
+- Return ONLY valid JSON. No markdown. No extra text.
+- All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
+`.trim();
+}
+
+function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }) {
+  if (hasJD) {
+    return `
+Return JSON in this exact schema:
+
+{
+  "ats_score": number,
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+REQUIREMENTS:
+- This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
+- ats_score must reflect resume-to-job alignment, not just general resume quality.
+- missing_keywords MUST include 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
+- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
+- weak_sentences MUST include up to 2 items picked from real resume sentences.
+- Do NOT force the count.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Select only sentences where a clearly better rewrite is possible.
+- Do NOT select sentences that can only be improved with tiny synonym swaps.
+- Each rewrite must feel meaningfully stronger, clearer, and more professional.
+- summary MUST be 4-6 bullet lines in ${outLang}.
+- summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
+- Do NOT add extra keys. Do NOT add optimized_cv.
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim();
+  }
+
+  return `
+Return JSON in this exact schema:
+
+{
+  "ats_score": number,
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+REQUIREMENTS:
+- This is a GENERAL ATS REVIEW because no job description is provided.
+- ats_score must reflect general ATS readiness: structure, section completeness, clarity, bullet strength, and keyword coverage.
+- missing_keywords MUST include 5-7 items.
+- These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume keywords based on the candidate's apparent role and experience.
+- missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
+- weak_sentences MUST include up to 2 items picked from real resume sentences.
+- Do NOT force the count.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Select only sentences where a clearly better rewrite is possible.
+- Do NOT select sentences that can only be improved with tiny synonym swaps.
+- Each rewrite must feel meaningfully stronger, clearer, and more professional.
+- summary MUST be 4-6 bullet lines in ${outLang}.
+- summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
+- Do NOT add extra keys. Do NOT add optimized_cv.
+
+RESUME:
+${cv}
+`.trim();
+}
+
+function buildFullAtsPrompt({ cv, jd, hasJD, outLang }) {
+  if (hasJD) {
+    return `
+Analyze the resume vs job description and return JSON in this exact schema:
+
+{
+  "ats_score": number,
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "optimized_cv": string,
+  "summary": string
+}
+
+HARD REQUIREMENTS:
+- This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
+- ats_score must reflect resume-to-job alignment.
+- missing_keywords MUST include 18-30 items genuinely missing or underrepresented from the JOB DESCRIPTION.
+- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
+- weak_sentences MUST include 6-10 items from the resume text.
+- Do NOT force the count if there are fewer truly strong examples.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Do NOT use shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
+- optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
+- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
+- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
+- If resume has no numbers, do NOT add any numbers in rewrites.
+- Keep the header identity block and existing experience titles unchanged.
+
+Return ONLY valid JSON.
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim();
+  }
+
+  return `
+Analyze the resume and return JSON in this exact schema:
+
+{
+  "ats_score": number,
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "optimized_cv": string,
+  "summary": string
+}
+
+HARD REQUIREMENTS:
+- This is a GENERAL ATS REVIEW because no job description is provided.
+- ats_score must reflect general ATS readiness, not job match.
+- missing_keywords MUST include 15-25 items.
+- These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
+- missing_keywords MUST be unique, practical, and written in ${outLang}.
+- weak_sentences MUST include 6-10 items from the resume text.
+- Do NOT force the count if there are fewer truly strong examples.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Do NOT use shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
+- optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
+- It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
+- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
+- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
+- If resume has no numbers, do NOT add any numbers in rewrites.
+- Keep the header identity block and existing experience titles unchanged.
+
+Return ONLY valid JSON.
+
+RESUME:
+${cv}
+`.trim();
+}
+
+function buildRepairPrompt({ cv, jd, hasJD, currentOptimizedCv }) {
+  return hasJD
+    ? `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- Every experience bullet should be materially stronger than the original resume bullet.
+- Avoid these weak phrases:
+  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
+  destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
+- Prefer direct action + scope + business context wording.
+- The result must not read like a lightly polished copy.
+- The result must still be a truthful ATS-friendly resume aligned to the job description.
+
+RESUME (original):
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
+${currentOptimizedCv}
+`.trim()
+    : `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- This is GENERAL optimization without a job description.
+- Every experience bullet should be materially stronger than the original resume bullet.
+- Avoid these weak phrases:
+  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
+  destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
+- Prefer direct action + scope + business context wording.
+- The result must not read like a lightly polished copy.
+
+RESUME (original):
+${cv}
+
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
+${currentOptimizedCv}
+`.trim();
+}
+
+function buildLinkedInPreviewPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[] },
+  "recruiter": { "keywords": string[] }
+}
+
+RULES:
+- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
+- headlines: exactly 1 item.
+- about.short: 600-900 chars, punchy, no emojis.
+- experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
+- skills.top: 7-10 items.
+- recruiter.keywords: 5-8 items.
+- No extra keys. Return ONLY valid JSON.
+
+TARGETING META:
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone}
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
+}
+
+function buildLinkedInFullPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string, "normal": string, "bold": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[], "tools": string[], "industry": string[] },
+  "recruiter": { "keywords": string[], "boolean": string }
+}
+
+QUALITY RULES:
+- Output VALUES must be in ${outLang}. Do not mix languages.
+- Do NOT invent employers, titles, dates, degrees, or metrics.
+- If resume has no numbers, improve bullets without guessing numbers.
+- Headline max 220 chars each. No emojis.
+- about.short: 500-800 chars.
+- about.normal: 900-1400 chars.
+- about.bold: 900-1400 chars.
+- headlines: exactly 5 items with labels Search, Impact, Niche, Leadership, Clean.
+- experience_fix: 4-6 items maximum, only if there are real, materially stronger rewrites.
+- skills.top: 12-18
+- skills.tools: 8-16
+- skills.industry: 12-20
+- recruiter.keywords: 10-20
+- recruiter.boolean: a single boolean string using OR groups + a few AND terms.
+- Return ONLY valid JSON. No extra keys.
+
+TARGETING META:
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone}
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
 }
 
 export default async function handler(req, res) {
@@ -370,359 +878,98 @@ export default async function handler(req, res) {
     const langCode =
       typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
     const outLang = LANG_MAP[langCode] || "English";
-
     const hasJD = typeof jd === "string" && jd.trim().length > 0;
 
-    const system = `
-CRITICAL RULES (must follow):
-- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
-- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer neutral phrasing (e.g., “improved”, “supported”, “contributed”, “helped drive”) with no numbers.
-- If the input contains a number, keep it exact; do not round up/down or change it.
-- DO NOT invent employers, titles, degrees, dates, certifications, tools, or projects.
-- Rewrites must be materially better than the original.
-- Do NOT make shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
-- Prefer stronger professional phrasing, but keep all claims truthful.
-You are an ATS resume analyzer.
-Return ONLY valid JSON. No markdown. No extra text.
-CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
-This includes: missing_keywords items, weak_sentences.sentence and weak_sentences.rewrite, summary, and optimized_cv.
-Do not add any extra keys.
-`.trim();
-
-    const linkedinSystem = `
-CRITICAL RULES (must follow):
-- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
-- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer neutral phrasing with no numbers.
-- If the input contains a number, keep it exact; do not round up/down or change it.
-
-For BEFORE → AFTER rewrites:
-- AFTER must preserve factual truth. It can improve clarity and strength but must not add new facts.
-- If BEFORE has no metric, AFTER must not contain any metric.
-
-You are a LinkedIn profile optimization expert.
-Return ONLY valid JSON. No markdown. No extra text.
-CRITICAL: All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
-Do not invent employers, titles, degrees, dates, certifications, or metrics.
-- If resume has no numbers, rewrite using scope + tools + outcome (without guessing numbers).
-- Rewrites must be materially better than the original.
-- Do NOT make shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
-No extra keys.
-`.trim();
-
-    const liMeta =
-      linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
-    const liTargetRole = String(liMeta.target_role || "").trim();
-    const liSeniority = String(liMeta.seniority || "mid").trim();
-    const liIndustry = String(liMeta.industry || "").trim();
-    const liLocation = String(liMeta.location || "").trim();
-    const liTone = String(liMeta.tone || "clean").trim();
-
-    const linkedinPreviewUser = `
-Return JSON in this exact schema:
-
-{
-  "headlines": [{"label": string, "text": string}],
-  "about": { "short": string },
-  "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[] },
-  "recruiter": { "keywords": string[] }
-}
-
-RULES:
-- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
-- headlines: exactly 1 item.
-- about.short: 600–900 chars, punchy, no emojis.
-- experience_fix: exactly 1 item. "before" must be a real bullet/sentence from the resume.
-- "after" must be materially stronger than "before", not a light synonym swap.
-- Choose only a sentence where a clearly better rewrite is possible.
-- If the rewrite is too similar to the original, choose another sentence.
-- skills.top: 7–10 items.
-- recruiter.keywords: 5–8 items.
-- No extra keys. Return ONLY valid JSON.
-
-TARGETING META (use strictly):
-- target_role: ${liTargetRole || "(not provided)"}
-- seniority: ${liSeniority}
-- industry: ${liIndustry || "(not provided)"}
-- location: ${liLocation || "(not provided)"}
-- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
-
-HARD RULE:
-- If target_role is provided, tailor every output to that role and seniority. Prefer role-specific keywords and tools.
-
-RESUME:
-${cv}
-
-TARGET ROLE / JOB (optional):
-${jd || "(none)"}
-`.trim();
-
-    const linkedinFullUser = `
-Return JSON in this exact schema:
-
-{
-  "headlines": [{"label": string, "text": string}],
-  "about": { "short": string, "normal": string, "bold": string },
-  "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[], "tools": string[], "industry": string[] },
-  "recruiter": { "keywords": string[], "boolean": string }
-}
-
-QUALITY RULES:
-- Output VALUES must be in ${outLang}. Do not mix languages.
-- Do NOT invent employers, titles, dates, degrees, or metrics.
-- If resume has no numbers, improve bullets using scope + tools + outcome WITHOUT guessing numbers.
-- Headline max 220 chars each. No emojis.
-- About:
-  - short: 500–800 chars
-  - normal: 900–1400 chars
-  - bold: 900–1400 chars (more confident, still truthful)
-- headlines: exactly 5 items with labels:
-  1) "Search"
-  2) "Impact"
-  3) "Niche"
-  4) "Leadership"
-  5) "Clean"
-- experience_fix: exactly 5-6 items. Each "before" must be from the resume text. "after" must be LinkedIn-ready bullet. "why" must explain (clarity/impact/scope/keywords).
-- Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each "after" must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- If a sentence cannot be improved meaningfully, do not include it.
-- skills.top: 12–18
-- skills.tools: 8–16
-- skills.industry: 12–20
-- recruiter.keywords: 10–20
-- recruiter.boolean: a single boolean string using OR groups + a few AND terms, ready to paste in LinkedIn Recruiter.
-- Return ONLY valid JSON. No extra keys.
-
-TARGETING META (must drive output strongly):
-- target_role: ${liTargetRole || "(not provided)"}
-- seniority: ${liSeniority}
-- industry: ${liIndustry || "(not provided)"}
-- location: ${liLocation || "(not provided)"}
-- tone: ${liTone} (clean=professional, confident=assertive, bold=high-energy)
-
-HARD RULE:
-- If target_role is provided, every headline + about + skills + recruiter keywords MUST align to target_role + seniority.
-
-RESUME:
-${cv}
-
-TARGET ROLE / JOB (optional):
-${jd || "(none)"}
-`.trim();
-
-    const previewUser = hasJD
-      ? `
-Return JSON in this exact schema:
-
-{
-  "ats_score": number,
-  "missing_keywords": string[],
-  "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "summary": string
-}
-
-REQUIREMENTS:
-- This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment, not just general resume quality.
-- missing_keywords MUST include exactly 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
-- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include exactly 2 items picked from real resume sentences.
-- Both sentence and rewrite MUST be in ${outLang}.
-- Select only sentences where a clearly better rewrite is possible.
-- Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
-- weak_sentences.rewrite must not be a near-copy of sentence.
-- If no strong rewrite is possible, choose a different sentence.
-- summary MUST be 4–6 bullet lines in ${outLang}.
-- summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
-- Do NOT add extra keys. Do NOT add optimized_cv.
-- Do NOT mix languages.
-- Proper nouns / technical terms may stay as-is.
-
-Return ONLY valid JSON.
-
-RESUME:
-${cv}
-
-JOB DESCRIPTION:
-${jd}
-`.trim()
-      : `
-Return JSON in this exact schema:
-
-{
-  "ats_score": number,
-  "missing_keywords": string[],
-  "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "summary": string
-}
-
-REQUIREMENTS:
-- This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must reflect general ATS readiness: structure, section completeness, clarity, bullet strength, and keyword coverage.
-- missing_keywords MUST include exactly 5-7 items.
-- These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume keywords based on the candidate's apparent role and experience.
-- missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include exactly 2 items picked from real resume sentences.
-- Both sentence and rewrite MUST be in ${outLang}.
-- Select only sentences where a clearly better rewrite is possible.
-- Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
-- weak_sentences.rewrite must not be a near-copy of sentence.
-- If no strong rewrite is possible, choose a different sentence.
-- summary MUST be 4–6 bullet lines in ${outLang}.
-- summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
-- Do NOT add extra keys. Do NOT add optimized_cv.
-- Do NOT mix languages.
-- Proper nouns / technical terms may stay as-is.
-
-Return ONLY valid JSON.
-
-RESUME:
-${cv}
-`.trim();
-
-    const fullUser = hasJD
-      ? `
-Analyze the resume vs job description and return JSON in this exact schema:
-
-{
-  "ats_score": number,
-  "missing_keywords": string[],
-  "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "optimized_cv": string,
-  "summary": string
-}
-
-HARD REQUIREMENTS:
-- This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment.
-- missing_keywords MUST include 25–35 items genuinely missing or underrepresented from the JOB DESCRIPTION.
-- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
-- Both sentence and rewrite MUST be in ${outLang}.
-- Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- weak_sentences.rewrite must feel materially stronger and more professional than sentence.
-- If a sentence cannot be improved meaningfully, do not include it; choose a different one.
-- summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
-  1) overall job-fit diagnosis
-  2) top missing skills/keywords to add
-  3) biggest ATS/format risks
-  4) top rewrite themes
-- optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
-- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
-- Do NOT mix languages.
-- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
-- If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
-
-JSON STRICTNESS:
-- KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
-- Do NOT translate keys.
-- No extra keys. No comments. No code fences.
-
-Return ONLY valid JSON.
-
-RESUME:
-${cv}
-
-JOB DESCRIPTION:
-${jd}
-`.trim()
-      : `
-Analyze the resume and return JSON in this exact schema:
-
-{
-  "ats_score": number,
-  "missing_keywords": string[],
-  "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "optimized_cv": string,
-  "summary": string
-}
-
-HARD REQUIREMENTS:
-- This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must reflect general ATS readiness, not job match.
-- Score based on: section completeness, clarity, bullet quality, ATS-safe structure, and core keyword coverage.
-- missing_keywords MUST include 25–35 items.
-- These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
-- missing_keywords MUST be unique, practical, and written in ${outLang}.
-- weak_sentences MUST include 12–18 items from the resume text, each with a materially stronger rewrite.
-- Both sentence and rewrite MUST be in ${outLang}.
-- Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- weak_sentences.rewrite must feel materially stronger and more professional than sentence.
-- If a sentence cannot be improved meaningfully, do not include it; choose a different one.
-- summary MUST be detailed (8–14 bullet lines) in ${outLang} covering:
-  1) general ATS readiness diagnosis
-  2) top keyword gaps to improve
-  3) biggest ATS/format risks
-  4) top rewrite themes
-- optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
-- It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
-- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, or metrics.
-- Do NOT mix languages.
-- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
-- If resume has no numbers, do NOT add any numbers in rewrites. Use scope + tools + outcome wording without numbers.
-
-JSON STRICTNESS:
-- KEYS must remain exactly: ats_score, missing_keywords, weak_sentences, optimized_cv, summary.
-- Do NOT translate keys.
-- No extra keys. No comments. No code fences.
-
-Return ONLY valid JSON.
-
-RESUME:
-${cv}
-`.trim();
-
-    let userPrompt;
     if (reqMode === "linkedin") {
-      userPrompt = isPreview ? linkedinPreviewUser : linkedinFullUser;
-    } else {
-      userPrompt = isPreview ? previewUser : fullUser;
-    }
+      const liMeta =
+        linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
+      const liTargetRole = String(liMeta.target_role || "").trim();
+      const liSeniority = String(liMeta.seniority || "mid").trim();
+      const liIndustry = String(liMeta.industry || "").trim();
+      const liLocation = String(liMeta.location || "").trim();
+      const liTone = String(liMeta.tone || "clean").trim();
 
-    const chosenSystem = reqMode === "linkedin" ? linkedinSystem : system;
+      let data;
+      try {
+        data = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildLinkedInSystem(outLang),
+          userPrompt: isPreview
+            ? buildLinkedInPreviewPrompt({
+                cv,
+                jd,
+                outLang,
+                liTargetRole,
+                liSeniority,
+                liIndustry,
+                liLocation,
+                liTone,
+              })
+            : buildLinkedInFullPrompt({
+                cv,
+                jd,
+                outLang,
+                liTargetRole,
+                liSeniority,
+                liIndustry,
+                liLocation,
+                liTone,
+              }),
+          isPreview,
+          passType: "main",
+          maxCompletionTokens: isPreview ? 1400 : 2600,
+        });
+      } catch (err) {
+        return res.status(err?.status || 500).json({
+          error: err?.message || "OpenAI error",
+          status: err?.status || 500,
+          details: err?.details || String(err),
+        });
+      }
+
+      const out = {
+        headlines: Array.isArray(data?.headlines) ? data.headlines : [],
+        about: data?.about && typeof data.about === "object" ? data.about : {},
+        experience_fix: Array.isArray(data?.experience_fix) ? data.experience_fix : [],
+        skills: data?.skills && typeof data.skills === "object" ? data.skills : {},
+        recruiter:
+          data?.recruiter && typeof data.recruiter === "object" ? data.recruiter : {},
+      };
+
+      if (isPreview) {
+        return res.status(200).json({
+          headlines: out.headlines.slice(0, 1),
+          about: { short: String(out.about.short || "") },
+          experience_fix: out.experience_fix.slice(0, 1),
+          skills: {
+            top: Array.isArray(out.skills.top) ? out.skills.top.slice(0, 10) : [],
+          },
+          recruiter: {
+            keywords: Array.isArray(out.recruiter.keywords)
+              ? out.recruiter.keywords.slice(0, 8)
+              : [],
+          },
+        });
+      }
+
+      return res.status(200).json(out);
+    }
 
     let data;
     try {
       data = await callOpenAIJson({
         apiKey,
         model,
-        system: chosenSystem,
-        userPrompt,
-        temperature: 0.3,
-        maxTokens: reqMode === "linkedin"
-          ? (isPreview ? 1200 : 2600)
-          : (isPreview ? 1200 : 2600),
-        reasoningEffort: isGpt5Model(model)
-          ? (isPreview ? "medium" : "high")
-          : undefined,
-        fallbackReasoningEffort: isGpt5Model(model)
-          ? (isPreview ? "low" : "medium")
-          : undefined,
+        system: buildAtsSystem(outLang),
+        userPrompt: isPreview
+          ? buildPreviewAtsPrompt({ cv, jd, hasJD, outLang })
+          : buildFullAtsPrompt({ cv, jd, hasJD, outLang }),
+        isPreview,
+        passType: "main",
+        maxCompletionTokens: isPreview ? 1400 : 2800,
       });
     } catch (err) {
-      console.error("OPENAI CALL FAILED", {
-        model,
-        reqMode,
-        isPreview,
-        status: err?.status,
-        details: err?.details,
-      });
-
       return res.status(err?.status || 500).json({
         error: err?.message || "OpenAI error",
         status: err?.status || 500,
@@ -730,47 +977,47 @@ ${cv}
       });
     }
 
-    if (reqMode === "linkedin") {
-      try {
-        const out = validateLinkedInData(data, { isPreview });
+    const normalized = {
+      ats_score: clampScore(data?.ats_score),
+      missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
+      weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
+      summary: typeof data?.summary === "string" ? data.summary : "",
+      ...(isPreview
+        ? {}
+        : {
+            optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "",
+          }),
+    };
 
-        if (isPreview) {
-          return res.status(200).json({
-            headlines: out.headlines.slice(0, 1),
-            about: { short: String(out.about.short || "") },
-            experience_fix: out.experience_fix.slice(0, 1),
-            skills: {
-              top: Array.isArray(out.skills.top) ? out.skills.top.slice(0, 10) : [],
-            },
-            recruiter: {
-              keywords: Array.isArray(out.recruiter.keywords)
-                ? out.recruiter.keywords.slice(0, 8)
-                : [],
-            },
+    if (!isPreview) {
+      let currentOptimized = forceSafeResume(cv, normalized.optimized_cv || "");
+
+      if (!currentOptimized || shouldRepairOptimizedCv(cv, currentOptimized)) {
+        try {
+          const repaired = await callOpenAIJson({
+            apiKey,
+            model,
+            system: buildAtsSystem(outLang),
+            userPrompt: buildRepairPrompt({
+              cv,
+              jd,
+              hasJD,
+              currentOptimizedCv: currentOptimized || cv,
+            }),
+            isPreview: false,
+            passType: "repair",
+            maxCompletionTokens: 3200,
           });
+
+          if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
+            currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+          }
+        } catch {
+          // İlk optimize edilmiş sürüm kullanılmaya devam eder
         }
-
-        return res.status(200).json(out);
-      } catch (err) {
-        console.error("LINKEDIN OUTPUT INVALID", { model, err: err?.message, data });
-        return res.status(502).json({
-          error: "Model returned incomplete LinkedIn JSON",
-          details: err?.message || String(err),
-          model_output: JSON.stringify(data).slice(0, 2000),
-        });
       }
-    }
 
-    let normalized;
-    try {
-      normalized = validateAtsData(data, { isPreview });
-    } catch (err) {
-      console.error("ATS OUTPUT INVALID", { model, err: err?.message, data });
-      return res.status(502).json({
-        error: "Model returned incomplete ATS JSON",
-        details: err?.message || String(err),
-        model_output: JSON.stringify(data).slice(0, 2000),
-      });
+      normalized.optimized_cv = currentOptimized;
     }
 
     if (isPreview) {
@@ -794,7 +1041,6 @@ ${cv}
       review_mode: hasJD ? "job_specific" : "general",
     });
   } catch (err) {
-    console.error("SERVER ERROR", err);
     return res.status(500).json({
       error: "Server error",
       details: err?.message || String(err),
