@@ -451,7 +451,6 @@ async function callOpenAIJson({
     },
     body: JSON.stringify({
       model,
-      temperature,
       response_format: { type: "json_object" },
       max_completion_tokens: maxTokens,
       messages: [
