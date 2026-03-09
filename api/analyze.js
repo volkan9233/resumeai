@@ -181,11 +181,7 @@ const WEAK_PHRASE_RE =
 
 const STRONG_ACTION_RE =
   /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created|responded|resolved|guided|communicated|relayed|documented|collected|scheduled|updated|monitored)\b/i;
-const EN_WEAK_REWRITE_START_RE =
-  /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided|facilitated)\b/i;
 
-const ENGLISH_WEAK_SWAP_RE =
-  /\b(assisted|contributed|participated|supported|helped)\b/i;
 
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
