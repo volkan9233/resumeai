@@ -1207,7 +1207,7 @@ export default async function handler(req, res) {
               }),
           isPreview,
           passType: "main",
-          maxCompletionTokens: isPreview ? 1800 : 2600,
+          maxCompletionTokens: isPreview ? 1800 : 2200,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
