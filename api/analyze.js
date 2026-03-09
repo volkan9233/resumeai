@@ -91,8 +91,7 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
-    // GPT-5 reasoning modlarında temperature göndermiyoruz.
-    // Sadece none kullandığımız preview / fallback denemelerinde veriyoruz.
+    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiliyor
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -166,15 +165,34 @@ function getBulletLines(str = "") {
 }
 
 function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|YETENEKLER|EĞİTİM|YABANCI DİL|DİLLER|SERTİFİKALAR)$/i.test(
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|EĞİTİM|PROFİL|PROFILE|BİLDİĞİ DİLLER|LANGUAGES|SERTİFİKALAR|CERTIFICATIONS|PROJELER|PROJECTS|EK BİLGİLER|ADDITIONAL INFORMATION)$/i.test(
     String(line).trim()
   );
 }
 
-function isBodySectionHeader(line = "") {
-  return /^(EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|YETENEKLER|EĞİTİM|YABANCI DİL|DİLLER|SERTİFİKALAR)$/i.test(
-    String(line).trim()
-  );
+function extractHeaderBlock(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const header = [];
+
+  for (const line of lines) {
+    if (isSectionHeader(line)) break;
+    header.push(line);
+  }
+
+  return header.slice(0, 6);
+}
+
+function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
+  const originalHeader = extractHeaderBlock(originalCv);
+  if (!originalHeader.length) return String(optimizedCv || "").trim();
+
+  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
+  const sectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
+
+  if (sectionIdx === -1) return String(optimizedCv || "").trim();
+
+  const body = lines.slice(sectionIdx).join("\n").trim();
+  return `${originalHeader.join("\n")}\n\n${body}`.trim();
 }
 
 function extractExperienceTitles(cv = "") {
@@ -227,91 +245,9 @@ function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function hasSummarySection(cv = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/im.test(
-    String(cv || "")
-  );
-}
-
-function extractIdentityBlock(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const out = [];
-
-  for (const line of lines) {
-    if (isSectionHeader(line)) break;
-    out.push(line);
-    if (out.length >= 4) break;
-  }
-
-  return out;
-}
-
-function extractSummarySection(cv = "") {
-  const lines = String(cv || "").replace(/\r/g, "").split("\n");
-  const start = lines.findIndex((x) =>
-    /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/i.test(
-      String(x).trim()
-    )
-  );
-
-  if (start === -1) return "";
-
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (isBodySectionHeader(String(lines[i]).trim())) {
-      end = i;
-      break;
-    }
-  }
-
-  return lines.slice(start, end).join("\n").trim();
-}
-
-function replaceIdentityBlock(originalCv = "", optimizedCv = "") {
-  const identity = extractIdentityBlock(originalCv);
-  if (!identity.length) return String(optimizedCv || "").trim();
-
-  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
-  const firstSectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
-
-  const body =
-    firstSectionIdx === -1
-      ? String(optimizedCv || "").trim()
-      : lines.slice(firstSectionIdx).join("\n").trim();
-
-  return `${identity.join("\n")}\n\n${body}`.trim();
-}
-
-function ensureSummarySection(originalCv = "", optimizedCv = "") {
-  const out = String(optimizedCv || "").trim();
-  if (!out) return out;
-
-  if (hasSummarySection(out)) return out;
-
-  const originalSummary = extractSummarySection(originalCv);
-  if (!originalSummary) return out;
-
-  const lines = out.replace(/\r/g, "").split("\n");
-  const firstBodyIdx = lines.findIndex((x) =>
-    isBodySectionHeader(String(x).trim())
-  );
-
-  if (firstBodyIdx === -1) {
-    return `${out}\n\n${originalSummary}`.replace(/\n{3,}/g, "\n\n").trim();
-  }
-
-  const beforeBody = lines.slice(0, firstBodyIdx).join("\n").trim();
-  const body = lines.slice(firstBodyIdx).join("\n").trim();
-
-  return `${beforeBody}\n\n${originalSummary}\n\n${body}`
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 function forceSafeResume(originalCv = "", optimizedCv = "") {
   let out = String(optimizedCv || "").trim();
-  out = replaceIdentityBlock(originalCv, out);
-  out = ensureSummarySection(originalCv, out);
+  out = replaceHeaderBlock(originalCv, out);
   out = restoreExperienceTitles(originalCv, out);
   return out.trim();
 }
@@ -339,151 +275,6 @@ function countWeakVerbHits(cv = "") {
   ).length;
 }
 
-function countMetricHits(cv = "") {
-  const bullets = getBulletLines(cv);
-  return bullets.filter((b) =>
-    /\b\d+(?:[.,]\d+)?\s*(?:%|x|years?|year|months?|month|yıl|ay|kişi|person|users?|müşteri|clients?|TL|USD|EUR|₺|\$|€)\b/i.test(
-      b
-    ) || /\b\d+(?:[.,]\d+)?%\b/.test(b)
-  ).length;
-}
-
-function extractJdKeywords(text = "") {
-  const stop = new Set([
-    "and",
-    "the",
-    "for",
-    "with",
-    "from",
-    "that",
-    "this",
-    "your",
-    "have",
-    "has",
-    "will",
-    "our",
-    "are",
-    "job",
-    "role",
-    "team",
-    "work",
-    "years",
-    "year",
-    "plus",
-    "candidate",
-    "requirements",
-    "preferred",
-    "ability",
-    "experience",
-    "responsible",
-    "using",
-    "used",
-    "must",
-    "should",
-    "need",
-    "needs",
-    "ve",
-    "ile",
-    "için",
-    "icin",
-    "üzere",
-    "uzere",
-    "olarak",
-    "ilgili",
-    "gibi",
-    "olan",
-    "deneyim",
-    "tecrübe",
-    "görev",
-    "tercihen",
-    "aday",
-    "çalışma",
-    "calisma",
-    "ekip",
-    "pozisyon",
-  ]);
-
-  return [
-    ...new Set(
-      normalizeCompareText(text)
-        .split(/\s+/)
-        .filter((w) => w.length >= 4 && !stop.has(w))
-    ),
-  ].slice(0, 60);
-}
-
-function keywordOverlapScore(cv = "", jd = "") {
-  const cvText = ` ${normalizeCompareText(cv)} `;
-  const keywords = extractJdKeywords(jd);
-  if (!keywords.length) return 1;
-
-  let hits = 0;
-  for (const kw of keywords) {
-    if (cvText.includes(` ${kw} `)) hits++;
-  }
-
-  return hits / keywords.length;
-}
-
-function computeHeuristicAtsScore(cv = "", jd = "") {
-  let score = 100;
-
-  const bullets = getBulletLines(cv);
-  const weakVerbHits = countWeakVerbHits(cv);
-  const metricHits = countMetricHits(cv);
-  const lines = getNonEmptyLines(cv);
-  const header = extractIdentityBlock(cv).join(" ");
-
-  const hasSummary =
-    /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFIL|PROFİL|PROFESYONEL ÖZET|ÖZET)$/im.test(
-      cv
-    );
-  const hasExperience =
-    /^(EXPERIENCE|WORK EXPERIENCE|DENEYİM|İŞ DENEYİMİ)$/im.test(cv);
-  const hasEducation = /^(EDUCATION|EĞİTİM)$/im.test(cv);
-  const hasSkills =
-    /^(SKILLS|BECERİLER|YETKİNLİKLER|YETENEKLER)$/im.test(cv);
-
-  if (!hasSummary) score -= 8;
-  if (!hasExperience) score -= 25;
-  if (!hasEducation) score -= 8;
-  if (!hasSkills) score -= 8;
-
-  if (bullets.length === 0) score -= 18;
-  else if (bullets.length < 4) score -= 12;
-  else if (bullets.length < 7) score -= 6;
-
-  if (metricHits === 0) score -= 8;
-  else if (metricHits < 2) score -= 4;
-
-  if (weakVerbHits >= 5) score -= 12;
-  else if (weakVerbHits >= 3) score -= 8;
-  else if (weakVerbHits >= 1) score -= 4;
-
-  if (lines.length < 10) score -= 10;
-  else if (lines.length < 16) score -= 5;
-
-  if (!/@/.test(header)) score -= 6;
-  if (!/\+?\d[\d\s()-]{7,}/.test(header)) score -= 4;
-
-  if (jd && jd.trim()) {
-    const overlap = keywordOverlapScore(cv, jd);
-    if (overlap < 0.1) score -= 18;
-    else if (overlap < 0.2) score -= 12;
-    else if (overlap < 0.35) score -= 6;
-  }
-
-  return clampScore(score);
-}
-
-function computeFinalAtsScore(modelScore, cv = "", jd = "") {
-  const model = clampScore(modelScore);
-  const heuristic = computeHeuristicAtsScore(cv, jd);
-
-  // Heuristic biraz daha baskın
-  return clampScore(Math.round(model * 0.4 + heuristic * 0.6));
-}
-
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
@@ -494,18 +285,14 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (origNorm === optNorm) return true;
 
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.8) return true;
+  if (total > 0 && same / total >= 0.4) return true;
 
   const optimizedBullets = getBulletLines(optimizedCv);
-  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.5))) {
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.7))) {
     return true;
   }
 
-  if (countWeakVerbHits(optimizedCv) >= 5) return true;
-
-  if (hasSummarySection(originalCv) && !hasSummarySection(optimizedCv)) {
-    return true;
-  }
+  if (countWeakVerbHits(optimizedCv) >= 2) return true;
 
   return false;
 }
@@ -521,12 +308,44 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     ];
   }
 
-  if (passType === "repair") {
+  // Sadece optimized_cv üretimi
+  if (passType === "optimize") {
     return [
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+      },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
+      },
+    ];
+  }
+
+  // Sadece repair gerektiğinde
+  if (passType === "repair") {
+    return [
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
+      },
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 7000),
+      },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
       },
     ];
   }
@@ -536,21 +355,32 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 1200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1400),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
       },
     ];
   }
 
+  // Full analysis pass (optimized_cv yok)
   return [
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+    },
+    {
+      reasoningEffort: "low",
+      temperature: null,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
     },
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
     },
   ];
 }
@@ -618,24 +448,17 @@ async function callOpenAIJson({
       const text = extractAssistantText(parsed);
 
       if (!text || !text.trim()) {
-  console.log("EMPTY MODEL CONTENT", {
-    model,
-    passType,
-    isPreview,
-    finishReason,
-    rawPreview: raw.slice(0, 800),
-  });
-
-  lastError = new Error("Model returned empty content");
-  if (finishReason === "length") continue;
-  continue;
-}
+        lastError = new Error("Model returned empty content");
+        if (finishReason === "length") continue;
+        continue;
+      }
 
       let data;
       try {
         data = safeJsonParse(text);
       } catch (err) {
         lastError = err;
+        if (finishReason === "length") continue;
         continue;
       }
 
@@ -728,26 +551,6 @@ REQUIREMENTS:
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
 
-SCORING RUBRIC:
-- 0-20 = very poor resume: missing core sections, weak or no bullets, little usable signal, very low ATS readiness.
-- 21-35 = poor resume: generic wording, thin content, weak experience bullets, low keyword evidence, low recruiter confidence.
-- 36-50 = below average: some structure exists but bullets are weak, evidence is limited, keyword coverage is modest.
-- 51-65 = average: readable and usable but still has clear ATS and recruiter weaknesses.
-- 66-80 = strong: clear structure, relevant keywords, solid bullet writing, generally ATS-friendly.
-- 81-100 = excellent: strong, specific, well-structured, highly ATS-friendly, and well aligned.
-
-MANDATORY PENALTIES:
-- Missing clear section headers: subtract 10-15
-- Very few or no experience bullets: subtract 8-15
-- No concrete evidence or metrics in bullets: subtract 5-10
-- Mostly weak/generic phrasing: subtract 8-15
-- Poor keyword coverage for the likely role: subtract 5-15
-- If unsure, score lower, not higher
-
-IMPORTANT:
-- Do not cluster weak resumes in the high 30s or 40s.
-- Truly weak resumes should usually fall in the 15-35 range.
-
 RESUME:
 ${cv}
 
@@ -782,85 +585,36 @@ REQUIREMENTS:
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
 
-SCORING RUBRIC:
-- 0-20 = very poor resume: missing core sections, weak or no bullets, little usable signal, very low ATS readiness.
-- 21-35 = poor resume: generic wording, thin content, weak experience bullets, low keyword evidence, low recruiter confidence.
-- 36-50 = below average: some structure exists but bullets are weak, evidence is limited, keyword coverage is modest.
-- 51-65 = average: readable and usable but still has clear ATS and recruiter weaknesses.
-- 66-80 = strong: clear structure, relevant keywords, solid bullet writing, generally ATS-friendly.
-- 81-100 = excellent: strong, specific, well-structured, highly ATS-friendly, and well aligned.
-
-MANDATORY PENALTIES:
-- Missing clear section headers: subtract 10-15
-- Very few or no experience bullets: subtract 8-15
-- No concrete evidence or metrics in bullets: subtract 5-10
-- Mostly weak/generic phrasing: subtract 8-15
-- Poor keyword coverage for the likely role: subtract 5-15
-- If unsure, score lower, not higher
-
-IMPORTANT:
-- Do not cluster weak resumes in the high 30s or 40s.
-- Truly weak resumes should usually fall in the 15-35 range.
-
 RESUME:
 ${cv}
 `.trim();
 }
 
-function buildFullAtsPrompt({ cv, jd, hasJD, outLang }) {
+function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
   if (hasJD) {
     return `
-Analyze the resume vs job description and return JSON in this exact schema:
+Return JSON in this exact schema:
 
 {
   "ats_score": number,
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "optimized_cv": string,
   "summary": string
 }
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
 - ats_score must reflect resume-to-job alignment.
-- missing_keywords MUST include 18-30 items genuinely missing or underrepresented from the JOB DESCRIPTION.
+- missing_keywords MUST include 12-20 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include 6-10 items from the resume text.
+- weak_sentences MUST include 5-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
-- optimized_cv MUST be a complete rewritten resume aligned to the job description and written in ${outLang}.
+- Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
-- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME or JOB DESCRIPTION.
-- If resume has no numbers, do NOT add any numbers in rewrites.
-- Keep the header identity block and existing experience titles unchanged.
-- Keep or rewrite the existing profile/summary section. Do NOT remove it.
-- Do NOT remove non-empty sections such as Languages or Certifications.
-- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
-- Avoid overly long paragraph-like bullets.
-- Each bullet should be direct, keyword-relevant, and recruiter-friendly.
-
-SCORING RUBRIC:
-- 0-20 = very poor resume: missing core sections, weak or no bullets, little usable signal, very low ATS readiness.
-- 21-35 = poor resume: generic wording, thin content, weak experience bullets, low keyword evidence, low recruiter confidence.
-- 36-50 = below average: some structure exists but bullets are weak, evidence is limited, keyword coverage is modest.
-- 51-65 = average: readable and usable but still has clear ATS and recruiter weaknesses.
-- 66-80 = strong: clear structure, relevant keywords, solid bullet writing, generally ATS-friendly.
-- 81-100 = excellent: strong, specific, well-structured, highly ATS-friendly, and well aligned.
-
-MANDATORY PENALTIES:
-- Missing clear section headers: subtract 10-15
-- Very few or no experience bullets: subtract 8-15
-- No concrete evidence or metrics in bullets: subtract 5-10
-- Mostly weak/generic phrasing: subtract 8-15
-- Poor keyword coverage for the likely role: subtract 5-15
-- If unsure, score lower, not higher
-
-IMPORTANT:
-- Do not cluster weak resumes in the high 30s or 40s.
-- Truly weak resumes should usually fall in the 15-35 range.
 
 Return ONLY valid JSON.
 
@@ -873,59 +627,29 @@ ${jd}
   }
 
   return `
-Analyze the resume and return JSON in this exact schema:
+Return JSON in this exact schema:
 
 {
   "ats_score": number,
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "optimized_cv": string,
   "summary": string
 }
 
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
 - ats_score must reflect general ATS readiness, not job match.
-- missing_keywords MUST include 15-25 items.
+- missing_keywords MUST include 10-18 items.
 - These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
-- weak_sentences MUST include 6-10 items from the resume text.
+- weak_sentences MUST include 5-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
-- optimized_cv MUST be a complete rewritten ATS-friendly resume in ${outLang}.
-- It must improve structure, clarity, section naming, bullet writing, and recruiter readability.
+- Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
-- Do NOT invent or assume numbers/percentages/results. Use numbers ONLY if they exist in RESUME.
-- If resume has no numbers, do NOT add any numbers in rewrites.
-- Keep the header identity block and existing experience titles unchanged.
-- Keep or rewrite the existing profile/summary section. Do NOT remove it.
-- Do NOT remove non-empty sections such as Languages or Certifications.
-- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
-- Avoid overly long paragraph-like bullets.
-- Each bullet should be direct, keyword-relevant, and recruiter-friendly.
-
-SCORING RUBRIC:
-- 0-20 = very poor resume: missing core sections, weak or no bullets, little usable signal, very low ATS readiness.
-- 21-35 = poor resume: generic wording, thin content, weak experience bullets, low keyword evidence, low recruiter confidence.
-- 36-50 = below average: some structure exists but bullets are weak, evidence is limited, keyword coverage is modest.
-- 51-65 = average: readable and usable but still has clear ATS and recruiter weaknesses.
-- 66-80 = strong: clear structure, relevant keywords, solid bullet writing, generally ATS-friendly.
-- 81-100 = excellent: strong, specific, well-structured, highly ATS-friendly, and well aligned.
-
-MANDATORY PENALTIES:
-- Missing clear section headers: subtract 10-15
-- Very few or no experience bullets: subtract 8-15
-- No concrete evidence or metrics in bullets: subtract 5-10
-- Mostly weak/generic phrasing: subtract 8-15
-- Poor keyword coverage for the likely role: subtract 5-15
-- If unsure, score lower, not higher
-
-IMPORTANT:
-- Do not cluster weak resumes in the high 30s or 40s.
-- Truly weak resumes should usually fall in the 15-35 range.
 
 Return ONLY valid JSON.
 
@@ -934,7 +658,93 @@ ${cv}
 `.trim();
 }
 
-function buildRepairPrompt({ cv, jd, hasJD, currentOptimizedCv }) {
+function buildOptimizeCvPrompt({
+  cv,
+  jd,
+  hasJD,
+  summary,
+  missingKeywords,
+}) {
+  const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
+
+  return hasJD
+    ? `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+Rewrite the resume into a stronger ATS-friendly version aligned to the same job description.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume or job description.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Use the analysis summary and missing keywords to strengthen the CV truthfully.
+- Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
+- Avoid shallow synonym swaps and lightly polished copies.
+- Return ONLY valid JSON.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim()
+    : `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+Rewrite the resume into a stronger ATS-friendly version.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Use the analysis summary and missing keywords to strengthen the CV truthfully.
+- Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
+- Avoid shallow synonym swaps and lightly polished copies.
+- Return ONLY valid JSON.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
+
+RESUME:
+${cv}
+`.trim();
+}
+
+function buildRepairPrompt({
+  cv,
+  jd,
+  hasJD,
+  currentOptimizedCv,
+  summary,
+  missingKeywords,
+}) {
+  const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
+
   return hasJD
     ? `
 Return JSON in this exact schema:
@@ -959,12 +769,15 @@ STRICT RULES:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
 - Prefer direct action + scope + business context wording.
-- Keep or rewrite the existing profile/summary section. Do NOT remove it.
-- Do NOT remove non-empty sections such as Languages or Certifications.
-- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
-- Avoid overly long paragraph-like bullets.
 - The result must not read like a lightly polished copy.
 - The result must still be a truthful ATS-friendly resume aligned to the job description.
+- Return ONLY valid JSON.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
 
 RESUME (original):
 ${cv}
@@ -999,11 +812,14 @@ STRICT RULES:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
 - Prefer direct action + scope + business context wording.
-- Keep or rewrite the existing profile/summary section. Do NOT remove it.
-- Do NOT remove non-empty sections such as Languages or Certifications.
-- Prefer concise ATS-friendly bullets, roughly 12-24 words each.
-- Avoid overly long paragraph-like bullets.
 - The result must not read like a lightly polished copy.
+- Return ONLY valid JSON.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
 
 RESUME (original):
 ${cv}
@@ -1037,11 +853,10 @@ Return JSON in this exact schema:
 RULES:
 - Output VALUES must be in ${outLang} (proper nouns/tools can stay).
 - headlines: exactly 1 item.
-- about.short: 250-450 chars, punchy, concise, no emojis.
+- about.short: 600-900 chars, punchy, no emojis.
 - experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
-- skills.top: 5-7 items.
-- recruiter.keywords: 4-6 items.
-- Keep output compact and concise for preview mode.
+- skills.top: 7-10 items.
+- recruiter.keywords: 5-8 items.
 - No extra keys. Return ONLY valid JSON.
 
 TARGETING META:
@@ -1085,15 +900,15 @@ QUALITY RULES:
 - Do NOT invent employers, titles, dates, degrees, or metrics.
 - If resume has no numbers, improve bullets without guessing numbers.
 - Headline max 220 chars each. No emojis.
-- about.short: 300-500 chars.
-- about.normal: 600-900 chars.
-- about.bold: 600-900 chars.
+- about.short: 500-800 chars.
+- about.normal: 900-1400 chars.
+- about.bold: 900-1400 chars.
 - headlines: exactly 5 items with labels Search, Impact, Niche, Leadership, Clean.
 - experience_fix: 4-6 items maximum, only if there are real, materially stronger rewrites.
-- skills.top: 10-14
-- skills.tools: 6-10
-- skills.industry: 8-14
-- recruiter.keywords: 8-12
+- skills.top: 12-18
+- skills.tools: 8-16
+- skills.industry: 12-20
+- recruiter.keywords: 10-20
 - recruiter.boolean: a single boolean string using OR groups + a few AND terms.
 - Return ONLY valid JSON. No extra keys.
 
@@ -1158,10 +973,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "OPENAI_API_KEY is missing on Vercel" });
     }
 
-    const previewModel = process.env.OPENAI_MODEL_PREVIEW || "gpt-5-mini";
-    const fullModel = process.env.OPENAI_MODEL_FULL || "gpt-5.1";
-    const repairModel = process.env.OPENAI_MODEL_REPAIR || "gpt-5-mini";
-    const model = isPreview ? previewModel : fullModel;
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
     const LANG_MAP = {
       en: "English",
@@ -1216,7 +1028,7 @@ export default async function handler(req, res) {
               }),
           isPreview,
           passType: "main",
-          maxCompletionTokens: isPreview ? 1800 : 2600,
+          maxCompletionTokens: isPreview ? 1400 : 2600,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1254,98 +1066,38 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
-    const atsPrompt = isPreview
-  ? buildPreviewAtsPrompt({ cv, jd, hasJD, outLang })
-  : buildFullAtsPrompt({ cv, jd, hasJD, outLang });
-
-let data;
-try {
-  data = await callOpenAIJson({
-    apiKey,
-    model,
-    system: buildAtsSystem(outLang),
-    userPrompt: atsPrompt,
-    isPreview,
-    passType: "main",
-    maxCompletionTokens: isPreview ? 1200 : 1800,
-  });
-} catch (err) {
-  const shouldFallback =
-    isPreview &&
-    err?.message === "Model returned empty content" &&
-    previewModel !== fullModel;
-
-  if (shouldFallback) {
-    try {
-      data = await callOpenAIJson({
-        apiKey,
-        model: fullModel,
-        system: buildAtsSystem(outLang),
-        userPrompt: atsPrompt,
-        isPreview: true,
-        passType: "main",
-        maxCompletionTokens: 1200,
-      });
-    } catch (fallbackErr) {
-      return res.status(fallbackErr?.status || 500).json({
-        error: fallbackErr?.message || "OpenAI error",
-        status: fallbackErr?.status || 500,
-        details: fallbackErr?.details || String(fallbackErr),
-      });
-    }
-  } else {
-    return res.status(err?.status || 500).json({
-      error: err?.message || "OpenAI error",
-      status: err?.status || 500,
-      details: err?.details || String(err),
-    });
-  }
-}
-
-    const normalized = {
-      ats_score: computeFinalAtsScore(data?.ats_score, cv, hasJD ? jd : ""),
-      missing_keywords: Array.isArray(data?.missing_keywords) ? data.missing_keywords : [],
-      weak_sentences: Array.isArray(data?.weak_sentences) ? data.weak_sentences : [],
-      summary: typeof data?.summary === "string" ? data.summary : "",
-      ...(isPreview
-        ? {}
-        : {
-            optimized_cv: typeof data?.optimized_cv === "string" ? data.optimized_cv : "",
-          }),
-    };
-
-    if (!isPreview) {
-      let currentOptimized = forceSafeResume(cv, normalized.optimized_cv || "");
-
-      if (!currentOptimized || shouldRepairOptimizedCv(cv, currentOptimized)) {
-        try {
-          const repaired = await callOpenAIJson({
-            apiKey,
-            model: repairModel,
-            system: buildAtsSystem(outLang),
-            userPrompt: buildRepairPrompt({
-              cv,
-              jd,
-              hasJD,
-              currentOptimizedCv: currentOptimized || cv,
-            }),
-            isPreview: false,
-            passType: "repair",
-            maxCompletionTokens: 2200,
-          });
-
-          if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
-            currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
-          }
-        } catch {
-          // İlk optimize edilmiş sürüm kullanılmaya devam eder
-        }
+    // PREVIEW: tek çağrı
+    if (isPreview) {
+      let previewData;
+      try {
+        previewData = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }),
+          isPreview: true,
+          passType: "main",
+          maxCompletionTokens: 1400,
+        });
+      } catch (err) {
+        return res.status(err?.status || 500).json({
+          error: err?.message || "OpenAI error",
+          status: err?.status || 500,
+          details: err?.details || String(err),
+        });
       }
 
-      normalized.optimized_cv = currentOptimized;
-    }
+      const normalized = {
+        ats_score: clampScore(previewData?.ats_score),
+        missing_keywords: Array.isArray(previewData?.missing_keywords)
+          ? previewData.missing_keywords
+          : [],
+        weak_sentences: Array.isArray(previewData?.weak_sentences)
+          ? previewData.weak_sentences
+          : [],
+        summary: typeof previewData?.summary === "string" ? previewData.summary : "",
+      };
 
-    if (isPreview) {
       await ensureMinDelay(startedAt, 15000);
 
       return res.status(200).json({
@@ -1356,6 +1108,99 @@ try {
         review_mode: hasJD ? "job_specific" : "general",
       });
     }
+
+    // FULL ATS: iki ayrı çağrı
+    let analysisData;
+    try {
+      analysisData = await callOpenAIJson({
+        apiKey,
+        model,
+        system: buildAtsSystem(outLang),
+        userPrompt: buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }),
+        isPreview: false,
+        passType: "main",
+        maxCompletionTokens: 2600,
+      });
+    } catch (err) {
+      return res.status(err?.status || 500).json({
+        error: err?.message || "OpenAI error",
+        status: err?.status || 500,
+        details: err?.details || String(err),
+      });
+    }
+
+    const normalized = {
+      ats_score: clampScore(analysisData?.ats_score),
+      missing_keywords: Array.isArray(analysisData?.missing_keywords)
+        ? analysisData.missing_keywords
+        : [],
+      weak_sentences: Array.isArray(analysisData?.weak_sentences)
+        ? analysisData.weak_sentences
+        : [],
+      summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
+      optimized_cv: "",
+    };
+
+    // optimize edilmiş CV ayrı çağrı
+    let currentOptimized = "";
+    try {
+      const optimizeData = await callOpenAIJson({
+        apiKey,
+        model,
+        system: buildAtsSystem(outLang),
+        userPrompt: buildOptimizeCvPrompt({
+          cv,
+          jd,
+          hasJD,
+          summary: normalized.summary,
+          missingKeywords: normalized.missing_keywords,
+        }),
+        isPreview: false,
+        passType: "optimize",
+        maxCompletionTokens: 4200,
+      });
+
+      if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
+        currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
+      }
+    } catch {
+      currentOptimized = "";
+    }
+
+    // optimize boşsa en azından orijinali boş dönme
+    if (!currentOptimized) {
+      currentOptimized = forceSafeResume(cv, cv);
+    }
+
+    // sadece gerçekten gerekirse repair
+    if (shouldRepairOptimizedCv(cv, currentOptimized)) {
+      try {
+        const repaired = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildRepairPrompt({
+            cv,
+            jd,
+            hasJD,
+            currentOptimizedCv: currentOptimized || cv,
+            summary: normalized.summary,
+            missingKeywords: normalized.missing_keywords,
+          }),
+          isPreview: false,
+          passType: "repair",
+          maxCompletionTokens: 5200,
+        });
+
+        if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
+          currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+        }
+      } catch {
+        // mevcut optimize sürüm kalsın
+      }
+    }
+
+    normalized.optimized_cv = currentOptimized;
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
