@@ -1,3 +1,4 @@
+Analyze.js son 
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 import crypto from "crypto";
@@ -17,54 +18,20 @@ const rlFull = new Ratelimit({
   limiter: Ratelimit.slidingWindow(3, "1 m"),
   prefix: "resumeai:rl:full",
 });
-
-const WEAK_SENTENCE_RE =
+  const WEAK_SENTENCE_RE =
   /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
+
+const STRONG_SPECIFIC_RE =
+  /\b(google ads|meta ads|meta ads manager|google analytics|google analytics 4|ga4|google tag manager|seo|sem|ctr|cpc|cpa|roas|roi|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|retargeting|lead generation|email marketing|segmentasyon|yeniden pazarlama|veri analizi|raporlama|kpi)\b/i;
 
 const WEAK_PHRASE_RE =
   /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
 
-const SUPPORT_RE =
-  /\b(destek verdim|destek oldum|katkı sağladım|yardımcı oldum|görev aldım|assisted|supported|helped|contributed|participated|involved in)\b/i;
-
-const OWNERSHIP_RE =
-  /\b(yönettim|yürüttüm|koordine ettim|sahiplendim|liderlik ettim|geliştirdim|uyguladım|optimize ettim|tasarladım|planladım|launched|managed|owned|led|headed|drove|built|executed|optimized|developed)\b/i;
-
-const OUTCOME_RE =
-  /\b(artırdım|artirdim|iyileştirdim|iyilestirdim|optimize ettim|geliştirdim|gelistirdim|verimliliği artırdım|verimliligi artirdim|increased|improved|boosted|grew|reduced|optimized)\b/i;
-
 const STRONG_ACTION_RE =
-  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created)\b/i;
+  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created)\b/i;
 
 const SPECIFICITY_RE =
-  /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|linkedin campaign manager|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|retargeting|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|audience segmentation|kpi|looker studio|marketing automation)\b/i;
-
-const TERM_GROUPS = [
-  ["Google Ads"],
-  ["Meta Ads", "Meta Ads Manager", "Facebook Ads", "Instagram Ads"],
-  ["LinkedIn Ads", "LinkedIn Campaign Manager"],
-  ["Google Analytics 4", "Google Analytics", "GA4"],
-  ["Google Tag Manager", "Tag Manager"],
-  ["Search Console", "Google Search Console"],
-  ["HubSpot"],
-  ["Looker Studio"],
-  ["SQL"],
-  ["Tableau"],
-  ["Power BI"],
-  ["Looker"],
-  ["CRO", "Conversion Rate Optimization"],
-  ["ROI"],
-  ["ROAS"],
-  ["CTR"],
-  ["CPC"],
-  ["CPA"],
-  ["KPI"],
-  ["Retargeting", "Remarketing", "Yeniden pazarlama"],
-  ["Audience segmentation", "Hedef kitle segmentasyonu", "Segmentasyon"],
-  ["Funnel optimization"],
-  ["Marketing automation"],
-  ["Email marketing", "E-posta pazarlama"],
-];
+  /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
 
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
@@ -139,6 +106,7 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
+    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiyoruz
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -226,7 +194,7 @@ function getBulletLines(str = "") {
 }
 
 function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROJECTS|ADDITIONAL INFORMATION|PROFESYONEL ÖZET|ÖZET|PROFİL|PROFIL|DENEYİM|İŞ DENEYİMİ|IS DENEYIMI|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|EGITIM|DİLLER|BİLDİĞİ DİLLER|YABANCI DİL|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROJECTS|ADDITIONAL INFORMATION|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
     String(line).trim()
   );
 }
@@ -310,13 +278,10 @@ function normalizeOptimizedHeadings(text = "") {
   return String(text || "")
     .replace(/\r/g, "")
     .replace(/^BİLDİĞİ DİLLER$/gim, "DİLLER")
-    .replace(/^YABANCI DİL$/gim, "DİLLER")
     .replace(/^YETENEKLER$/gim, "YETKİNLİKLER")
     .replace(/^BECERİLER$/gim, "YETKİNLİKLER")
     .replace(/^PROFİL$/gim, "PROFESYONEL ÖZET")
-    .replace(/^PROFIL$/gim, "PROFESYONEL ÖZET")
     .replace(/^İŞ DENEYİMİ$/gim, "DENEYİM")
-    .replace(/^IS DENEYIMI$/gim, "DENEYİM")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -349,72 +314,17 @@ function countWeakVerbHits(cv = "") {
   return bullets.filter((b) => WEAK_PHRASE_RE.test(b)).length;
 }
 
-function countSupportToOwnershipShifts(originalCv = "", optimizedCv = "") {
-  const origBullets = getBulletLines(originalCv);
-  const optBullets = getBulletLines(optimizedCv);
-  const n = Math.min(origBullets.length, optBullets.length);
-
-  let count = 0;
-  for (let i = 0; i < n; i++) {
-    const orig = origBullets[i];
-    const opt = optBullets[i];
-    if (SUPPORT_RE.test(orig) && OWNERSHIP_RE.test(opt) && !OWNERSHIP_RE.test(orig)) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-function countOutcomeEscalations(originalCv = "", optimizedCv = "") {
-  const origBullets = getBulletLines(originalCv);
-  const optBullets = getBulletLines(optimizedCv);
-  const n = Math.min(origBullets.length, optBullets.length);
-
-  let count = 0;
-  for (let i = 0; i < n; i++) {
-    const orig = origBullets[i];
-    const opt = optBullets[i];
-    if (!OUTCOME_RE.test(orig) && OUTCOME_RE.test(opt)) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-function findUnsupportedInsertedTerms(originalCv = "", optimizedCv = "") {
-  const source = normalizeCompareText(originalCv);
-  const opt = normalizeCompareText(optimizedCv);
-  const unsupported = [];
-
-  for (const group of TERM_GROUPS) {
-    const hasInOriginal = group.some((term) =>
-      source.includes(normalizeCompareText(term))
-    );
-    const hasInOptimized = group.some((term) =>
-      opt.includes(normalizeCompareText(term))
-    );
-
-    if (hasInOptimized && !hasInOriginal) {
-      unsupported.push(group[0]);
-    }
-  }
-
-  return unsupported;
-}
-
 function isClearlyWeakSentence(sentence = "") {
   const s = String(sentence || "").trim();
   if (!s) return false;
 
   if (WEAK_SENTENCE_RE.test(s)) return true;
 
-  const hasSpecific = SPECIFICITY_RE.test(s);
-  const wordCount = countWords(s);
+  const hasSpecific = STRONG_SPECIFIC_RE.test(s);
+  const wordCount = s.split(/\s+/).filter(Boolean).length;
 
   if (!hasSpecific && wordCount <= 8) return true;
-  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilendim|görüştüm|görüşmeler yaptım)\b/i.test(s)) {
-    return true;
-  }
+  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) return true;
 
   return false;
 }
@@ -424,24 +334,65 @@ function filterWeakSentences(items = []) {
     .filter((x) => {
       const sentence = String(x?.sentence || "").trim();
       const rewrite = String(x?.rewrite || "").trim();
-
       if (!sentence || !rewrite) return false;
       if (normalizeCompareText(sentence) === normalizeCompareText(rewrite)) return false;
-
       return isClearlyWeakSentence(sentence);
     })
     .slice(0, 8);
+}
+
+function computeImprovementBonus(originalCv = "", optimizedCv = "") {
+  if (!originalCv || !optimizedCv) return 0;
+
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  const weakGain = Math.max(0, weakBefore - weakAfter);
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  const rewriteRatio = total > 0 ? 1 - same / total : 0;
+
+  let bonus = 0;
+
+  bonus += Math.min(6, weakGain * 1.5);
+
+  if (rewriteRatio >= 0.6) bonus += 3;
+  else if (rewriteRatio >= 0.4) bonus += 2;
+  else if (rewriteRatio >= 0.25) bonus += 1;
+
+  return bonus;
+}
+
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
+  if (!optimizedCv || !String(optimizedCv).trim()) return true;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm) return true;
+  if (origNorm === optNorm) return true;
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  if (total > 0 && same / total >= 0.4) return true;
+
+  const optimizedBullets = getBulletLines(optimizedCv);
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.7))) {
+    return true;
+  }
+
+  if (countWeakVerbHits(optimizedCv) >= 2) return true;
+
+  return false;
 }
 
 function getSectionPresenceScore(cv = "") {
   const text = getNonEmptyLines(cv).join("\n");
   let score = 0;
 
-  if (/(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL|PROFIL)/i.test(text)) score += 5;
-  if (/(EXPERIENCE|WORK EXPERIENCE|DENEYİM|İŞ DENEYİMİ|IS DENEYIMI)/i.test(text)) score += 7;
+  if (/(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)/i.test(text)) score += 5;
+  if (/(EXPERIENCE|WORK EXPERIENCE|DENEYİM|İŞ DENEYİMİ)/i.test(text)) score += 7;
   if (/(SKILLS|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(text)) score += 4;
-  if (/(EDUCATION|EĞİTİM|EGITIM)/i.test(text)) score += 4;
-  if (/(LANGUAGES|DİLLER|BİLDİĞİ DİLLER|YABANCI DİL)/i.test(text)) score += 2;
+  if (/(EDUCATION|EĞİTİM)/i.test(text)) score += 4;
+  if (/(LANGUAGES|DİLLER|BİLDİĞİ DİLLER)/i.test(text)) score += 2;
   if (/(CERTIFICATIONS|SERTİFİKALAR)/i.test(text)) score += 2;
   if (/(PROJECTS|PROJELER)/i.test(text)) score += 1;
 
@@ -471,6 +422,7 @@ function getSkillsLines(cv = "") {
 function getKeywordBreadthScore(cv = "") {
   const text = normalizeCompareText(cv);
   const skills = uniqueTrimmedStrings(getSkillsLines(cv));
+
   let score = 0;
 
   score += Math.min(8, skills.length);
@@ -478,10 +430,8 @@ function getKeywordBreadthScore(cv = "") {
   const keywordHits = [
     "google ads",
     "meta ads",
-    "meta ads manager",
     "google analytics",
     "google analytics 4",
-    "ga4",
     "tag manager",
     "seo",
     "sem",
@@ -588,31 +538,31 @@ function getJdAlignmentScore(cv = "", jd = "") {
   }
 
   const ratio = hits / terms.length;
-  return Math.max(0, Math.min(12, Math.round(ratio * 12)));
+  return Math.max(0, Math.min(10, Math.round(ratio * 10)));
 }
 
 function computeDeterministicAtsScore(cv = "", jd = "") {
   const hasJD = !!String(jd || "").trim();
 
-  const sectionScore = getSectionPresenceScore(cv); // 0-25
-  const bulletScore = getBulletStrengthScore(cv);   // 0-40
-  const readabilityScore = getReadabilityScore(cv); // 0-20
-  const keywordScore = getKeywordBreadthScore(cv);  // 0-15
-  const jdScore = getJdAlignmentScore(cv, jd);      // 0-12
+  const sectionScore = getSectionPresenceScore(cv);     // 0-25
+  const bulletScore = getBulletStrengthScore(cv);       // 0-40
+  const readabilityScore = getReadabilityScore(cv);     // 0-20
+  const keywordScore = getKeywordBreadthScore(cv);      // 0-15
+  const jdScore = getJdAlignmentScore(cv, jd);          // 0-10
 
   let total = 0;
 
   if (hasJD) {
     total =
-      Math.round((sectionScore / 25) * 18) +
-      Math.round((bulletScore / 40) * 40) +
-      Math.round((readabilityScore / 20) * 18) +
-      Math.round((keywordScore / 15) * 12) +
+      Math.round((sectionScore / 25) * 20) +
+      Math.round((bulletScore / 40) * 35) +
+      Math.round((readabilityScore / 20) * 20) +
+      Math.round((keywordScore / 15) * 15) +
       jdScore;
   } else {
     total =
-      Math.round((sectionScore / 25) * 20) +
-      Math.round((bulletScore / 40) * 45) +
+      Math.round((sectionScore / 25) * 25) +
+      Math.round((bulletScore / 40) * 40) +
       Math.round((readabilityScore / 20) * 20) +
       Math.round((keywordScore / 15) * 15);
   }
@@ -630,8 +580,8 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
 
     return clampScore(
       role_alignment * 0.28 +
-      bullet_strength * 0.30 +
-      jd_keyword_match * 0.16 +
+      bullet_strength * 0.28 +
+      jd_keyword_match * 0.18 +
       section_completeness * 0.16 +
       ats_safe_formatting * 0.10
     );
@@ -650,129 +600,6 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
     ats_safe_formatting * 0.14 +
     core_keyword_coverage * 0.08
   );
-}
-
-function computeImprovementBonus(originalCv = "", optimizedCv = "") {
-  if (!originalCv || !optimizedCv) return 0;
-
-  const unsupportedTerms = findUnsupportedInsertedTerms(originalCv, optimizedCv);
-  const supportShiftCount = countSupportToOwnershipShifts(originalCv, optimizedCv);
-  const outcomeEscalations = countOutcomeEscalations(originalCv, optimizedCv);
-
-  if (unsupportedTerms.length > 0) return 0;
-  if (supportShiftCount > 1) return 0;
-  if (outcomeEscalations > 1) return 0;
-
-  const weakBefore = countWeakVerbHits(originalCv);
-  const weakAfter = countWeakVerbHits(optimizedCv);
-  const weakGain = Math.max(0, weakBefore - weakAfter);
-
-  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  const rewriteRatio = total > 0 ? 1 - same / total : 0;
-
-  let bonus = 0;
-
-  bonus += Math.min(4, weakGain * 1.0);
-
-  if (rewriteRatio >= 0.55) bonus += 2;
-  else if (rewriteRatio >= 0.35) bonus += 1;
-
-  return Math.max(0, Math.min(6, bonus));
-}
-
-function computeMinimumSafeGain(originalCv = "", optimizedCv = "") {
-  const unsupportedTerms = findUnsupportedInsertedTerms(originalCv, optimizedCv);
-  const supportShiftCount = countSupportToOwnershipShifts(originalCv, optimizedCv);
-  const outcomeEscalations = countOutcomeEscalations(originalCv, optimizedCv);
-
-  if (unsupportedTerms.length > 0) return 0;
-  if (supportShiftCount > 1) return 0;
-  if (outcomeEscalations > 1) return 0;
-
-  const weakBefore = countWeakVerbHits(originalCv);
-  const weakAfter = countWeakVerbHits(optimizedCv);
-  const weakGain = Math.max(0, weakBefore - weakAfter);
-
-  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  const rewriteRatio = total > 0 ? 1 - same / total : 0;
-
-  let gain = 0;
-
-  if (weakGain >= 3) gain += 4;
-  else if (weakGain >= 2) gain += 3;
-  else if (weakGain >= 1) gain += 1;
-
-  if (rewriteRatio >= 0.55) gain += 2;
-  else if (rewriteRatio >= 0.35) gain += 1;
-
-  return Math.max(0, Math.min(6, gain));
-}
-
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
-  if (!optimizedCv || !String(optimizedCv).trim()) return true;
-
-  const origNorm = normalizeCompareText(originalCv);
-  const optNorm = normalizeCompareText(optimizedCv);
-
-  if (!optNorm) return true;
-  if (origNorm === optNorm) return true;
-
-  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.45) return true;
-
-  const optimizedBullets = getBulletLines(optimizedCv);
-  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.75))) {
-    return true;
-  }
-
-  const weakBefore = countWeakVerbHits(originalCv);
-  const weakAfter = countWeakVerbHits(optimizedCv);
-  if (weakAfter >= weakBefore && weakAfter >= 2) return true;
-
-  if (findUnsupportedInsertedTerms(originalCv, optimizedCv).length > 0) return true;
-  if (countSupportToOwnershipShifts(originalCv, optimizedCv) > 1) return true;
-  if (countOutcomeEscalations(originalCv, optimizedCv) > 1) return true;
-
-  return false;
-}
-
-function evaluateOptimizedCandidate(originalCv = "", optimizedCv = "", jd = "", baseScore = 0) {
-  const safeCv = forceSafeResume(originalCv, optimizedCv);
-  const unsupportedTerms = findUnsupportedInsertedTerms(originalCv, safeCv);
-  const supportShiftCount = countSupportToOwnershipShifts(originalCv, safeCv);
-  const outcomeEscalations = countOutcomeEscalations(originalCv, safeCv);
-  const weakBefore = countWeakVerbHits(originalCv);
-  const weakAfter = countWeakVerbHits(safeCv);
-  const { same, total } = countUnchangedBullets(originalCv, safeCv);
-
-  const deterministicOptimized = computeDeterministicAtsScore(safeCv, jd);
-  const bonus = computeImprovementBonus(originalCv, safeCv);
-  const minimumGain = computeMinimumSafeGain(originalCv, safeCv);
-
-  const optimizedScore = clampScore(
-    Math.max(deterministicOptimized + bonus, baseScore + minimumGain)
-  );
-
-  const safe =
-    unsupportedTerms.length === 0 &&
-    supportShiftCount <= 1 &&
-    outcomeEscalations <= 1 &&
-    !(total > 0 && same / total >= 0.55) &&
-    weakAfter <= weakBefore;
-
-  return {
-    safeCv,
-    unsupportedTerms,
-    supportShiftCount,
-    outcomeEscalations,
-    weakBefore,
-    weakAfter,
-    same,
-    total,
-    deterministicOptimized,
-    optimizedScore,
-    safe,
-  };
 }
 
 function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
@@ -801,7 +628,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4400),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
       },
     ];
   }
@@ -816,12 +643,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 6800),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 7000),
       },
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
       },
     ];
   }
@@ -855,7 +682,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2400),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
     },
   ];
 }
@@ -964,22 +791,22 @@ async function callOpenAIJson({
 
 function buildAtsSystem(outLang) {
   return `
-CRITICAL TRUTH RULES:
-- Use ONLY facts explicitly present in the ORIGINAL resume text.
-- The job description may guide emphasis, wording direction, and missing keyword analysis, but it may NOT be used as proof that the candidate has used a tool, platform, metric, channel, framework, or process.
-- Never add a tool/platform/metric as candidate experience unless it already appears in the ORIGINAL resume.
-- Never turn a generic or support-level sentence into a full ownership or leadership claim unless the ORIGINAL resume clearly supports that.
-- Never invent or assume any numbers, percentages, budget, KPIs, team size, performance outcomes, clients, revenue, or certifications.
-- Never upgrade weak evidence into strong evidence.
-- Keep already-strong bullets specific. Do NOT rewrite strong bullets into more generic bullets.
-- Weak sentence selection must target genuinely weak, vague, generic, or support-heavy lines first.
-- Strong lines that already contain concrete tools, metrics, platforms, or clear action should usually NOT be selected as weak.
-- For junior or weak resumes, improve clarity and recruiter-readability WITHOUT fabricating ownership, results, or systems used.
-
-SAFE REWRITE EXAMPLES:
-- "Sosyal medya ile ilgilendim" can become "Sosyal medya içerik ve paylaşım süreçlerinde görev aldım."
-- "Rapor yaptım" can become "Temel raporlama ve veri takip çalışmalarını yürüttüm."
-- But do NOT change them into claims like "marka bilinirliğini artırdım", "strateji geliştirdim", "kampanyaları yönettim" unless that level is clearly supported.
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics, tools, platforms, and facts explicitly present in the resume and optional job description.
+- Never turn a specific sentence into a more generic sentence.
+- Never remove existing useful specificity such as tools, metrics, platforms, channels, or business context.
+- If a bullet has no measurable metric, improve it using scope + action + context + purpose wording WITHOUT inventing numbers.
+- If the original sentence is support-oriented, you may strengthen clarity, but do NOT upgrade it into full ownership unless clearly supported.
+- Weak sentence detection must prioritize genuinely weak, vague, or support-heavy phrasing first.
+- Do NOT flag already-strong sentences as weak just because they can be polished slightly.
+- Sentences that already contain concrete tools, platforms, metrics, or strong action verbs should usually NOT be selected as weak.
+- Rewrites must be materially better than the original.
+- Do NOT make shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these:
+  clarity, specificity, scope, action strength, business context, recruiter readability.
+- If a rewrite is too similar to the original, rewrite it again more strongly.
+- Keep optimized_cv ATS-friendly, clean, realistic, and parser-friendly.
 
 HEADING RULES:
 - For Turkish optimized_cv outputs, use these exact headings when relevant:
@@ -1007,13 +834,16 @@ OUTPUT RULES:
 
 function buildLinkedInSystem(outLang) {
   return `
-CRITICAL RULES:
-- Do NOT invent or assume any numbers, results, budgets, metrics, tools, platforms, or certifications.
-- Only use facts explicitly present in the resume and optional job description.
-- The job description may guide emphasis but may NOT be treated as proof of experience.
-- Return ONLY valid JSON.
-- No markdown.
-- No extra text.
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
+- If unsure, prefer neutral phrasing with no numbers.
+- If the input contains a number, keep it exact; do not round up/down or change it.
+- Do NOT invent employers, titles, degrees, dates, certifications, or metrics.
+- Do NOT replace generic platform language with a specific platform unless it is explicitly present.
+- Return ONLY valid JSON. No markdown. No extra text.
 - All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 `.trim();
 }
@@ -1044,7 +874,7 @@ REQUIREMENTS:
 - weak_sentences MUST include up to 2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
-- Select only genuinely weak, vague, generic, or support-heavy sentences.
+- Select only sentences that are genuinely weak, vague, generic, or support-heavy.
 - Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
 - Prefer weak experience bullets first, then summary only if necessary.
 - summary MUST be 4-6 bullet lines in ${outLang}.
@@ -1084,7 +914,7 @@ REQUIREMENTS:
 - weak_sentences MUST include up to 2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
-- Select only genuinely weak, vague, generic, or support-heavy sentences.
+- Select only sentences that are genuinely weak, vague, generic, or support-heavy.
 - Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
 - Prefer weak experience bullets first, then summary only if necessary.
 - summary MUST be 4-6 bullet lines in ${outLang}.
@@ -1095,7 +925,6 @@ RESUME:
 ${cv}
 `.trim();
 }
-
 function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
   if (hasJD) {
     return `
@@ -1123,13 +952,11 @@ HARD REQUIREMENTS:
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
-- Do NOT select already-strong sentences if they already contain useful tools, metrics, or strong action.
-- If a sentence contains strong specifics, preserve them in the rewrite or skip the sentence.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
 - Prefer weak experience bullets first.
 - Use summary sentences only if there are not enough truly weak experience bullets.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these:
-  clarity, specificity, scope, action strength, business context, recruiter readability.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
@@ -1168,13 +995,11 @@ HARD REQUIREMENTS:
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
-- Do NOT select already-strong sentences if they already contain useful tools, metrics, or strong action.
-- If a sentence contains strong specifics, preserve them in the rewrite or skip the sentence.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
 - Prefer weak experience bullets first.
 - Use summary sentences only if there are not enough truly weak experience bullets.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these:
-  clarity, specificity, scope, action strength, business context, recruiter readability.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
@@ -1184,7 +1009,13 @@ ${cv}
 `.trim();
 }
 
-function buildOptimizeCvPrompt({ cv, jd, hasJD, summary, missingKeywords }) {
+function buildOptimizeCvPrompt({
+  cv,
+  jd,
+  hasJD,
+  summary,
+  missingKeywords,
+}) {
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
 
   return hasJD
@@ -1202,24 +1033,19 @@ STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
-- Use ONLY tools, platforms, channels, metrics, and systems already present in the ORIGINAL resume as candidate experience.
-- The job description may guide emphasis, ordering, and wording, but it may NOT introduce new tools/platforms/channels as if the candidate used them.
-- Example: if the job description mentions LinkedIn Ads, CRO, Looker Studio, or KPI tracking, but the original resume does not, do NOT write them as candidate experience.
-- Do NOT invent numbers, KPIs, budgets, achievements, or performance outcomes.
-- If the original bullet is support-oriented, keep it truthful and support-level unless the original clearly supports stronger ownership.
-- For weak junior bullets, prefer safer upgrades like:
-  "süreçlerine destek verdim", "takibini yürüttüm", "hazırlanmasına katkı sağladım", "temel raporlama yaptım"
-  instead of unsupported ownership claims like:
-  "yönettim", "artırdım", "strateji geliştirdim", "optimize ettim"
-  unless clearly supported by the original resume.
-- Keep already-strong bullets strong and specific. Do NOT flatten them.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume or job description.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Use the analysis summary and missing keywords to strengthen the CV truthfully.
+- Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
+- Avoid shallow synonym swaps and lightly polished copies.
 - Use canonical section headings only.
 
 QUALITY TARGET:
-- The optimized CV must feel clearly stronger than the original, but still fully truthful.
-- Focus rewrite effort on weak, vague, and support-heavy lines first.
-- Improve clarity, scope, and recruiter readability without crossing the truth boundary.
-- Never add JD-only experience as if already done by the candidate.
+- The optimized CV must feel clearly stronger than the original, not just lightly polished.
+- Improve bullets by adding clarity, scope, recruiter-friendly wording, and business context without inventing facts.
+- Keep already-strong bullets strong; do not rewrite them into flatter or more generic versions.
+- Focus most of the improvement effort on the weakest bullets and summary lines.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1247,21 +1073,19 @@ STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
-- Use ONLY tools, platforms, channels, metrics, and systems already present in the ORIGINAL resume as candidate experience.
-- Do NOT invent numbers, KPIs, budgets, achievements, or performance outcomes.
-- If the original bullet is support-oriented, keep it truthful and support-level unless the original clearly supports stronger ownership.
-- For weak junior bullets, prefer safer upgrades like:
-  "süreçlerine destek verdim", "takibini yürüttüm", "hazırlanmasına katkı sağladım", "temel raporlama yaptım"
-  instead of unsupported ownership claims like:
-  "yönettim", "artırdım", "strateji geliştirdim", "optimize ettim"
-  unless clearly supported by the original resume.
-- Keep already-strong bullets strong and specific. Do NOT flatten them.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Use the analysis summary and missing keywords to strengthen the CV truthfully.
+- Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
+- Avoid shallow synonym swaps and lightly polished copies.
 - Use canonical section headings only.
 
 QUALITY TARGET:
-- The optimized CV must feel clearly stronger than the original, but still fully truthful.
-- Focus rewrite effort on weak, vague, and support-heavy lines first.
-- Improve clarity, scope, and recruiter readability without crossing the truth boundary.
+- The optimized CV must feel clearly stronger than the original, not just lightly polished.
+- Improve bullets by adding clarity, scope, recruiter-friendly wording, and business context without inventing facts.
+- Keep already-strong bullets strong; do not rewrite them into flatter or more generic versions.
+- Focus most of the improvement effort on the weakest bullets and summary lines.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1293,31 +1117,30 @@ Return JSON in this exact schema:
 }
 
 TASK:
-You already generated an optimized resume, but it still looks too aggressive, too close to the original, or not fully truth-safe.
-Rewrite it again into a safer and stronger final version.
+You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
-- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
-- Do NOT invent metrics, tools, platforms, acronyms, systems, achievements, channels, or outcomes.
-- Use ONLY tools/platforms/metrics that already exist in the ORIGINAL resume as candidate experience.
-- The job description may guide emphasis but may NOT create new experience.
-- If the original bullet is support-level, keep it support-level unless the original clearly proves stronger ownership.
-- Never convert weak evidence into claims like:
-  "yönettim", "artırdım", "strateji geliştirdim", "KPI takibi yaptım", "CRO yönettim"
-  unless those are clearly supported in the ORIGINAL resume.
-- Avoid these weak phrases when possible:
+- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- Every experience bullet should be materially stronger than the original resume bullet.
+- Avoid these weak phrases:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
-- But if the original truly only supports support-level work, rewrite it into a cleaner support-level sentence instead of inventing ownership.
+- Prefer direct action + scope + business context wording.
+- The result must not read like a lightly polished copy.
+- The result must still be a truthful ATS-friendly resume aligned to the job description.
 - Use canonical section headings only.
 
 QUALITY TARGET:
-- Final output should be premium, cleaner, more specific, and still fully truthful.
-- Preserve strong lines.
-- Rewrite weak, vague, support-heavy lines first.
-- Remove JD-only tool/platform claims if they slipped in.
+- The final output should feel premium and clearly stronger than the original.
+- Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
+- Preserve strong bullets that are already good.
+- Focus the rewrite effort on weak, vague, or support-heavy lines first.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1331,7 +1154,7 @@ ${cv}
 JOB DESCRIPTION:
 ${jd}
 
-CURRENT OPTIMIZED CV:
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
 ${currentOptimizedCv}
 `.trim()
     : `
@@ -1342,29 +1165,30 @@ Return JSON in this exact schema:
 }
 
 TASK:
-You already generated an optimized resume, but it still looks too aggressive, too close to the original, or not fully truth-safe.
-Rewrite it again into a safer and stronger final version.
+You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
-- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
-- Do NOT invent metrics, tools, platforms, acronyms, systems, achievements, channels, or outcomes.
-- Use ONLY tools/platforms/metrics that already exist in the ORIGINAL resume as candidate experience.
-- If the original bullet is support-level, keep it support-level unless the original clearly proves stronger ownership.
-- Never convert weak evidence into claims like:
-  "yönettim", "artırdım", "strateji geliştirdim", "KPI takibi yaptım", "veri analizi yaptım"
-  unless those are clearly supported in the ORIGINAL resume.
-- Avoid these weak phrases when possible:
+- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- This is GENERAL optimization without a job description.
+- Every experience bullet should be materially stronger than the original resume bullet.
+- Avoid these weak phrases:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
-- But if the original truly only supports support-level work, rewrite it into a cleaner support-level sentence instead of inventing ownership.
+- Prefer direct action + scope + business context wording.
+- The result must not read like a lightly polished copy.
 - Use canonical section headings only.
 
 QUALITY TARGET:
-- Final output should be premium, cleaner, more specific, and still fully truthful.
-- Preserve strong lines.
-- Rewrite weak, vague, support-heavy lines first.
+- The final output should feel premium and clearly stronger than the original.
+- Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
+- Preserve strong bullets that are already good.
+- Focus the rewrite effort on weak, vague, or support-heavy lines first.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1375,7 +1199,7 @@ ${keywordsText || "(none)"}
 RESUME (original):
 ${cv}
 
-CURRENT OPTIMIZED CV:
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
 ${currentOptimizedCv}
 `.trim();
 }
@@ -1448,7 +1272,8 @@ Return JSON in this exact schema:
 
 QUALITY RULES:
 - Output VALUES must be in ${outLang}. Do not mix languages.
-- Do NOT invent employers, titles, dates, degrees, tools, or metrics.
+- Do NOT invent employers, titles, dates, degrees, or metrics.
+- If resume has no numbers, improve bullets without guessing numbers.
 - Headline max 220 chars each. No emojis.
 - about.short: 500-800 chars.
 - about.normal: 900-1400 chars.
@@ -1615,6 +1440,7 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
+    // PREVIEW: tek çağrı
     if (isPreview) {
       let previewData;
       try {
@@ -1653,8 +1479,8 @@ export default async function handler(req, res) {
           ? previewData.missing_keywords
           : [],
         weak_sentences: filterWeakSentences(
-          Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
-        ),
+  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
+),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
 
@@ -1669,6 +1495,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // FULL ATS: analysis + optimize + gerekiyorsa repair
     let analysisData;
     try {
       analysisData = await callOpenAIJson({
@@ -1701,19 +1528,19 @@ export default async function handler(req, res) {
 
     const normalized = {
       ats_score: mergedBaseScore,
-      optimized_ats_score: mergedBaseScore,
       component_scores: componentScores,
       missing_keywords: Array.isArray(analysisData?.missing_keywords)
         ? analysisData.missing_keywords
         : [],
       weak_sentences: filterWeakSentences(
-        Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
-      ),
+  Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
+),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
-      optimized_cv: forceSafeResume(cv, cv),
+      optimized_cv: "",
+      optimized_ats_score: mergedBaseScore,
     };
 
-    const candidateEvaluations = [];
+    let currentOptimized = "";
 
     try {
       const optimizeData = await callOpenAIJson({
@@ -1733,16 +1560,17 @@ export default async function handler(req, res) {
       });
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
-        candidateEvaluations.push(
-          evaluateOptimizedCandidate(cv, optimizeData.optimized_cv.trim(), jd, normalized.ats_score)
-        );
+        currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
       }
     } catch {
-      // optimize başarısızsa devam
+      currentOptimized = "";
     }
 
-    const firstCandidate = candidateEvaluations[0];
-    if (!firstCandidate || shouldRepairOptimizedCv(cv, firstCandidate.safeCv)) {
+    if (!currentOptimized) {
+      currentOptimized = forceSafeResume(cv, cv);
+    }
+
+    if (shouldRepairOptimizedCv(cv, currentOptimized)) {
       try {
         const repaired = await callOpenAIJson({
           apiKey,
@@ -1752,7 +1580,7 @@ export default async function handler(req, res) {
             cv,
             jd,
             hasJD,
-            currentOptimizedCv: firstCandidate?.safeCv || cv,
+            currentOptimizedCv: currentOptimized || cv,
             summary: normalized.summary,
             missingKeywords: normalized.missing_keywords,
           }),
@@ -1762,40 +1590,17 @@ export default async function handler(req, res) {
         });
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
-          candidateEvaluations.push(
-            evaluateOptimizedCandidate(cv, repaired.optimized_cv.trim(), jd, normalized.ats_score)
-          );
+          currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
         }
       } catch {
-        // repair başarısızsa devam
+        // mevcut optimize sürüm kalsın
       }
     }
 
-    let selectedCandidate =
-      candidateEvaluations
-        .filter((c) => c.safe)
-        .sort((a, b) => b.optimizedScore - a.optimizedScore)[0] ||
-      candidateEvaluations
-        .sort((a, b) => {
-          const riskA =
-            a.unsupportedTerms.length * 10 +
-            a.supportShiftCount * 4 +
-            a.outcomeEscalations * 4;
-          const riskB =
-            b.unsupportedTerms.length * 10 +
-            b.supportShiftCount * 4 +
-            b.outcomeEscalations * 4;
-          if (riskA !== riskB) return riskA - riskB;
-          return b.optimizedScore - a.optimizedScore;
-        })[0];
-
-    if (selectedCandidate) {
-      normalized.optimized_cv = selectedCandidate.safeCv;
-      normalized.optimized_ats_score = selectedCandidate.optimizedScore;
-    } else {
-      normalized.optimized_cv = forceSafeResume(cv, cv);
-      normalized.optimized_ats_score = normalized.ats_score;
-    }
+    normalized.optimized_cv = currentOptimized;
+    const rescoredOptimized = computeDeterministicAtsScore(currentOptimized, jd);
+const improvementBonus = computeImprovementBonus(cv, currentOptimized);
+normalized.optimized_ats_score = clampScore(rescoredOptimized + improvementBonus);
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
