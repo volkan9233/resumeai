@@ -792,28 +792,23 @@ function buildAtsSystem(outLang) {
   return `
 CRITICAL RULES (must follow):
 - Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics, tools, platforms, and facts that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT inventing numbers.
-- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer truthful, neutral phrasing with no invented numbers.
-- If the input contains a number, keep it exact; do not round up/down or change it.
-- DO NOT invent employers, titles, degrees, dates, certifications, tools, platforms, acronyms, or projects.
-- Do NOT replace generic wording with a specific tool/platform unless that tool/platform is explicitly present in the input.
-- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
-- Do NOT flag already-strong sentences as weak.
-- Do NOT select sentences as weak if they already contain concrete tools, platforms, or specific metrics unless the rewrite preserves all specificity and is clearly stronger.
-- Never rewrite a specific sentence into a more generic sentence.
-- Prefer truly weak phrases first, such as vague or support-heavy phrasing:
-  ilgilendim, bulundum, görev aldım, destek oldum, katkı sağladım, yardımcı oldum,
-  worked on, handled, supported, assisted, involved in, responsible for.
+- Only use metrics, tools, platforms, and facts explicitly present in the resume and optional job description.
+- Never turn a specific sentence into a more generic sentence.
+- Never remove existing useful specificity such as tools, metrics, platforms, channels, or business context.
+- If a bullet has no measurable metric, improve it using scope + action + context + purpose wording WITHOUT inventing numbers.
+- If the original sentence is support-oriented, you may strengthen clarity, but do NOT upgrade it into full ownership unless clearly supported.
+- Weak sentence detection must prioritize genuinely weak, vague, or support-heavy phrasing first.
+- Do NOT flag already-strong sentences as weak just because they can be polished slightly.
+- Sentences that already contain concrete tools, platforms, metrics, or strong action verbs should usually NOT be selected as weak.
 - Rewrites must be materially better than the original.
 - Do NOT make shallow synonym swaps or near-duplicate rewrites.
-- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
+- Each rewrite must improve at least two of these:
+  clarity, specificity, scope, action strength, business context, recruiter readability.
+- If a rewrite is too similar to the original, rewrite it again more strongly.
+- Keep optimized_cv ATS-friendly, clean, realistic, and parser-friendly.
 
 HEADING RULES:
-- When writing optimized_cv, use canonical section headings only.
-- For Turkish outputs, use these exact headings when relevant:
+- For Turkish optimized_cv outputs, use these exact headings when relevant:
   PROFESYONEL ÖZET
   DENEYİM
   EĞİTİM
@@ -822,10 +817,11 @@ HEADING RULES:
   SERTİFİKALAR
   PROJELER
   EK BİLGİLER
-- Do NOT use alternative Turkish headings such as:
-  PROFİL, BİLDİĞİ DİLLER, YETENEKLER
-  in optimized_cv.
-- Keep the resume ATS-friendly, clean, and parser-friendly.
+- Do NOT use:
+  PROFİL
+  BİLDİĞİ DİLLER
+  YETENEKLER
+  BECERİLER
 
 OUTPUT RULES:
 - Return ONLY valid JSON.
