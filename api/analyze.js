@@ -340,6 +340,34 @@ function filterWeakSentences(items = []) {
     .slice(0, 8);
 }
 
+  function getExplicitFactTerms(text = "") {
+  const norm = normalizeCompareText(text);
+  return FACT_SENSITIVE_TERMS.filter((term, idx, arr) => {
+    return norm.includes(normalizeCompareText(term)) && arr.indexOf(term) === idx;
+  });
+}
+
+function buildAllowedTermsText(cv = "", jd = "") {
+  const terms = uniqueTrimmedStrings([
+    ...getExplicitFactTerms(cv),
+    ...getExplicitFactTerms(jd),
+  ]);
+  return terms.length ? terms.join(", ") : "(none explicitly supported)";
+}
+
+function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
+  const allowed = new Set(
+    uniqueTrimmedStrings([
+      ...getExplicitFactTerms(originalCv),
+      ...getExplicitFactTerms(jd),
+    ]).map(normalizeCompareText)
+  );
+
+  return uniqueTrimmedStrings(getExplicitFactTerms(optimizedCv)).filter(
+    (term) => !allowed.has(normalizeCompareText(term))
+  );
+}
+
 function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   if (!originalCv || !optimizedCv) return 0;
 
