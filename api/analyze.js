@@ -1175,8 +1175,13 @@ function buildRepairPrompt({
   currentOptimizedCv,
   summary,
   missingKeywords,
+  unsupportedTerms = [],
 }) {
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
+  const allowedTermsText = buildAllowedTermsText(cv, jd);
+  const unsupportedText = Array.isArray(unsupportedTerms) && unsupportedTerms.length
+    ? unsupportedTerms.join(", ")
+    : "(none)";
 
   return hasJD
     ? `
@@ -1187,36 +1192,51 @@ Return JSON in this exact schema:
 }
 
 TASK:
-You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+You already generated an optimized resume, but it still needs cleanup.
 Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
-- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
-- Do NOT invent metrics, tools, platforms, acronyms, or achievements.
+- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, channels, or achievements.
 - Do NOT replace generic platform language with specific platforms unless explicitly present.
 - Do NOT upgrade support-oriented work into full ownership unless clearly supported.
-- Every experience bullet should be materially stronger than the original resume bullet.
-- Avoid these weak phrases:
-  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
-  destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
-- Prefer direct action + scope + business context wording.
-- The result must not read like a lightly polished copy.
-- The result must still be a truthful ATS-friendly resume aligned to the job description.
+- Keep already-strong bullets strong.
+- Focus the rewrite effort on weaker/support-heavy bullets and any awkward summary lines.
+- Preserve bullet count and structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+REMOVE THESE UNSUPPORTED TERMS IF PRESENT:
+${unsupportedText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
+- If a term is not explicitly supported, remove it.
 
 QUALITY TARGET:
 - The final output should feel premium and clearly stronger than the original.
 - Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
-- Preserve strong bullets that are already good.
-- Focus the rewrite effort on weak, vague, or support-heavy lines first.
+- Do NOT flatten already-good bullets.
+- Keep the resume truthful, realistic, and recruiter-ready.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
 HIGH PRIORITY KEYWORDS / GAPS:
 ${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- unsupported terms removed
+- no invented tools/platforms/acronyms
+- no invented outcomes
+- no unjustified ownership escalation
+- no major bullet loss
 
 RESUME (original):
 ${cv}
@@ -1235,36 +1255,51 @@ Return JSON in this exact schema:
 }
 
 TASK:
-You already generated an optimized resume, but it is still too close to the original or still contains weak phrasing.
+You already generated an optimized resume, but it still needs cleanup.
 Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
-- Keep exact dates, employers, titles, degrees, and explicit years of experience unchanged.
-- Do NOT invent metrics, tools, platforms, acronyms, or achievements.
+- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, channels, or achievements.
 - Do NOT replace generic platform language with specific platforms unless explicitly present.
 - Do NOT upgrade support-oriented work into full ownership unless clearly supported.
-- This is GENERAL optimization without a job description.
-- Every experience bullet should be materially stronger than the original resume bullet.
-- Avoid these weak phrases:
-  helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
-  destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
-- Prefer direct action + scope + business context wording.
-- The result must not read like a lightly polished copy.
+- Keep already-strong bullets strong.
+- Focus the rewrite effort on weaker/support-heavy bullets and any awkward summary lines.
+- Preserve bullet count and structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+REMOVE THESE UNSUPPORTED TERMS IF PRESENT:
+${unsupportedText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
+- If a term is not explicitly supported, remove it.
 
 QUALITY TARGET:
 - The final output should feel premium and clearly stronger than the original.
 - Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
-- Preserve strong bullets that are already good.
-- Focus the rewrite effort on weak, vague, or support-heavy lines first.
+- Do NOT flatten already-good bullets.
+- Keep the resume truthful, realistic, and recruiter-ready.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
 HIGH PRIORITY KEYWORDS / GAPS:
 ${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- unsupported terms removed
+- no invented tools/platforms/acronyms
+- no invented outcomes
+- no unjustified ownership escalation
+- no major bullet loss
 
 RESUME (original):
 ${cv}
