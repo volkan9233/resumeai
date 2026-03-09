@@ -4,79 +4,191 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CV - Önizleme</title>
+
   <style>
-    body { margin:0; background:#0b0b0b; color:#fff; font-family: Arial, Helvetica, sans-serif; }
+    :root{
+      --bg:#0b0b0b;
+      --panel:#111;
+      --line:#222;
+      --text:#fff;
+      --muted:rgba(255,255,255,.78);
+      --primary:#2b6cb0;
+    }
+
+    *{ box-sizing:border-box; }
+
     html, body{
-  height: auto !important;
-  overflow: auto !important;
-}
+      margin:0;
+      padding:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      min-height:100%;
+      overflow-x:hidden;
+    }
 
-.wrap{
-  overflow: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
+    body{
+      display:flex;
+      flex-direction:column;
+    }
 
-#paper{
-  overflow: visible !important;
-}
     .bar{
-      position: sticky; top:0; z-index:10;
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      padding:10px 12px; background:#0b0b0b; border-bottom:1px solid #222;
+      position:sticky;
+      top:0;
+      z-index:20;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      padding:10px 12px;
+      background:var(--bg);
+      border-bottom:1px solid var(--line);
     }
-    .btn{ padding:10px 12px; background:#2b6cb0; color:#fff; border:0; border-radius:10px; font-weight:600; }
-    select{ padding:10px 12px; border-radius:10px; border:1px solid #333; background:#111; color:#fff; }
-    .wrap { display:flex; justify-content:center; padding:16px; }
-    /* A4 oranında preview */
+
+    .btn{
+      padding:10px 12px;
+      background:var(--primary);
+      color:#fff;
+      border:0;
+      border-radius:10px;
+      font-weight:600;
+      cursor:pointer;
+    }
+
+    .btn:hover{ opacity:.95; }
+
+    select{
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #333;
+      background:var(--panel);
+      color:#fff;
+      font:inherit;
+    }
+
+    .hint{
+      opacity:.85;
+      font-size:14px;
+    }
+
+    .wrap{
+      display:flex;
+      justify-content:center;
+      padding:16px;
+      overflow:visible;
+      -webkit-overflow-scrolling:touch;
+      flex:1;
+    }
+
+    /* A4 preview */
     #paper{
-      width: 210mm; min-height: 297mm;
-      background:#fff; color:#111;
-      box-shadow: 0 10px 30px rgba(0,0,0,.5);
+      width:210mm;
+      min-height:297mm;
+      background:#fff;
+      color:#111;
+      box-shadow:0 10px 30px rgba(0,0,0,.5);
+      overflow:visible !important;
+      height:auto !important;
     }
-    /* ✅ TEMPLATE CLIP FIX (screen + print) */
-#paper { height: auto !important; overflow: visible !important; }
-#paper .page { height: auto !important; min-height: 297mm !important; overflow: visible !important; }
-html, body { height: auto !important; overflow: auto !important; }
+
+    #paper .page{
+      min-height:297mm !important;
+      height:auto !important;
+      overflow:visible !important;
+    }
 
     @media (max-width: 900px) {
-      #paper { width: 100%; min-height: auto; }
+      .wrap{
+        padding:12px;
+      }
+
+      #paper{
+        width:100%;
+        min-height:auto;
+      }
     }
 
-    /* Yazdırırken sadece CV gelsin */
+    footer{
+      margin-top:24px;
+      padding:22px 0;
+      border-top:1px solid rgba(255,255,255,.08);
+      color:#9ca3af;
+      font-size:13px;
+    }
+
+    footer .inner{
+      max-width:980px;
+      margin:auto;
+      padding:0 20px;
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    footer .links{
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+
+    footer a{
+      color:inherit;
+      text-decoration:none;
+    }
+
+    footer a:hover{
+      text-decoration:underline;
+    }
+
     @media print {
-  /* iOS/Safari fix: sayfa kesilmesin */
-  html, body {
-    background:#fff;
-    height: auto !important;
-    overflow: visible !important;
-  }
-      #paper { height: auto !important; overflow: visible !important; }
-#paper .page { height: auto !important; min-height: 297mm !important; overflow: visible !important; }
+      html, body{
+        background:#fff !important;
+        color:#000 !important;
+        height:auto !important;
+        overflow:visible !important;
+      }
 
-  .bar { display:none !important; }
+      .bar,
+      footer{
+        display:none !important;
+      }
 
-  .wrap {
-    padding: 0 !important;
-    height: auto !important;
-    overflow: visible !important;
-    display: block !important;
-  }
+      .wrap{
+        padding:0 !important;
+        margin:0 !important;
+        display:block !important;
+        overflow:visible !important;
+      }
 
-  #paper{
-    box-shadow:none !important;
-    width:auto !important;
-    height:auto !important;
-    min-height:auto !important;
-    overflow: visible !important;
-  }
+      #paper{
+        width:auto !important;
+        min-height:auto !important;
+        height:auto !important;
+        overflow:visible !important;
+        box-shadow:none !important;
+      }
 
-  @page { size: A4; margin: 0; }
+      #paper .page{
+        min-height:297mm !important;
+        height:auto !important;
+        overflow:visible !important;
+      }
 
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
+      @page{
+        size:A4;
+        margin:0;
+      }
 
+      *{
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+      }
+    }
   </style>
-  <!-- Google tag (gtag.js) -->
+
+  <!-- Google tag (Ads) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987698621"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -85,69 +197,101 @@ html, body { height: auto !important; overflow: auto !important; }
     gtag('config', 'AW-17987698621');
   </script>
 
-    <!-- Google Analytics (GA4) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-76G0WFSPS6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-76G0WFSPS6');
-</script>
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-76G0WFSPS6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-76G0WFSPS6');
+  </script>
 </head>
 <body>
   <div class="bar">
-    <button class="btn" id="printBtn">PDF indir (Yazdır)</button>
+    <button class="btn" id="printBtn" type="button">PDF indir (Yazdır)</button>
 
-    <select id="mode">
+    <select id="mode" aria-label="CV görünüm modu">
       <option value="design">Tasarım (Modern)</option>
       <option value="ats">ATS (Sade)</option>
     </select>
 
-    <span style="opacity:.85;font-size:14px;">Mod seç → PDF indir</span>
+    <span class="hint">Mod seç → PDF indir</span>
   </div>
 
   <div class="wrap">
     <div id="paper"></div>
   </div>
 
+  <footer>
+    <div class="inner">
+      <div>© <span id="y"></span> ResumeAI</div>
+      <div class="links">
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/refund.html">Refunds</a>
+        <a href="mailto:support@resumeai.work">Support</a>
+      </div>
+    </div>
+  </footer>
+
   <script type="module">
     import { renderCV } from "./scripts/render.js";
+
     const qs = new URLSearchParams(location.search);
-const lang = (qs.get("lang") || "en").toLowerCase();
-window.__cv_lang = lang;
+    const lang = (qs.get("lang") || "en").toLowerCase();
+
+    window.__cv_lang = lang;
     document.documentElement.lang = lang;
 
     const paper = document.getElementById("paper");
     const modeSelect = document.getElementById("mode");
     const printBtn = document.getElementById("printBtn");
+    const yearEl = document.getElementById("y");
+
+    if (yearEl) {
+      yearEl.textContent = new Date().getFullYear();
+    }
+
+    function getModeFromHash() {
+      const hash = String(location.hash || "");
+      if (hash.includes("mode=ats")) return "ats";
+      if (hash.includes("mode=design")) return "design";
+      return null;
+    }
+
+    function applyHashMode() {
+      const hashMode = getModeFromHash();
+      if (hashMode) modeSelect.value = hashMode;
+    }
 
     async function refresh() {
-      const mode = modeSelect.value;
-      const html = await renderCV({ mode, lang });
-      paper.innerHTML = html;
+      try {
+        const mode = modeSelect.value;
+        const html = await renderCV({ mode, lang });
+        paper.innerHTML = html || "";
+      } catch (err) {
+        console.error("CV render error:", err);
+        paper.innerHTML = `
+          <div style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111;">
+            <h2 style="margin:0 0 12px;">CV yüklenemedi</h2>
+            <p style="margin:0;line-height:1.6;">
+              CV görünümü oluşturulurken bir hata oluştu.
+            </p>
+          </div>
+        `;
+      }
     }
 
     modeSelect.addEventListener("change", refresh);
-printBtn.addEventListener("click", () => window.print());
+    printBtn.addEventListener("click", () => window.print());
 
-// analyze sayfasından gelen modu uygula: /cv.html#mode=ats veya #mode=design
-const hash = (location.hash || "");
-if (hash.includes("mode=ats")) modeSelect.value = "ats";
-if (hash.includes("mode=design")) modeSelect.value = "design";
+    window.addEventListener("hashchange", async () => {
+      applyHashMode();
+      await refresh();
+    });
 
-refresh();
-    document.getElementById("y") && (document.getElementById("y").textContent = new Date().getFullYear());
+    applyHashMode();
+    await refresh();
   </script>
-  <footer style="margin-top:40px;padding:22px 0;border-top:1px solid rgba(0,0,0,.08);color:#6b7280;font-size:13px;">
-  <div style="max-width:980px;margin:auto;padding:0 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-    <div>© <span id="y"></span> ResumeAI</div>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-      <a href="/terms.html">Terms</a>
-      <a href="/privacy.html">Privacy</a>
-      <a href="/refund.html">Refunds</a>
-      <a href="mailto:support@resumeai.work">Support</a>
-    </div>
-  </div>
-</footer>
 </body>
 </html>
