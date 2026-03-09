@@ -1477,9 +1477,9 @@ export default async function handler(req, res) {
         missing_keywords: Array.isArray(previewData?.missing_keywords)
           ? previewData.missing_keywords
           : [],
-        weak_sentences: Array.isArray(previewData?.weak_sentences)
-          ? previewData.weak_sentences
-          : [],
+        weak_sentences: filterWeakSentences(
+  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
+),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
 
@@ -1531,9 +1531,9 @@ export default async function handler(req, res) {
       missing_keywords: Array.isArray(analysisData?.missing_keywords)
         ? analysisData.missing_keywords
         : [],
-      weak_sentences: Array.isArray(analysisData?.weak_sentences)
-        ? analysisData.weak_sentences
-        : [],
+      weak_sentences: filterWeakSentences(
+  Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
+),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
       optimized_cv: "",
       optimized_ats_score: mergedBaseScore,
@@ -1597,7 +1597,9 @@ export default async function handler(req, res) {
     }
 
     normalized.optimized_cv = currentOptimized;
-    normalized.optimized_ats_score = computeDeterministicAtsScore(currentOptimized, jd);
+    const rescoredOptimized = computeDeterministicAtsScore(currentOptimized, jd);
+const improvementBonus = computeImprovementBonus(cv, currentOptimized);
+normalized.optimized_ats_score = clampScore(rescoredOptimized + improvementBonus);
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
