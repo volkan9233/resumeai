@@ -32,6 +32,48 @@ const STRONG_ACTION_RE =
 const SPECIFICITY_RE =
   /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
 
+const FACT_SENSITIVE_TERMS = [
+  "google ads",
+  "meta ads",
+  "meta ads manager",
+  "linkedin ads",
+  "linkedin campaign manager",
+  "google analytics",
+  "google analytics 4",
+  "ga4",
+  "google tag manager",
+  "tag manager",
+  "seo",
+  "sem",
+  "ctr",
+  "cpc",
+  "cpa",
+  "roas",
+  "roi",
+  "cro",
+  "conversion rate optimization",
+  "landing page",
+  "a/b test",
+  "ab test",
+  "search console",
+  "hubspot",
+  "salesforce",
+  "crm",
+  "looker studio",
+  "data studio",
+  "dashboard",
+  "remarketing",
+  "retargeting",
+  "audience segmentation",
+  "segmentasyon",
+  "yeniden pazarlama",
+  "lead generation",
+  "email marketing",
+  "kpi",
+  "marketing automation",
+  "automation"
+];
+
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
