@@ -1152,6 +1152,7 @@ export default async function handler(req, res) {
 
     const previewModel = process.env.OPENAI_MODEL_PREVIEW || "gpt-5-mini";
     const fullModel = process.env.OPENAI_MODEL_FULL || "gpt-5.1";
+    const repairModel = process.env.OPENAI_MODEL_REPAIR || "gpt-5-mini";
     const model = isPreview ? previewModel : fullModel;
 
     const LANG_MAP = {
@@ -1285,7 +1286,7 @@ export default async function handler(req, res) {
         try {
           const repaired = await callOpenAIJson({
             apiKey,
-            model,
+            model: repairModel,
             system: buildAtsSystem(outLang),
             userPrompt: buildRepairPrompt({
               cv,
