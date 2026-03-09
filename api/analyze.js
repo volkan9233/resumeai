@@ -1256,7 +1256,7 @@ export default async function handler(req, res) {
           : buildFullAtsPrompt({ cv, jd, hasJD, outLang }),
         isPreview,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1200 : 1800,
+        maxCompletionTokens: isPreview ? 1200 : 1700,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
