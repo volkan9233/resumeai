@@ -725,32 +725,38 @@ function getKeywordBreadthScore(cv = "") {
 
   score += Math.min(8, skills.length);
 
-  const keywordHits = [
-    "google ads",
-    "meta ads",
-    "google analytics",
-    "google analytics 4",
-    "tag manager",
-    "seo",
-    "sem",
-    "ctr",
-    "cpc",
-    "cpa",
-    "roas",
-    "landing page",
-    "excel",
-    "google sheets",
-    "hubspot",
-    "search console",
-    "a b test",
-    "email marketing",
-    "performans pazarlamasi",
-    "icerik stratejisi",
-    "veri analizi",
-    "raporlama",
+  const explicitHits = FACT_SENSITIVE_TERMS.filter((term) =>
+    text.includes(normalizeCompareText(term))
+  ).length;
+  score += Math.min(4, explicitHits);
+
+  const groupHits = Object.values(ROLE_TERM_GROUPS)
+    .map((terms) =>
+      terms.filter((term) => text.includes(normalizeCompareText(term))).length
+    )
+    .sort((a, b) => b - a);
+
+  const dominant = groupHits[0] || 0;
+  const secondary = groupHits[1] || 0;
+
+  if (dominant >= 3) score += 1;
+  if (dominant >= 5) score += 1;
+  if (secondary >= 2) score += 1;
+
+  const businessHits = [
+    "cross-functional collaboration",
+    "stakeholder communication",
+    "reporting",
+    "documentation",
+    "process improvement",
+    "process optimization",
+    "issue resolution",
+    "account management",
+    "customer feedback",
+    "client communication"
   ].filter((term) => text.includes(normalizeCompareText(term))).length;
 
-  score += Math.min(7, keywordHits);
+  score += Math.min(3, businessHits);
 
   return Math.min(15, score);
 }
