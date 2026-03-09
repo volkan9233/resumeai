@@ -873,8 +873,9 @@ REQUIREMENTS:
 - weak_sentences MUST include up to 2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
-- Select only sentences where a clearly better rewrite is possible.
-- Do NOT select sentences that can only be improved with tiny synonym swaps.
+- Select only sentences that are genuinely weak, vague, generic, or support-heavy.
+- Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
+- Prefer weak experience bullets first, then summary only if necessary.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -912,8 +913,9 @@ REQUIREMENTS:
 - weak_sentences MUST include up to 2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
-- Select only sentences where a clearly better rewrite is possible.
-- Do NOT select sentences that can only be improved with tiny synonym swaps.
+- Select only sentences that are genuinely weak, vague, generic, or support-heavy.
+- Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
+- Prefer weak experience bullets first, then summary only if necessary.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -922,7 +924,6 @@ RESUME:
 ${cv}
 `.trim();
 }
-
 function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
   if (hasJD) {
     return `
