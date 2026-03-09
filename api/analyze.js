@@ -78,19 +78,7 @@ const EN_WEAK_REWRITE_START_RE =
   /^(helped|assisted|supported|contributed|participated|aided)\b/i;
 
 const EN_UNSUPPORTED_IMPACT_RE =
-  /\b(
-    drive measurable results|
-    resulting in|
-    increased conversion rates|
-    qualified leads|
-    competitive positioning|
-    data-driven decision-making|
-    strengthen(ed)? market presence|
-    maximize engagement|
-    optimize(?:d|s|ing)? follow-up strategies|
-    improve(?:d|s|ing)? campaign outcomes|
-    enhance(?:d|s|ing)? brand visibility
-  )\b/ix;
+  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|strengthen(?:ed)? market presence|maximize engagement|optimize(?:d|s|ing)? follow-up strategies|improve(?:d|s|ing)? campaign outcomes|enhance(?:d|s|ing)? brand visibility)\b/i;
 
 const ENGLISH_RISKY_RESULT_RE =
   /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering)\b/i;
