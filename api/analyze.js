@@ -1341,6 +1341,8 @@ HARD FACT LOCK:
 - If a term is not explicitly supported, do NOT add it.
 - This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
 
+${englishStyleBlock}
+
 QUALITY TARGET:
 - The optimized CV must feel clearly stronger than the original, not just lightly polished.
 - Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
@@ -1482,6 +1484,8 @@ HARD FACT LOCK:
 - You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
 - Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
 - If a term is not explicitly supported, remove it.
+
+${englishStyleBlock}
 
 QUALITY TARGET:
 - The final output should feel premium and clearly stronger than the original.
