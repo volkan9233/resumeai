@@ -950,6 +950,10 @@ HARD REQUIREMENTS:
 - weak_sentences MUST include 5-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
+- Only select genuinely weak, vague, generic, or support-heavy sentences.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
+- Prefer weak experience bullets first.
+- Use summary sentences only if there are not enough truly weak experience bullets.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
@@ -989,6 +993,10 @@ HARD REQUIREMENTS:
 - weak_sentences MUST include 5-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
 - Both sentence and rewrite MUST be in ${outLang}.
+- Only select genuinely weak, vague, generic, or support-heavy sentences.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
+- Prefer weak experience bullets first.
+- Use summary sentences only if there are not enough truly weak experience bullets.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
