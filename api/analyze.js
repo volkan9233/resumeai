@@ -559,13 +559,15 @@ function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
 
     const origHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(orig);
     const optHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(opt);
-
     if (!origHasRiskyResult && optHasRiskyResult) hits += 1;
 
     const origWeak = ENGLISH_WEAK_SWAP_RE.test(orig);
     const optWeak = ENGLISH_WEAK_SWAP_RE.test(opt);
-
     if (origWeak && optWeak) hits += 1;
+
+    const origSoftFiller = EN_SOFT_FILLER_RE.test(orig);
+    const optSoftFiller = EN_SOFT_FILLER_RE.test(opt);
+    if (!origSoftFiller && optSoftFiller) hits += 1;
   }
 
   return hits;
