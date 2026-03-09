@@ -494,14 +494,14 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (origNorm === optNorm) return true;
 
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= 0.65) return true;
+  if (total > 0 && same / total >= 0.8) return true;
 
   const optimizedBullets = getBulletLines(optimizedCv);
-  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.6))) {
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.5))) {
     return true;
   }
 
-  if (countWeakVerbHits(optimizedCv) >= 4) return true;
+  if (countWeakVerbHits(optimizedCv) >= 5) return true;
 
   if (hasSummarySection(originalCv) && !hasSummarySection(optimizedCv)) {
     return true;
