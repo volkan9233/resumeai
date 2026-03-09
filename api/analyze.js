@@ -1054,6 +1054,31 @@ RESUME:
 ${cv}
 `.trim();
 }
+
+function buildEnglishStyleBlock() {
+  return `
+ENGLISH WRITING STYLE:
+- Write like a strong US resume, not marketing copy.
+- Keep bullets concise, concrete, and natural.
+- Prefer 10-18 words per bullet when possible.
+- Prefer one clear action + scope + context structure.
+- Do NOT add filler words such as:
+  impactful, dynamic, seamless, comprehensive, robust, overall, various.
+- Do NOT add unsupported outcome clauses such as:
+  resulting in, driving, boosting, enhancing, improving, increasing, streamlining, ensuring, maximizing, delivering
+  unless the original text clearly supports that outcome.
+- Do NOT turn one weak verb into another weak verb.
+  Avoid swaps like:
+  helped -> assisted
+  supported -> contributed
+  worked on -> participated in
+- For support-level work, prefer honest execution language such as:
+  coordinated, prepared, tracked, documented, maintained, scheduled, supported execution of, collaborated with.
+- Keep already-strong bullets short and sharp.
+- Do NOT over-expand bullets just to sound more professional.
+`.trim();
+}
+
 function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
   if (hasJD) {
     return `
