@@ -74,6 +74,12 @@ const FACT_SENSITIVE_TERMS = [
   "automation"
 ];
 
+const ENGLISH_RISKY_RESULT_RE =
+  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering)\b/i;
+
+const ENGLISH_WEAK_SWAP_RE =
+  /\b(assisted|contributed|participated|supported|helped)\b/i;
+
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
