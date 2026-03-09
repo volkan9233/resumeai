@@ -1274,6 +1274,10 @@ STRICT RULES:
 - Do NOT merge multiple bullets into one if that removes detail.
 - Do NOT remove meaningful bullets unless they are duplicate/redundant.
 - Use canonical section headings only.
+- For English output, do NOT rewrite weak bullets into corporate-fluff language.
+- Avoid rewrites that begin with: assisted, supported, contributed, participated, aided, unless no stronger truthful verb is possible.
+- Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated.
+- Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, or improved follow-up unless explicitly supported by the resume or job description.
 
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
@@ -1335,6 +1339,10 @@ STRICT RULES:
 - Do NOT merge multiple bullets into one if that removes detail.
 - Do NOT remove meaningful bullets unless they are duplicate/redundant.
 - Use canonical section headings only.
+- For English output, do NOT rewrite weak bullets into corporate-fluff language.
+- Avoid rewrites that begin with: assisted, supported, contributed, participated, aided, unless no stronger truthful verb is possible.
+- Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated.
+- Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, or improved follow-up unless explicitly supported by the resume or job description.
 
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
