@@ -615,19 +615,19 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
   if (passType === "optimize") {
     return [
       {
-        reasoningEffort: "low",
+        reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3800),
-      },
-      {
-        reasoningEffort: "low",
-        temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
-      },
-      {
-        reasoningEffort: "none",
-        temperature: 0.2,
         maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+      },
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
+      },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
       },
     ];
   }
@@ -637,17 +637,17 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
       },
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 6200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 7000),
       },
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5000),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
       },
     ];
   }
