@@ -1191,6 +1191,8 @@ HARD REQUIREMENTS:
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
 
+${englishStyleBlock}
+
 RESUME:
 ${cv}
 
@@ -1234,6 +1236,8 @@ HARD REQUIREMENTS:
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
+
+${englishStyleBlock}
 
 RESUME:
 ${cv}
