@@ -568,18 +568,21 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", out
     return true;
   }
 
-  if (countWeakVerbHits(optimizedCv) >= 2) return true;
-
   if (outLang === "English" && countEnglishStyleRiskHits(originalCv, optimizedCv) >= 2) {
   return true;
 }
 
-  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
-    return true;
-  }
+if (countWeakVerbHits(optimizedCv) >= 2) return true;
 
-  return false;
+if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
+
+if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
+
+if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
+  return true;
 }
+
+return false;
 
 function getSectionPresenceScore(cv = "") {
   const text = getNonEmptyLines(cv).join("\n");
