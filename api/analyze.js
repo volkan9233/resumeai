@@ -18,6 +18,15 @@ const rlFull = new Ratelimit({
   prefix: "resumeai:rl:full",
 });
 
+const WEAK_PHRASE_RE =
+  /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
+
+const STRONG_ACTION_RE =
+  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created)\b/i;
+
+const SPECIFICITY_RE =
+  /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
+
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
@@ -91,7 +100,7 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
-    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiliyor
+    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiyoruz
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -146,6 +155,20 @@ function normalizeCompareText(str = "") {
     .trim();
 }
 
+function uniqueTrimmedStrings(arr = []) {
+  return Array.from(
+    new Set(
+      (Array.isArray(arr) ? arr : [])
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function countWords(str = "") {
+  return String(str).trim().split(/\s+/).filter(Boolean).length;
+}
+
 function getNonEmptyLines(str = "") {
   return String(str)
     .replace(/\r/g, "")
@@ -165,7 +188,7 @@ function getBulletLines(str = "") {
 }
 
 function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|PROFESYONEL ÖZET|ÖZET|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|BECERİLER|EĞİTİM|PROFİL|PROFILE|BİLDİĞİ DİLLER|LANGUAGES|SERTİFİKALAR|CERTIFICATIONS|PROJELER|PROJECTS|EK BİLGİLER|ADDITIONAL INFORMATION)$/i.test(
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROJECTS|ADDITIONAL INFORMATION|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
     String(line).trim()
   );
 }
@@ -202,8 +225,8 @@ function extractExperienceTitles(cv = "") {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (
-      /\|\s*.*(\d{4}|Present|Günümüz|Current)/i.test(line) ||
-      /(\d{4}).*(Present|Günümüz|Current)/i.test(line)
+      /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
+      /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
     ) {
       const prev = lines[i - 1];
       if (
@@ -230,8 +253,8 @@ function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
   for (let i = 1; i < lines.length; i++) {
     const line = String(lines[i]).trim();
     if (
-      /\|\s*.*(\d{4}|Present|Günümüz|Current)/i.test(line) ||
-      /(\d{4}).*(Present|Günümüz|Current)/i.test(line)
+      /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
+      /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
     ) {
       let j = i - 1;
       while (j >= 0 && !String(lines[j]).trim()) j--;
@@ -268,11 +291,7 @@ function countUnchangedBullets(originalCv = "", optimizedCv = "") {
 
 function countWeakVerbHits(cv = "") {
   const bullets = getBulletLines(cv);
-  return bullets.filter((b) =>
-    /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|destek verdim|destek oldum|katkı sağladım|görev aldım|yardımcı oldum)\b/i.test(
-      b
-    )
-  ).length;
+  return bullets.filter((b) => WEAK_PHRASE_RE.test(b)).length;
 }
 
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
@@ -297,6 +316,224 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   return false;
 }
 
+function getSectionPresenceScore(cv = "") {
+  const text = getNonEmptyLines(cv).join("\n");
+  let score = 0;
+
+  if (/(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)/i.test(text)) score += 5;
+  if (/(EXPERIENCE|WORK EXPERIENCE|DENEYİM|İŞ DENEYİMİ)/i.test(text)) score += 7;
+  if (/(SKILLS|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(text)) score += 4;
+  if (/(EDUCATION|EĞİTİM)/i.test(text)) score += 4;
+  if (/(LANGUAGES|DİLLER|BİLDİĞİ DİLLER)/i.test(text)) score += 2;
+  if (/(CERTIFICATIONS|SERTİFİKALAR)/i.test(text)) score += 2;
+  if (/(PROJECTS|PROJELER)/i.test(text)) score += 1;
+
+  return Math.min(25, score);
+}
+
+function getSkillsLines(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const out = [];
+  let inSkills = false;
+
+  for (const line of lines) {
+    if (/(SKILLS|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
+      inSkills = true;
+      continue;
+    }
+
+    if (inSkills && isSectionHeader(line)) break;
+    if (inSkills) {
+      out.push(line.replace(/^[-•·‣▪▫◦]\s+/, "").trim());
+    }
+  }
+
+  return out.filter(Boolean);
+}
+
+function getKeywordBreadthScore(cv = "") {
+  const text = normalizeCompareText(cv);
+  const skills = uniqueTrimmedStrings(getSkillsLines(cv));
+
+  let score = 0;
+
+  score += Math.min(8, skills.length);
+
+  const keywordHits = [
+    "google ads",
+    "meta ads",
+    "google analytics",
+    "google analytics 4",
+    "tag manager",
+    "seo",
+    "sem",
+    "ctr",
+    "cpc",
+    "cpa",
+    "roas",
+    "landing page",
+    "excel",
+    "google sheets",
+    "hubspot",
+    "search console",
+    "a b test",
+    "email marketing",
+    "performans pazarlamasi",
+    "icerik stratejisi",
+    "veri analizi",
+    "raporlama",
+  ].filter((term) => text.includes(normalizeCompareText(term))).length;
+
+  score += Math.min(7, keywordHits);
+
+  return Math.min(15, score);
+}
+
+function getReadabilityScore(cv = "") {
+  const bullets = getBulletLines(cv);
+  const header = extractHeaderBlock(cv);
+  const lines = getNonEmptyLines(cv);
+
+  let score = 0;
+
+  if (header.length >= 3) score += 3;
+  if (lines.length >= 12) score += 3;
+  if (bullets.length >= 4) score += 6;
+
+  const avgBulletWords =
+    bullets.length > 0
+      ? bullets.reduce((sum, b) => sum + countWords(b), 0) / bullets.length
+      : 0;
+
+  if (avgBulletWords >= 6 && avgBulletWords <= 20) score += 8;
+  else if (avgBulletWords >= 4) score += 4;
+
+  return Math.min(20, score);
+}
+
+function getBulletStrengthScore(cv = "") {
+  const bullets = getBulletLines(cv);
+  if (!bullets.length) return 0;
+
+  let score = 8;
+  let weakCount = 0;
+  let strongCount = 0;
+  let specificityCount = 0;
+  let solidLengthCount = 0;
+
+  for (const bullet of bullets) {
+    const wc = countWords(bullet);
+    if (WEAK_PHRASE_RE.test(bullet)) weakCount += 1;
+    if (STRONG_ACTION_RE.test(bullet)) strongCount += 1;
+    if (SPECIFICITY_RE.test(bullet)) specificityCount += 1;
+    if (wc >= 5 && wc <= 24) solidLengthCount += 1;
+  }
+
+  const weakPenalty = Math.min(18, weakCount * 3);
+  const strongBonus = Math.min(12, strongCount * 2);
+  const specificityBonus = Math.min(10, specificityCount * 1.5);
+  const lengthBonus = Math.min(10, solidLengthCount * 1.2);
+
+  score = score + strongBonus + specificityBonus + lengthBonus - weakPenalty;
+
+  return Math.max(0, Math.min(40, Math.round(score)));
+}
+
+function extractTopJdTerms(jd = "") {
+  const stop = new Set([
+    "ve", "ile", "için", "olan", "olarak", "bir", "bu", "da", "de", "en",
+    "the", "and", "for", "with", "to", "of", "in", "on", "a", "an",
+    "veya", "ya", "gibi", "göre", "üzere", "alanında", "alaninda",
+  ]);
+
+  return Array.from(
+    new Set(
+      String(jd)
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s/-]/gu, " ")
+        .split(/\s+/)
+        .filter((x) => x && x.length >= 4 && !stop.has(x))
+    )
+  ).slice(0, 40);
+}
+
+function getJdAlignmentScore(cv = "", jd = "") {
+  if (!jd || !String(jd).trim()) return 0;
+
+  const cvText = normalizeCompareText(cv);
+  const terms = extractTopJdTerms(jd);
+  if (!terms.length) return 0;
+
+  let hits = 0;
+  for (const term of terms) {
+    if (cvText.includes(normalizeCompareText(term))) hits += 1;
+  }
+
+  const ratio = hits / terms.length;
+  return Math.max(0, Math.min(10, Math.round(ratio * 10)));
+}
+
+function computeDeterministicAtsScore(cv = "", jd = "") {
+  const hasJD = !!String(jd || "").trim();
+
+  const sectionScore = getSectionPresenceScore(cv);     // 0-25
+  const bulletScore = getBulletStrengthScore(cv);       // 0-40
+  const readabilityScore = getReadabilityScore(cv);     // 0-20
+  const keywordScore = getKeywordBreadthScore(cv);      // 0-15
+  const jdScore = getJdAlignmentScore(cv, jd);          // 0-10
+
+  let total = 0;
+
+  if (hasJD) {
+    total =
+      Math.round((sectionScore / 25) * 20) +
+      Math.round((bulletScore / 40) * 35) +
+      Math.round((readabilityScore / 20) * 20) +
+      Math.round((keywordScore / 15) * 15) +
+      jdScore;
+  } else {
+    total =
+      Math.round((sectionScore / 25) * 25) +
+      Math.round((bulletScore / 40) * 40) +
+      Math.round((readabilityScore / 20) * 20) +
+      Math.round((keywordScore / 15) * 15);
+  }
+
+  return clampScore(total);
+}
+
+function computeComponentScore(componentScores = {}, hasJD = false) {
+  if (hasJD) {
+    const role_alignment = clampScore(componentScores?.role_alignment);
+    const bullet_strength = clampScore(componentScores?.bullet_strength);
+    const jd_keyword_match = clampScore(componentScores?.jd_keyword_match);
+    const section_completeness = clampScore(componentScores?.section_completeness);
+    const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
+
+    return clampScore(
+      role_alignment * 0.28 +
+      bullet_strength * 0.28 +
+      jd_keyword_match * 0.18 +
+      section_completeness * 0.16 +
+      ats_safe_formatting * 0.10
+    );
+  }
+
+  const section_completeness = clampScore(componentScores?.section_completeness);
+  const clarity_readability = clampScore(componentScores?.clarity_readability);
+  const bullet_strength = clampScore(componentScores?.bullet_strength);
+  const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
+  const core_keyword_coverage = clampScore(componentScores?.core_keyword_coverage);
+
+  return clampScore(
+    section_completeness * 0.22 +
+    clarity_readability * 0.24 +
+    bullet_strength * 0.32 +
+    ats_safe_formatting * 0.14 +
+    core_keyword_coverage * 0.08
+  );
+}
+
 function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
   if (!isGpt5Model(model)) {
     return [
@@ -308,44 +545,42 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     ];
   }
 
-  // Sadece optimized_cv üretimi
   if (passType === "optimize") {
     return [
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3800),
       },
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
       },
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
       },
     ];
   }
 
-  // Sadece repair gerektiğinde
   if (passType === "repair") {
     return [
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
       },
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 7000),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 6200),
       },
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5000),
       },
     ];
   }
@@ -355,32 +590,31 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 1400),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1200),
       },
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
       },
     ];
   }
 
-  // Full analysis pass (optimized_cv yok)
   return [
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
     },
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 3000),
     },
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
     },
   ];
 }
@@ -491,19 +725,45 @@ function buildAtsSystem(outLang) {
   return `
 CRITICAL RULES (must follow):
 - Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics that are explicitly present in the user's resume/job description input text.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Only use metrics, tools, platforms, and facts that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT inventing numbers.
 - Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer neutral phrasing with no numbers.
+- If unsure, prefer truthful, neutral phrasing with no invented numbers.
 - If the input contains a number, keep it exact; do not round up/down or change it.
 - DO NOT invent employers, titles, degrees, dates, certifications, tools, platforms, acronyms, or projects.
 - Do NOT replace generic wording with a specific tool/platform unless that tool/platform is explicitly present in the input.
 - If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Do NOT flag already-strong sentences as weak.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or specific metrics unless the rewrite preserves all specificity and is clearly stronger.
+- Never rewrite a specific sentence into a more generic sentence.
+- Prefer truly weak phrases first, such as vague or support-heavy phrasing:
+  ilgilendim, bulundum, görev aldım, destek oldum, katkı sağladım, yardımcı oldum,
+  worked on, handled, supported, assisted, involved in, responsible for.
 - Rewrites must be materially better than the original.
 - Do NOT make shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
 - If a rewrite is too similar to the original, rewrite it again with stronger professional phrasing.
-- Return ONLY valid JSON. No markdown. No extra text.
+
+HEADING RULES:
+- When writing optimized_cv, use canonical section headings only.
+- For Turkish outputs, use these exact headings when relevant:
+  PROFESYONEL ÖZET
+  DENEYİM
+  EĞİTİM
+  YETKİNLİKLER
+  DİLLER
+  SERTİFİKALAR
+  PROJELER
+  EK BİLGİLER
+- Do NOT use alternative Turkish headings such as:
+  PROFİL, BİLDİĞİ DİLLER, YETENEKLER
+  in optimized_cv.
+- Keep the resume ATS-friendly, clean, and parser-friendly.
+
+OUTPUT RULES:
+- Return ONLY valid JSON.
+- No markdown.
+- No extra text.
 - All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
 `.trim();
 }
@@ -530,7 +790,13 @@ function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }) {
 Return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "role_alignment": number,
+    "bullet_strength": number,
+    "jd_keyword_match": number,
+    "section_completeness": number,
+    "ats_safe_formatting": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
@@ -538,7 +804,7 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment, not just general resume quality.
+- component_scores must reflect resume-to-job alignment honestly.
 - missing_keywords MUST include 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include up to 2 items picked from real resume sentences.
@@ -546,7 +812,6 @@ REQUIREMENTS:
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -563,7 +828,13 @@ ${jd}
 Return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "section_completeness": number,
+    "clarity_readability": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "core_keyword_coverage": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
@@ -571,16 +842,15 @@ Return JSON in this exact schema:
 
 REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must reflect general ATS readiness: structure, section completeness, clarity, bullet strength, and keyword coverage.
+- component_scores must reflect general ATS readiness honestly.
 - missing_keywords MUST include 5-7 items.
-- These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume keywords based on the candidate's apparent role and experience.
+- These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume terms based on the candidate's apparent role and experience.
 - missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include up to 2 items picked from real resume sentences.
 - Do NOT force the count.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Select only sentences where a clearly better rewrite is possible.
 - Do NOT select sentences that can only be improved with tiny synonym swaps.
-- Each rewrite must feel meaningfully stronger, clearer, and more professional.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -596,7 +866,13 @@ function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
 Return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "role_alignment": number,
+    "bullet_strength": number,
+    "jd_keyword_match": number,
+    "section_completeness": number,
+    "ats_safe_formatting": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
@@ -604,7 +880,7 @@ Return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
-- ats_score must reflect resume-to-job alignment.
+- component_scores must reflect resume-to-job alignment honestly.
 - missing_keywords MUST include 12-20 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include 5-8 items from the resume text.
@@ -615,8 +891,6 @@ HARD REQUIREMENTS:
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
-
-Return ONLY valid JSON.
 
 RESUME:
 ${cv}
@@ -630,7 +904,13 @@ ${jd}
 Return JSON in this exact schema:
 
 {
-  "ats_score": number,
+  "component_scores": {
+    "section_completeness": number,
+    "clarity_readability": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "core_keyword_coverage": number
+  },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
@@ -638,9 +918,9 @@ Return JSON in this exact schema:
 
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
-- ats_score must reflect general ATS readiness, not job match.
+- component_scores must reflect general ATS readiness honestly.
 - missing_keywords MUST include 10-18 items.
-- These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume keywords based on the candidate's likely role, seniority, and experience.
+- These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume terms based on the candidate's likely role, seniority, and experience.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
 - weak_sentences MUST include 5-8 items from the resume text.
 - Do NOT force the count if there are fewer truly strong examples.
@@ -650,8 +930,6 @@ HARD REQUIREMENTS:
 - summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
-
-Return ONLY valid JSON.
 
 RESUME:
 ${cv}
@@ -688,6 +966,7 @@ STRICT RULES:
 - Use the analysis summary and missing keywords to strengthen the CV truthfully.
 - Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
 - Avoid shallow synonym swaps and lightly polished copies.
+- Use canonical section headings only.
 - Return ONLY valid JSON.
 
 ANALYSIS SUMMARY:
@@ -722,6 +1001,7 @@ STRICT RULES:
 - Use the analysis summary and missing keywords to strengthen the CV truthfully.
 - Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
 - Avoid shallow synonym swaps and lightly polished copies.
+- Use canonical section headings only.
 - Return ONLY valid JSON.
 
 ANALYSIS SUMMARY:
@@ -771,6 +1051,7 @@ STRICT RULES:
 - Prefer direct action + scope + business context wording.
 - The result must not read like a lightly polished copy.
 - The result must still be a truthful ATS-friendly resume aligned to the job description.
+- Use canonical section headings only.
 - Return ONLY valid JSON.
 
 ANALYSIS SUMMARY:
@@ -813,6 +1094,7 @@ STRICT RULES:
   destek verdim, destek oldum, katkı sağladım, görev aldım, yardımcı oldum
 - Prefer direct action + scope + business context wording.
 - The result must not read like a lightly polished copy.
+- Use canonical section headings only.
 - Return ONLY valid JSON.
 
 ANALYSIS SUMMARY:
@@ -953,7 +1235,6 @@ export default async function handler(req, res) {
 
     const ip = getClientIp(req);
     const limiter = isPreview ? rlPreview : rlFull;
-
     const { success, reset } = await limiter.limit(ip);
 
     if (!success) {
@@ -1028,7 +1309,7 @@ export default async function handler(req, res) {
               }),
           isPreview,
           passType: "main",
-          maxCompletionTokens: isPreview ? 1400 : 2600,
+          maxCompletionTokens: isPreview ? 1200 : 2400,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1077,7 +1358,7 @@ export default async function handler(req, res) {
           userPrompt: buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }),
           isPreview: true,
           passType: "main",
-          maxCompletionTokens: 1400,
+          maxCompletionTokens: 1200,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1087,8 +1368,20 @@ export default async function handler(req, res) {
         });
       }
 
+      const componentScores =
+        previewData?.component_scores && typeof previewData.component_scores === "object"
+          ? previewData.component_scores
+          : {};
+
+      const deterministicScore = computeDeterministicAtsScore(cv, jd);
+      const modelComponentScore = computeComponentScore(componentScores, hasJD);
+      const mergedPreviewScore = clampScore(
+        Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+      );
+
       const normalized = {
-        ats_score: clampScore(previewData?.ats_score),
+        ats_score: mergedPreviewScore,
+        component_scores: componentScores,
         missing_keywords: Array.isArray(previewData?.missing_keywords)
           ? previewData.missing_keywords
           : [],
@@ -1109,7 +1402,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // FULL ATS: iki ayrı çağrı
+    // FULL ATS: analysis + optimize + gerekiyorsa repair
     let analysisData;
     try {
       analysisData = await callOpenAIJson({
@@ -1119,7 +1412,7 @@ export default async function handler(req, res) {
         userPrompt: buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }),
         isPreview: false,
         passType: "main",
-        maxCompletionTokens: 2600,
+        maxCompletionTokens: 2200,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -1129,8 +1422,20 @@ export default async function handler(req, res) {
       });
     }
 
+    const componentScores =
+      analysisData?.component_scores && typeof analysisData.component_scores === "object"
+        ? analysisData.component_scores
+        : {};
+
+    const deterministicScore = computeDeterministicAtsScore(cv, jd);
+    const modelComponentScore = computeComponentScore(componentScores, hasJD);
+    const mergedBaseScore = clampScore(
+      Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+    );
+
     const normalized = {
-      ats_score: clampScore(analysisData?.ats_score),
+      ats_score: mergedBaseScore,
+      component_scores: componentScores,
       missing_keywords: Array.isArray(analysisData?.missing_keywords)
         ? analysisData.missing_keywords
         : [],
@@ -1139,10 +1444,11 @@ export default async function handler(req, res) {
         : [],
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
       optimized_cv: "",
+      optimized_ats_score: mergedBaseScore,
     };
 
-    // optimize edilmiş CV ayrı çağrı
     let currentOptimized = "";
+
     try {
       const optimizeData = await callOpenAIJson({
         apiKey,
@@ -1157,7 +1463,7 @@ export default async function handler(req, res) {
         }),
         isPreview: false,
         passType: "optimize",
-        maxCompletionTokens: 4200,
+        maxCompletionTokens: 3800,
       });
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
@@ -1167,12 +1473,10 @@ export default async function handler(req, res) {
       currentOptimized = "";
     }
 
-    // optimize boşsa en azından orijinali boş dönme
     if (!currentOptimized) {
       currentOptimized = forceSafeResume(cv, cv);
     }
 
-    // sadece gerçekten gerekirse repair
     if (shouldRepairOptimizedCv(cv, currentOptimized)) {
       try {
         const repaired = await callOpenAIJson({
@@ -1189,7 +1493,7 @@ export default async function handler(req, res) {
           }),
           isPreview: false,
           passType: "repair",
-          maxCompletionTokens: 5200,
+          maxCompletionTokens: 4600,
         });
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
@@ -1201,9 +1505,12 @@ export default async function handler(req, res) {
     }
 
     normalized.optimized_cv = currentOptimized;
+    normalized.optimized_ats_score = computeDeterministicAtsScore(currentOptimized, jd);
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
+      optimized_ats_score: normalized.optimized_ats_score,
+      component_scores: normalized.component_scores,
       missing_keywords: normalized.missing_keywords,
       weak_sentences: normalized.weak_sentences,
       optimized_cv: normalized.optimized_cv,
