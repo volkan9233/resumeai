@@ -349,6 +349,36 @@ function filterWeakSentences(items = []) {
     .slice(0, 8);
 }
 
+function countUnsupportedEscalations(originalCv = "", optimizedCv = "") {
+  const origBullets = getBulletLines(originalCv);
+  const optBullets = getBulletLines(optimizedCv);
+  const total = Math.min(origBullets.length, optBullets.length);
+
+  let count = 0;
+
+  for (let i = 0; i < total; i++) {
+    const orig = String(origBullets[i] || "").trim();
+    const opt = String(optBullets[i] || "").trim();
+
+    if (!orig || !opt) continue;
+
+    const origIsSupportHeavy = SUPPORT_HEAVY_RE.test(orig);
+    if (!origIsSupportHeavy) continue;
+
+    const origAlreadyStrong =
+      RESULT_ESCALATION_RE.test(orig) || OWNERSHIP_ESCALATION_RE.test(orig);
+
+    if (origAlreadyStrong) continue;
+
+    const rewriteTooStrong =
+      RESULT_ESCALATION_RE.test(opt) || OWNERSHIP_ESCALATION_RE.test(opt);
+
+    if (rewriteTooStrong) count += 1;
+  }
+
+  return count;
+}
+
 function computeFinalOptimizedScore(
   originalCv = "",
   optimizedCv = "",
