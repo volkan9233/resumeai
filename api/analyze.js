@@ -417,7 +417,12 @@ function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
     ]).map(normalizeCompareText)
   );
 
-  function countWeakEnglishRewriteStarts(cv = "") {
+  return uniqueTrimmedStrings(getExplicitFactTerms(optimizedCv)).filter(
+    (term) => !allowed.has(normalizeCompareText(term))
+  );
+}
+
+function countWeakEnglishRewriteStarts(cv = "") {
   return getBulletLines(cv).filter((b) =>
     EN_WEAK_REWRITE_START_RE.test(String(b || "").trim())
   ).length;
@@ -430,7 +435,7 @@ function hasUnsupportedImpactClaims(originalCv = "", optimizedCv = "") {
   return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
 }
 
-  function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
+function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
   const origBullets = getBulletLines(originalCv);
   const optBullets = getBulletLines(optimizedCv);
   const total = Math.min(origBullets.length, optBullets.length);
@@ -455,11 +460,6 @@ function hasUnsupportedImpactClaims(originalCv = "", optimizedCv = "") {
   }
 
   return hits;
-}
-
-  return uniqueTrimmedStrings(getExplicitFactTerms(optimizedCv)).filter(
-    (term) => !allowed.has(normalizeCompareText(term))
-  );
 }
 
 function computeImprovementBonus(originalCv = "", optimizedCv = "") {
