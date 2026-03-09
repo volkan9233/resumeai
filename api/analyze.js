@@ -74,6 +74,24 @@ const FACT_SENSITIVE_TERMS = [
   "automation"
 ];
 
+const EN_WEAK_REWRITE_START_RE =
+  /^(helped|assisted|supported|contributed|participated|aided)\b/i;
+
+const EN_UNSUPPORTED_IMPACT_RE =
+  /\b(
+    drive measurable results|
+    resulting in|
+    increased conversion rates|
+    qualified leads|
+    competitive positioning|
+    data-driven decision-making|
+    strengthen(ed)? market presence|
+    maximize engagement|
+    optimize(?:d|s|ing)? follow-up strategies|
+    improve(?:d|s|ing)? campaign outcomes|
+    enhance(?:d|s|ing)? brand visibility
+  )\b/ix;
+
 const ENGLISH_RISKY_RESULT_RE =
   /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering)\b/i;
 
@@ -410,6 +428,19 @@ function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
       ...getExplicitFactTerms(jd),
     ]).map(normalizeCompareText)
   );
+
+  function countWeakEnglishRewriteStarts(cv = "") {
+  return getBulletLines(cv).filter((b) =>
+    EN_WEAK_REWRITE_START_RE.test(String(b || "").trim())
+  ).length;
+}
+
+function hasUnsupportedImpactClaims(originalCv = "", optimizedCv = "") {
+  const orig = String(originalCv || "");
+  const opt = String(optimizedCv || "");
+
+  return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
+}
 
   function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
   const origBullets = getBulletLines(originalCv);
