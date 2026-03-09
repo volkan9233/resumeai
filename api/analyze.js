@@ -411,6 +411,33 @@ function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
     ]).map(normalizeCompareText)
   );
 
+  function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
+  const origBullets = getBulletLines(originalCv);
+  const optBullets = getBulletLines(optimizedCv);
+  const total = Math.min(origBullets.length, optBullets.length);
+
+  let hits = 0;
+
+  for (let i = 0; i < total; i++) {
+    const orig = String(origBullets[i] || "").trim();
+    const opt = String(optBullets[i] || "").trim();
+
+    if (!orig || !opt) continue;
+
+    const origHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(orig);
+    const optHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(opt);
+
+    if (!origHasRiskyResult && optHasRiskyResult) hits += 1;
+
+    const origWeak = ENGLISH_WEAK_SWAP_RE.test(orig);
+    const optWeak = ENGLISH_WEAK_SWAP_RE.test(opt);
+
+    if (origWeak && optWeak) hits += 1;
+  }
+
+  return hits;
+}
+
   return uniqueTrimmedStrings(getExplicitFactTerms(optimizedCv)).filter(
     (term) => !allowed.has(normalizeCompareText(term))
   );
