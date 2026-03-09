@@ -495,6 +495,7 @@ function filterWeakSentences(items = [], outLang = "") {
 
       if (outLang === "English") {
         if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return false;
+        if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(sentence)) return false;
         if (hasUnsupportedImpactClaims(sentence, rewrite)) return false;
       }
 
@@ -502,7 +503,6 @@ function filterWeakSentences(items = [], outLang = "") {
     })
     .slice(0, 12);
 }
-
   function getExplicitFactTerms(text = "") {
   const norm = normalizeCompareText(text);
   return FACT_SENSITIVE_TERMS.filter((term, idx, arr) => {
