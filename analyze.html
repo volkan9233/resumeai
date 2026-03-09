@@ -268,6 +268,73 @@ a.link:hover{ text-decoration:underline; }
   color: rgba(255,255,255,.82);
   font-weight: 600;
 }
+
+    .tailorBar{
+  margin: 16px 0 18px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.tailorToggle{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+  color:#f3f4f6;
+  cursor:pointer;
+}
+
+.tailorToggle input{
+  appearance:none;
+  -webkit-appearance:none;
+  width:22px;
+  height:22px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.18);
+  background:#111827;
+  position:relative;
+  cursor:pointer;
+  margin:0;
+}
+
+.tailorToggle input:checked{
+  background:linear-gradient(135deg,#7b5cff,#5b3dff);
+  border-color:transparent;
+  box-shadow:0 8px 20px rgba(91,61,255,.28);
+}
+
+.tailorToggle input:checked::after{
+  content:"";
+  position:absolute;
+  left:7px;
+  top:3px;
+  width:5px;
+  height:10px;
+  border:solid #fff;
+  border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+
+.tailorHint{
+  color:#cbd5e1;
+  font-size:13px;
+  font-weight:700;
+}
+
+.grid.grid-single{
+  grid-template-columns:1fr;
+}
+
+#jobCol[hidden]{
+  display:none !important;
+}
   </style>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987698621"></script>
