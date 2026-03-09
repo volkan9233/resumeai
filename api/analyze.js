@@ -539,6 +539,10 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", out
 
   if (countWeakVerbHits(optimizedCv) >= 2) return true;
 
+  if (outLang === "English" && countEnglishStyleRiskHits(originalCv, optimizedCv) >= 2) {
+  return true;
+}
+
   if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
     return true;
   }
