@@ -273,10 +273,24 @@ function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function normalizeOptimizedHeadings(text = "") {
+  return String(text || "")
+    .replace(/\r/g, "")
+    .replace(/^BİLDİĞİ DİLLER$/gim, "DİLLER")
+    .replace(/^YETENEKLER$/gim, "YETKİNLİKLER")
+    .replace(/^BECERİLER$/gim, "YETKİNLİKLER")
+    .replace(/^PROFİL$/gim, "PROFESYONEL ÖZET")
+    .replace(/^İŞ DENEYİMİ$/gim, "DENEYİM")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function forceSafeResume(originalCv = "", optimizedCv = "") {
   let out = String(optimizedCv || "").trim();
+  out = normalizeOptimizedHeadings(out);
   out = replaceHeaderBlock(originalCv, out);
   out = restoreExperienceTitles(originalCv, out);
+  out = normalizeOptimizedHeadings(out);
   return out.trim();
 }
 
