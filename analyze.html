@@ -984,14 +984,36 @@ if (reviewMode === "job_specific") {
 }
 
     // SCORE
-    const pill = document.getElementById('scorePill');
-    const score = Number(data.ats_score || 0);
-    const label = reviewMode === "job_specific"
+   const pill = document.getElementById('scorePill');
+const baseScore = Number(data.ats_score || 0);
+const optimizedScore = Number(data.optimized_ats_score || 0);
+
+const label = reviewMode === "job_specific"
   ? (window.__scoreLabelJob || "ATS Match Score:")
   : (window.__scoreLabelGeneral || "ATS Readiness Score:");
-    pill.classList.remove("score-low","score-mid","score-high");
-    pill.classList.add(score >= 70 ? "score-high" : score >= 45 ? "score-mid" : "score-low");
-    pill.innerHTML = `<span class="scoreDot"></span><span>${label}</span><span class="scoreValue">${score}%</span>`;
+
+const shownScore = (!isPreview && optimizedScore > 0) ? optimizedScore : baseScore;
+
+pill.classList.remove("score-low", "score-mid", "score-high");
+pill.classList.add(
+  shownScore >= 70 ? "score-high" : shownScore >= 45 ? "score-mid" : "score-low"
+);
+
+if (!isPreview && optimizedScore > 0) {
+  pill.innerHTML = `
+    <span class="scoreDot"></span>
+    <span>${label}</span>
+    <span style="opacity:.72;font-weight:800;">${baseScore}%</span>
+    <span style="opacity:.78;font-weight:900;">→</span>
+    <span class="scoreValue">${optimizedScore}%</span>
+  `;
+} else {
+  pill.innerHTML = `
+    <span class="scoreDot"></span>
+    <span>${label}</span>
+    <span class="scoreValue">${baseScore}%</span>
+  `;
+}
 
     // missing keywords
     const missing = document.getElementById('missing');
