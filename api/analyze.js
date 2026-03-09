@@ -32,6 +32,15 @@ const STRONG_ACTION_RE =
 const SPECIFICITY_RE =
   /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
 
+const SUPPORT_HEAVY_RE =
+  /\b(destek verdim|destek oldum|katkı sağladım|görev aldım|aktif rol aldım|takip ettim|yardımcı oldum|bulundum|ilgilendim|support(ed)?|assist(ed)?|contribut(ed)?|participat(ed)?|tracked)\b/i;
+
+const RESULT_ESCALATION_RE =
+  /\b(artırdım|iyileştirdim|sağladım|güçlendirdim|yükselttim|optimize ettim|performansını artırdım|performanslarını artırdım|dönüşüm oranını artırdım|lead kalitesini artırdım|bütçe verimliliğini artırdım|increased|improved|boosted|delivered|generated|grew)\b/i;
+
+const OWNERSHIP_ESCALATION_RE =
+  /\b(yönettim|yürüttüm|sahiplendim|liderlik ettim|owned|managed|led|executed)\b/i;
+
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
