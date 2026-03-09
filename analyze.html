@@ -1033,12 +1033,35 @@ if (s) {
 }
   }
 
+  function syncTailorUI() {
+  const toggle = document.getElementById("tailorToggle");
+  const jobCol = document.getElementById("jobCol");
+  const jobInput = document.getElementById("job");
+  const grid = document.getElementById("analyzeGrid");
+
+  if (!toggle || !jobCol || !grid) return;
+
+  const on = !!toggle.checked;
+
+  jobCol.hidden = !on;
+  grid.classList.toggle("grid-single", !on);
+
+  if (jobInput) {
+    jobInput.disabled = !on;
+  }
+
+  try {
+    localStorage.setItem("resumeai_tailor_jd", on ? "1" : "0");
+  } catch {}
+}
+
 /* =======================
    run()
 ======================= */
 async function run(){
   const resume = document.getElementById('resume').value.trim();
-  const job = document.getElementById('job').value.trim();
+const tailoringOn = !!document.getElementById("tailorToggle")?.checked;
+const job = tailoringOn ? document.getElementById('job').value.trim() : "";
   const btn = document.getElementById('btn');
   const status = document.getElementById('status');
   const spinner = document.getElementById("spinner");
