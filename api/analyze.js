@@ -1154,6 +1154,7 @@ ENGLISH WRITING STYLE:
 }
 
 function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
+    const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
   if (hasJD) {
     return `
 Return JSON in this exact schema:
