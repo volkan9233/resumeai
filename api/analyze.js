@@ -520,7 +520,7 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   return clampScore(base + lift);
 }
 
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "") {
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", outLang = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
   const origNorm = normalizeCompareText(originalCv);
