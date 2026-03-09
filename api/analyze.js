@@ -313,6 +313,54 @@ function countWeakVerbHits(cv = "") {
   return bullets.filter((b) => WEAK_PHRASE_RE.test(b)).length;
 }
 
+function isClearlyWeakSentence(sentence = "") {
+  const s = String(sentence || "").trim();
+  if (!s) return false;
+
+  if (WEAK_SENTENCE_RE.test(s)) return true;
+
+  const hasSpecific = STRONG_SPECIFIC_RE.test(s);
+  const wordCount = s.split(/\s+/).filter(Boolean).length;
+
+  if (!hasSpecific && wordCount <= 8) return true;
+  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) return true;
+
+  return false;
+}
+
+function filterWeakSentences(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .filter((x) => {
+      const sentence = String(x?.sentence || "").trim();
+      const rewrite = String(x?.rewrite || "").trim();
+      if (!sentence || !rewrite) return false;
+      if (normalizeCompareText(sentence) === normalizeCompareText(rewrite)) return false;
+      return isClearlyWeakSentence(sentence);
+    })
+    .slice(0, 8);
+}
+
+function computeImprovementBonus(originalCv = "", optimizedCv = "") {
+  if (!originalCv || !optimizedCv) return 0;
+
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  const weakGain = Math.max(0, weakBefore - weakAfter);
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  const rewriteRatio = total > 0 ? 1 - same / total : 0;
+
+  let bonus = 0;
+
+  bonus += Math.min(6, weakGain * 1.5);
+
+  if (rewriteRatio >= 0.6) bonus += 3;
+  else if (rewriteRatio >= 0.4) bonus += 2;
+  else if (rewriteRatio >= 0.25) bonus += 1;
+
+  return bonus;
+}
+
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
