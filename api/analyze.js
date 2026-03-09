@@ -1849,7 +1849,7 @@ export default async function handler(req, res) {
       unsupportedTerms = [];
     }
 
-    if (shouldRepairOptimizedCv(cv, currentOptimized, jd) || unsupportedTerms.length > 0) {
+if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTerms.length > 0) {
       try {
         const repaired = await callOpenAIJson({
           apiKey,
