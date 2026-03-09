@@ -431,6 +431,62 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   return bonus;
 }
 
+  function computeFinalOptimizedScore(
+  originalCv = "",
+  optimizedCv = "",
+  originalScore = 0,
+  jd = ""
+) {
+  const base = clampScore(originalScore);
+  if (!originalCv || !optimizedCv) return base;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm || origNorm === optNorm) return base;
+
+  const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd);
+  const rawLift = Math.max(0, rescoredOptimized - base);
+
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  const weakGain = Math.max(0, weakBefore - weakAfter);
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  const rewriteRatio = total > 0 ? 1 - same / total : 0;
+
+  let lift = 0;
+
+  // ana artış ama yumuşatılmış
+  lift += rawLift * 0.48;
+
+  // zayıf ifadeler gerçekten azaldıysa küçük bonus
+  lift += Math.min(3, weakGain) * 0.8;
+
+  // gerçekten rewrite yapılmışsa küçük bonus
+  if (rewriteRatio >= 0.7) lift += 3;
+  else if (rewriteRatio >= 0.5) lift += 2;
+  else if (rewriteRatio >= 0.3) lift += 1;
+
+  const meaningfulChange =
+    rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+
+  if (!meaningfulChange) return base;
+
+  lift = Math.round(lift);
+
+  // başlangıç skoruna göre tavan
+  const cap =
+    base < 40 ? 19 :
+    base < 55 ? 16 :
+    base < 70 ? 14 :
+    base < 80 ? 10 : 6;
+
+  lift = Math.max(3, Math.min(cap, lift));
+
+  return clampScore(base + lift);
+}
+
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
