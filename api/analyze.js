@@ -340,8 +340,21 @@ function filterWeakSentences(items = []) {
     .slice(0, 8);
 }
 
-function computeImprovementBonus(originalCv = "", optimizedCv = "") {
-  if (!originalCv || !optimizedCv) return 0;
+function computeFinalOptimizedScore(
+  originalCv = "",
+  optimizedCv = "",
+  originalScore = 0,
+  jd = ""
+) {
+  const base = clampScore(originalScore);
+  if (!originalCv || !optimizedCv) return base;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm || origNorm === optNorm) return base;
+
+  const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd);
 
   const weakBefore = countWeakVerbHits(originalCv);
   const weakAfter = countWeakVerbHits(optimizedCv);
@@ -350,15 +363,35 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
   const rewriteRatio = total > 0 ? 1 - same / total : 0;
 
-  let bonus = 0;
+  const rawLift = Math.max(0, rescoredOptimized - base);
 
-  bonus += Math.min(6, weakGain * 1.5);
+  let lift = 0;
 
-  if (rewriteRatio >= 0.6) bonus += 3;
-  else if (rewriteRatio >= 0.4) bonus += 2;
-  else if (rewriteRatio >= 0.25) bonus += 1;
+  // Orta seviye artış: ne çok kısık ne de aşırı şişik
+  lift += rawLift * 0.62;
+  lift += Math.min(4, weakGain) * 0.95;
 
-  return bonus;
+  if (rewriteRatio >= 0.65) lift += 3;
+  else if (rewriteRatio >= 0.45) lift += 2;
+  else if (rewriteRatio >= 0.25) lift += 1;
+
+  const meaningfulChange =
+    rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+
+  if (!meaningfulChange) return base;
+
+  lift = Math.round(lift);
+
+  // Eski aşırı agresif versiyon ile kısık versiyonun ortası
+  const cap =
+    base < 35 ? 14 :
+    base < 50 ? 12 :
+    base < 65 ? 10 :
+    base < 80 ? 8 : 5;
+
+  lift = Math.max(2, Math.min(cap, lift));
+
+  return clampScore(base + lift);
 }
 
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
