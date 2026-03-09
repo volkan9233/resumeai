@@ -1253,11 +1253,28 @@ if (isPreview) {
 ======================= */
 document.addEventListener("DOMContentLoaded", async () => {
   await syncPreviewUI();
+
+  const tailorToggle = document.getElementById("tailorToggle");
+  const jobInput = document.getElementById("job");
+
+  if (tailorToggle) {
+    try {
+      const saved = localStorage.getItem("resumeai_tailor_jd");
+      tailorToggle.checked = saved === "1" || !!jobInput?.value.trim();
+    } catch {
+      tailorToggle.checked = !!jobInput?.value.trim();
+    }
+
+    syncTailorUI();
+    tailorToggle.addEventListener("change", syncTailorUI);
+  }
+
   const btn = document.getElementById("btn");
   if (!btn) return;
+
   btn.addEventListener("click", () => {
-  run();
-});
+    run();
+  });
 });
 
 /* =======================
