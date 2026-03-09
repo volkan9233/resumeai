@@ -1936,31 +1936,31 @@ if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTer
     }
 
     if (unsupportedTerms.length > 0) {
-      try {
-        const cleaned = await callOpenAIJson({
-          apiKey,
-          model,
-          system: buildAtsSystem(outLang),
-          userPrompt: buildOptimizeCvPrompt({
-  cv,
-  jd,
-  hasJD,
-  summary: normalized.summary,
-  missingKeywords: normalized.missing_keywords,
-  outLang,
-}),
-          isPreview: false,
-          passType: "repair",
-          maxCompletionTokens: 4600,
-        });
+  try {
+    const cleaned = await callOpenAIJson({
+      apiKey,
+      model,
+      system: buildAtsSystem(outLang),
+      userPrompt: buildRepairPrompt({
+        cv,
+        jd,
+        hasJD,
+        currentOptimizedCv: currentOptimized || cv,
+        summary: normalized.summary,
+        missingKeywords: normalized.missing_keywords,
+        unsupportedTerms,
+        outLang,
+      }),
+      isPreview: false,
+      passType: "repair",
+      maxCompletionTokens: 4600,
+    });
 
-        if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
-          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
-        }
-      } catch {
-        // mevcut optimize sürüm kalsın
-      }
+    if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
+      currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
     }
+  } catch {}
+}
 
     normalized.optimized_cv = currentOptimized;
     normalized.optimized_ats_score = computeFinalOptimizedScore(
