@@ -17,70 +17,172 @@ const rlFull = new Ratelimit({
   limiter: Ratelimit.slidingWindow(3, "1 m"),
   prefix: "resumeai:rl:full",
 });
+
+  function escapeRegex(str = "") {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildPhraseRegex(terms = []) {
+  const safe = uniqueTrimmedStrings(terms).map(escapeRegex).filter(Boolean);
+  return new RegExp(`\\b(?:${safe.join("|")})\\b`, "i");
+}
+
+const ROLE_TERM_GROUPS = {
+  marketing: [
+    "google ads",
+    "meta ads",
+    "meta ads manager",
+    "google analytics",
+    "google analytics 4",
+    "ga4",
+    "google tag manager",
+    "tag manager",
+    "seo",
+    "sem",
+    "ctr",
+    "cpc",
+    "cpa",
+    "roas",
+    "roi",
+    "cro",
+    "landing page",
+    "a/b test",
+    "ab test",
+    "search console",
+    "hubspot",
+    "remarketing",
+    "retargeting",
+    "audience segmentation",
+    "lead generation",
+    "email marketing",
+    "campaign reporting",
+    "content planning",
+    "content strategy",
+    "social media management",
+    "paid advertising",
+    "campaign optimization",
+    "market research",
+    "competitor analysis"
+  ],
+  customer_success: [
+    "customer success",
+    "customer onboarding",
+    "client onboarding",
+    "onboarding",
+    "account management",
+    "account support",
+    "customer communication",
+    "client communication",
+    "customer retention",
+    "retention",
+    "renewal",
+    "renewals",
+    "churn",
+    "customer satisfaction",
+    "client satisfaction",
+    "csat",
+    "nps",
+    "qbr",
+    "account updates",
+    "customer success reports",
+    "at-risk accounts",
+    "customer feedback",
+    "client engagement",
+    "customer experience"
+  ],
+  support: [
+    "issue resolution",
+    "service-related issues",
+    "ticket triage",
+    "ticketing system",
+    "support tickets",
+    "follow-up calls",
+    "customer records",
+    "internal systems",
+    "training materials",
+    "onboarding documents",
+    "escalation management",
+    "help desk"
+  ],
+  operations: [
+    "process improvement",
+    "process optimization",
+    "documentation",
+    "reporting",
+    "scheduling",
+    "workflow management",
+    "cross-functional collaboration",
+    "stakeholder communication",
+    "internal reporting",
+    "project workflows",
+    "record keeping",
+    "document management"
+  ],
+  admin: [
+    "microsoft office",
+    "excel",
+    "google sheets",
+    "powerpoint",
+    "presentation",
+    "meeting materials",
+    "calendar management",
+    "scheduling tasks"
+  ],
+  project: [
+    "project coordination",
+    "project management",
+    "status tracking",
+    "timelines",
+    "deliverables",
+    "meeting coordination"
+  ],
+  data: [
+    "data analysis",
+    "analytics",
+    "dashboard",
+    "looker studio",
+    "data studio",
+    "kpi",
+    "performance metrics",
+    "reporting"
+  ]
+};
+
+const ALL_ROLE_TERMS = uniqueTrimmedStrings(
+  Object.values(ROLE_TERM_GROUPS).flat()
+);
+
+const STRONG_SPECIFIC_RE = buildPhraseRegex(ALL_ROLE_TERMS);
+
+const SPECIFICITY_RE = buildPhraseRegex(ALL_ROLE_TERMS);
+
+const FACT_SENSITIVE_TERMS = ALL_ROLE_TERMS;
+
+const EN_WEAK_REWRITE_START_RE =
+  /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided|facilitated)\b/i;
+
+const EN_SOFT_FILLER_RE =
+  /\b(aimed at|focused on|with a focus on|designed to|to improve|to enhance|to strengthen|to maximize|to optimize|to drive|to facilitate)\b/i;
+
+const EN_UNSUPPORTED_IMPACT_RE =
+  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty)\b/i;
+
+const ENGLISH_RISKY_RESULT_RE =
+  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering|aimed at|focused on|designed to)\b/i;
+
+const ENGLISH_WEAK_SWAP_RE =
+  /\b(assisted|contributed|participated|supported|helped)\b/i;
+
   const WEAK_SENTENCE_RE =
   /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
-
-const STRONG_SPECIFIC_RE =
-  /\b(google ads|meta ads|meta ads manager|google analytics|google analytics 4|ga4|google tag manager|seo|sem|ctr|cpc|cpa|roas|roi|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|retargeting|lead generation|email marketing|segmentasyon|yeniden pazarlama|veri analizi|raporlama|kpi)\b/i;
 
 const WEAK_PHRASE_RE =
   /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
 
 const STRONG_ACTION_RE =
-  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created)\b/i;
-
-const SPECIFICITY_RE =
-  /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
-
-const FACT_SENSITIVE_TERMS = [
-  "google ads",
-  "meta ads",
-  "meta ads manager",
-  "linkedin ads",
-  "linkedin campaign manager",
-  "google analytics",
-  "google analytics 4",
-  "ga4",
-  "google tag manager",
-  "tag manager",
-  "seo",
-  "sem",
-  "ctr",
-  "cpc",
-  "cpa",
-  "roas",
-  "roi",
-  "cro",
-  "conversion rate optimization",
-  "landing page",
-  "a/b test",
-  "ab test",
-  "search console",
-  "hubspot",
-  "salesforce",
-  "crm",
-  "looker studio",
-  "data studio",
-  "dashboard",
-  "remarketing",
-  "retargeting",
-  "audience segmentation",
-  "segmentasyon",
-  "yeniden pazarlama",
-  "lead generation",
-  "email marketing",
-  "kpi",
-  "marketing automation",
-  "automation"
-];
-
+  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created|responded|resolved|guided|communicated|relayed|documented|collected|scheduled|updated|monitored)\b/i;
 const EN_WEAK_REWRITE_START_RE =
   /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided|facilitated)\b/i;
-
-const EN_UNSUPPORTED_IMPACT_RE =
-  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|strengthen(?:ed)? market presence|maximize engagement|optimize(?:d|s|ing)? follow-up strategies|improve(?:d|s|ing)? campaign outcomes|enhance(?:d|s|ing)? brand visibility|enhanc(?:e|ed|ing)? client relationships|deliver(?:ed|ing)? exceptional service|performance metrics|client engagement|facilitate(?:d|s|ing)? client success|effective solutions|managerial objectives|office operations)\b/i;
-const ENGLISH_RISKY_RESULT_RE =
-  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering)\b/i;
 
 const ENGLISH_WEAK_SWAP_RE =
   /\b(assisted|contributed|participated|supported|helped)\b/i;
