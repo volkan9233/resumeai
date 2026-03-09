@@ -1645,7 +1645,8 @@ export default async function handler(req, res) {
       optimized_ats_score: mergedBaseScore,
     };
 
-    let currentOptimized = "";
+        let currentOptimized = "";
+    let unsupportedTerms = [];
 
     try {
       const optimizeData = await callOpenAIJson({
@@ -1666,16 +1667,19 @@ export default async function handler(req, res) {
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
+        unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
     } catch {
       currentOptimized = "";
+      unsupportedTerms = [];
     }
 
     if (!currentOptimized) {
       currentOptimized = forceSafeResume(cv, cv);
+      unsupportedTerms = [];
     }
 
-    if (shouldRepairOptimizedCv(cv, currentOptimized)) {
+    if (shouldRepairOptimizedCv(cv, currentOptimized, jd) || unsupportedTerms.length > 0) {
       try {
         const repaired = await callOpenAIJson({
           apiKey,
@@ -1688,6 +1692,7 @@ export default async function handler(req, res) {
             currentOptimizedCv: currentOptimized || cv,
             summary: normalized.summary,
             missingKeywords: normalized.missing_keywords,
+            unsupportedTerms,
           }),
           isPreview: false,
           passType: "repair",
@@ -1696,6 +1701,35 @@ export default async function handler(req, res) {
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
           currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+          unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
+        }
+      } catch {
+        // mevcut optimize sürüm kalsın
+      }
+    }
+
+    if (unsupportedTerms.length > 0) {
+      try {
+        const cleaned = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildRepairPrompt({
+            cv,
+            jd,
+            hasJD,
+            currentOptimizedCv: currentOptimized || cv,
+            summary: normalized.summary,
+            missingKeywords: normalized.missing_keywords,
+            unsupportedTerms,
+          }),
+          isPreview: false,
+          passType: "repair",
+          maxCompletionTokens: 4600,
+        });
+
+        if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
+          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
         }
       } catch {
         // mevcut optimize sürüm kalsın
