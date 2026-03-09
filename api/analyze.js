@@ -1295,7 +1295,7 @@ export default async function handler(req, res) {
             }),
             isPreview: false,
             passType: "repair",
-            maxCompletionTokens: 2200,
+            maxCompletionTokens: 1800,
           });
 
           if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
