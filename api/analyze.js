@@ -1,4 +1,4 @@
- import { Redis } from "@upstash/redis";
+import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 import crypto from "crypto";
 
@@ -17,7 +17,8 @@ const rlFull = new Ratelimit({
   limiter: Ratelimit.slidingWindow(3, "1 m"),
   prefix: "resumeai:rl:full",
 });
-  const WEAK_SENTENCE_RE =
+
+const WEAK_SENTENCE_RE =
   /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
 
 const STRONG_SPECIFIC_RE =
@@ -114,7 +115,6 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
-    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiyoruz
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -332,7 +332,12 @@ function isClearlyWeakSentence(sentence = "") {
   const wordCount = s.split(/\s+/).filter(Boolean).length;
 
   if (!hasSpecific && wordCount <= 8) return true;
-  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) return true;
+  if (
+    !hasSpecific &&
+    /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)
+  ) {
+    return true;
+  }
 
   return false;
 }
@@ -379,60 +384,6 @@ function countUnsupportedEscalations(originalCv = "", optimizedCv = "") {
   return count;
 }
 
-function computeFinalOptimizedScore(
-  originalCv = "",
-  optimizedCv = "",
-  originalScore = 0,
-  jd = ""
-) {
-  const base = clampScore(originalScore);
-  if (!originalCv || !optimizedCv) return base;
-
-  const origNorm = normalizeCompareText(originalCv);
-  const optNorm = normalizeCompareText(optimizedCv);
-
-  if (!optNorm || origNorm === optNorm) return base;
-
-  const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd);
-
-  const weakBefore = countWeakVerbHits(originalCv);
-  const weakAfter = countWeakVerbHits(optimizedCv);
-  const weakGain = Math.max(0, weakBefore - weakAfter);
-
-  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  const rewriteRatio = total > 0 ? 1 - same / total : 0;
-
-  const rawLift = Math.max(0, rescoredOptimized - base);
-
-  let lift = 0;
-
-  // Orta seviye artış: ne çok kısık ne de aşırı şişik
-  lift += rawLift * 0.62;
-  lift += Math.min(4, weakGain) * 0.95;
-
-  if (rewriteRatio >= 0.65) lift += 3;
-  else if (rewriteRatio >= 0.45) lift += 2;
-  else if (rewriteRatio >= 0.25) lift += 1;
-
-  const meaningfulChange =
-    rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
-
-  if (!meaningfulChange) return base;
-
-  lift = Math.round(lift);
-
-  // Eski aşırı agresif versiyon ile kısık versiyonun ortası
-  const cap =
-    base < 35 ? 14 :
-    base < 50 ? 12 :
-    base < 65 ? 10 :
-    base < 80 ? 8 : 5;
-
-  lift = Math.max(2, Math.min(cap, lift));
-
-  return clampScore(base + lift);
-}
-
 function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
@@ -451,6 +402,7 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   }
 
   if (countWeakVerbHits(optimizedCv) >= 2) return true;
+  if (countUnsupportedEscalations(originalCv, optimizedCv) >= 1) return true;
 
   return false;
 }
@@ -615,11 +567,11 @@ function getJdAlignmentScore(cv = "", jd = "") {
 function computeDeterministicAtsScore(cv = "", jd = "") {
   const hasJD = !!String(jd || "").trim();
 
-  const sectionScore = getSectionPresenceScore(cv);     // 0-25
-  const bulletScore = getBulletStrengthScore(cv);       // 0-40
-  const readabilityScore = getReadabilityScore(cv);     // 0-20
-  const keywordScore = getKeywordBreadthScore(cv);      // 0-15
-  const jdScore = getJdAlignmentScore(cv, jd);          // 0-10
+  const sectionScore = getSectionPresenceScore(cv);
+  const bulletScore = getBulletStrengthScore(cv);
+  const readabilityScore = getReadabilityScore(cv);
+  const keywordScore = getKeywordBreadthScore(cv);
+  const jdScore = getJdAlignmentScore(cv, jd);
 
   let total = 0;
 
@@ -651,10 +603,10 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
 
     return clampScore(
       role_alignment * 0.28 +
-      bullet_strength * 0.28 +
-      jd_keyword_match * 0.18 +
-      section_completeness * 0.16 +
-      ats_safe_formatting * 0.10
+        bullet_strength * 0.28 +
+        jd_keyword_match * 0.18 +
+        section_completeness * 0.16 +
+        ats_safe_formatting * 0.10
     );
   }
 
@@ -666,11 +618,76 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
 
   return clampScore(
     section_completeness * 0.22 +
-    clarity_readability * 0.24 +
-    bullet_strength * 0.32 +
-    ats_safe_formatting * 0.14 +
-    core_keyword_coverage * 0.08
+      clarity_readability * 0.24 +
+      bullet_strength * 0.32 +
+      ats_safe_formatting * 0.14 +
+      core_keyword_coverage * 0.08
   );
+}
+
+function computeFinalOptimizedScore(
+  originalCv = "",
+  optimizedCv = "",
+  originalScore = 0,
+  jd = ""
+) {
+  const base = clampScore(originalScore);
+  if (!originalCv || !optimizedCv) return base;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm || origNorm === optNorm) return base;
+
+  const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd);
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  const weakGain = Math.max(0, weakBefore - weakAfter);
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  const rewriteRatio = total > 0 ? 1 - same / total : 0;
+
+  const unsupportedEscalations = countUnsupportedEscalations(originalCv, optimizedCv);
+  const rawLift = Math.max(0, rescoredOptimized - base);
+
+  const meaningfulChange =
+    rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+
+  if (!meaningfulChange) return base;
+
+  let lift = 0;
+
+  // bir miktar deterministik iyileşmeyi taşı
+  lift += rawLift * 0.8;
+
+  // weak phrasing temizlendiyse bonus
+  lift += Math.min(8, weakGain * 1.35);
+
+  // rewrite gerçekten geniş alana yayıldıysa bonus
+  if (rewriteRatio >= 0.7) lift += 5;
+  else if (rewriteRatio >= 0.55) lift += 4;
+  else if (rewriteRatio >= 0.4) lift += 3;
+  else if (rewriteRatio >= 0.25) lift += 2;
+  else if (rewriteRatio >= 0.15) lift += 1;
+
+  // baz skora göre kontrollü tavan
+  const cap =
+    base < 35 ? 24 :
+    base < 50 ? 18 :
+    base < 65 ? 15 :
+    base < 80 ? 12 : 8;
+
+  // overclaim cezası
+  lift -= unsupportedEscalations * 3;
+
+  lift = Math.round(lift);
+
+  if (lift <= 0) return base;
+
+  // çok küçük ama gerçek iyileşmeler de görünsün
+  lift = Math.max(3, Math.min(cap, lift));
+
+  return clampScore(base + lift);
 }
 
 function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
@@ -869,6 +886,10 @@ CRITICAL RULES (must follow):
 - Never remove existing useful specificity such as tools, metrics, platforms, channels, or business context.
 - If a bullet has no measurable metric, improve it using scope + action + context + purpose wording WITHOUT inventing numbers.
 - If the original sentence is support-oriented, you may strengthen clarity, but do NOT upgrade it into full ownership unless clearly supported.
+- If the original says "katkı sağladım", "destek verdim", "destek oldum", "görev aldım", "takip ettim", "aktif rol aldım" or similar, the rewrite MUST preserve that support level unless ownership is explicitly proven.
+- Do NOT turn support-heavy wording into direct result claims such as "artırdım", "iyileştirdim", "sağladım", "lead kalitesini artırdım", "bütçe verimliliğini artırdım" unless the original text explicitly supports that.
+- Do NOT turn tracking/support wording into ownership wording like "yönettim", "yürüttüm", "owned", "managed", "led" unless the original text explicitly supports that.
+- Prefer truthful strengthening such as: "takibini yürüttüm", "uygulama sürecine katkı sağladım", "analiz ederek öneriler sundum", "koordine ederek destekledim".
 - Weak sentence detection must prioritize genuinely weak, vague, or support-heavy phrasing first.
 - Do NOT flag already-strong sentences as weak just because they can be polished slightly.
 - Sentences that already contain concrete tools, platforms, metrics, or strong action verbs should usually NOT be selected as weak.
@@ -995,7 +1016,9 @@ REQUIREMENTS:
 RESUME:
 ${cv}
 `.trim();
+  }
 }
+
 function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
   if (hasJD) {
     return `
@@ -1078,6 +1101,7 @@ HARD REQUIREMENTS:
 RESUME:
 ${cv}
 `.trim();
+  }
 }
 
 function buildOptimizeCvPrompt({
@@ -1107,6 +1131,9 @@ STRICT RULES:
 - Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
 - Do NOT replace generic platform language with specific platforms unless explicitly present in the resume or job description.
 - If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- If an original bullet uses support-heavy wording such as "katkı sağladım", "destek verdim", "görev aldım", "takip ettim", "aktif rol aldım", the rewritten bullet must stay truthful to that support level.
+- Do NOT convert support-heavy bullets into direct result claims like "artırdım", "iyileştirdim", "sağladım", or direct ownership claims like "yönettim" unless the original bullet explicitly proves that.
+- Preserve existing tools, metrics, and specificity, but do not invent stronger outcomes than the source supports.
 - Use the analysis summary and missing keywords to strengthen the CV truthfully.
 - Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
 - Avoid shallow synonym swaps and lightly polished copies.
@@ -1147,6 +1174,9 @@ STRICT RULES:
 - Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
 - Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
 - If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- If an original bullet uses support-heavy wording such as "katkı sağladım", "destek verdim", "görev aldım", "takip ettim", "aktif rol aldım", the rewritten bullet must stay truthful to that support level.
+- Do NOT convert support-heavy bullets into direct result claims like "artırdım", "iyileştirdim", "sağladım", or direct ownership claims like "yönettim" unless the original bullet explicitly proves that.
+- Preserve existing tools, metrics, and specificity, but do not invent stronger outcomes than the source supports.
 - Use the analysis summary and missing keywords to strengthen the CV truthfully.
 - Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
 - Avoid shallow synonym swaps and lightly polished copies.
@@ -1198,6 +1228,9 @@ STRICT RULES:
 - Do NOT invent metrics, tools, platforms, acronyms, or achievements.
 - Do NOT replace generic platform language with specific platforms unless explicitly present.
 - Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- If the original bullet is support-heavy, the repaired version must not overclaim ownership or results.
+- Do NOT rewrite support-heavy bullets into claims like "artırdım", "iyileştirdim", "sağladım", "yönettim", "owned", "managed", or "led" unless those claims are clearly supported by the original text.
+- Prefer stronger but truthful rewrites such as clearer scope, better business context, better wording, and stronger readability without inflating responsibility.
 - Every experience bullet should be materially stronger than the original resume bullet.
 - Avoid these weak phrases:
   helped, assisted, supported, involved in, responsible for, contributed to, worked on, played a key role in, participated in, handled,
@@ -1246,6 +1279,9 @@ STRICT RULES:
 - Do NOT invent metrics, tools, platforms, acronyms, or achievements.
 - Do NOT replace generic platform language with specific platforms unless explicitly present.
 - Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- If the original bullet is support-heavy, the repaired version must not overclaim ownership or results.
+- Do NOT rewrite support-heavy bullets into claims like "artırdım", "iyileştirdim", "sağladım", "yönettim", "owned", "managed", or "led" unless those claims are clearly supported by the original text.
+- Prefer stronger but truthful rewrites such as clearer scope, better business context, better wording, and stronger readability without inflating responsibility.
 - This is GENERAL optimization without a job description.
 - Every experience bullet should be materially stronger than the original resume bullet.
 - Avoid these weak phrases:
@@ -1511,7 +1547,6 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
-    // PREVIEW: tek çağrı
     if (isPreview) {
       let previewData;
       try {
@@ -1550,8 +1585,8 @@ export default async function handler(req, res) {
           ? previewData.missing_keywords
           : [],
         weak_sentences: filterWeakSentences(
-  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
-),
+          Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
+        ),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
 
@@ -1566,7 +1601,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // FULL ATS: analysis + optimize + gerekiyorsa repair
     let analysisData;
     try {
       analysisData = await callOpenAIJson({
@@ -1604,8 +1638,8 @@ export default async function handler(req, res) {
         ? analysisData.missing_keywords
         : [],
       weak_sentences: filterWeakSentences(
-  Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
-),
+        Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
+      ),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
       optimized_cv: "",
       optimized_ats_score: mergedBaseScore,
@@ -1669,14 +1703,12 @@ export default async function handler(req, res) {
     }
 
     normalized.optimized_cv = currentOptimized;
-    normalized.optimized_cv = currentOptimized;
-
-normalized.optimized_ats_score = computeFinalOptimizedScore(
-  cv,
-  currentOptimized,
-  normalized.ats_score,
-  jd
-);
+    normalized.optimized_ats_score = computeFinalOptimizedScore(
+      cv,
+      currentOptimized,
+      normalized.ats_score,
+      jd
+    );
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
