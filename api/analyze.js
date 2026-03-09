@@ -1246,26 +1246,53 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
-    let data;
+    const atsPrompt = isPreview
+  ? buildPreviewAtsPrompt({ cv, jd, hasJD, outLang })
+  : buildFullAtsPrompt({ cv, jd, hasJD, outLang });
+
+let data;
+try {
+  data = await callOpenAIJson({
+    apiKey,
+    model,
+    system: buildAtsSystem(outLang),
+    userPrompt: atsPrompt,
+    isPreview,
+    passType: "main",
+    maxCompletionTokens: isPreview ? 1200 : 1800,
+  });
+} catch (err) {
+  const shouldFallback =
+    isPreview &&
+    err?.message === "Model returned empty content" &&
+    previewModel !== fullModel;
+
+  if (shouldFallback) {
     try {
       data = await callOpenAIJson({
         apiKey,
-        model,
+        model: fullModel,
         system: buildAtsSystem(outLang),
-        userPrompt: isPreview
-          ? buildPreviewAtsPrompt({ cv, jd, hasJD, outLang })
-          : buildFullAtsPrompt({ cv, jd, hasJD, outLang }),
-        isPreview,
+        userPrompt: atsPrompt,
+        isPreview: true,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1200 : 1800,
+        maxCompletionTokens: 1200,
       });
-    } catch (err) {
-      return res.status(err?.status || 500).json({
-        error: err?.message || "OpenAI error",
-        status: err?.status || 500,
-        details: err?.details || String(err),
+    } catch (fallbackErr) {
+      return res.status(fallbackErr?.status || 500).json({
+        error: fallbackErr?.message || "OpenAI error",
+        status: fallbackErr?.status || 500,
+        details: fallbackErr?.details || String(fallbackErr),
       });
     }
+  } else {
+    return res.status(err?.status || 500).json({
+      error: err?.message || "OpenAI error",
+      status: err?.status || 500,
+      details: err?.details || String(err),
+    });
+  }
+}
 
     const normalized = {
       ats_score: computeFinalAtsScore(data?.ats_score, cv, hasJD ? jd : ""),
