@@ -571,6 +571,7 @@ if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
 }
 
 return false;
+}
 
 function getSectionPresenceScore(cv = "") {
   const text = getNonEmptyLines(cv).join("\n");
