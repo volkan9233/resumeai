@@ -1039,7 +1039,12 @@ STRICT RULES:
 - Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
 - Avoid shallow synonym swaps and lightly polished copies.
 - Use canonical section headings only.
-- Return ONLY valid JSON.
+
+QUALITY TARGET:
+- The optimized CV must feel clearly stronger than the original, not just lightly polished.
+- Improve bullets by adding clarity, scope, recruiter-friendly wording, and business context without inventing facts.
+- Keep already-strong bullets strong; do not rewrite them into flatter or more generic versions.
+- Focus most of the improvement effort on the weakest bullets and summary lines.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1074,7 +1079,12 @@ STRICT RULES:
 - Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
 - Avoid shallow synonym swaps and lightly polished copies.
 - Use canonical section headings only.
-- Return ONLY valid JSON.
+
+QUALITY TARGET:
+- The optimized CV must feel clearly stronger than the original, not just lightly polished.
+- Improve bullets by adding clarity, scope, recruiter-friendly wording, and business context without inventing facts.
+- Keep already-strong bullets strong; do not rewrite them into flatter or more generic versions.
+- Focus most of the improvement effort on the weakest bullets and summary lines.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1124,7 +1134,12 @@ STRICT RULES:
 - The result must not read like a lightly polished copy.
 - The result must still be a truthful ATS-friendly resume aligned to the job description.
 - Use canonical section headings only.
-- Return ONLY valid JSON.
+
+QUALITY TARGET:
+- The final output should feel premium and clearly stronger than the original.
+- Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
+- Preserve strong bullets that are already good.
+- Focus the rewrite effort on weak, vague, or support-heavy lines first.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
@@ -1167,7 +1182,12 @@ STRICT RULES:
 - Prefer direct action + scope + business context wording.
 - The result must not read like a lightly polished copy.
 - Use canonical section headings only.
-- Return ONLY valid JSON.
+
+QUALITY TARGET:
+- The final output should feel premium and clearly stronger than the original.
+- Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
+- Preserve strong bullets that are already good.
+- Focus the rewrite effort on weak, vague, or support-heavy lines first.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
