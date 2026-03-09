@@ -526,7 +526,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 2000),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
       },
     ];
   }
@@ -545,12 +545,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 1700),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
     },
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2000),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
     },
   ];
 }
@@ -1207,7 +1207,7 @@ export default async function handler(req, res) {
               }),
           isPreview,
           passType: "main",
-          maxCompletionTokens: isPreview ? 1800 : 2200,
+          maxCompletionTokens: isPreview ? 1800 : 2600,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1256,7 +1256,7 @@ export default async function handler(req, res) {
           : buildFullAtsPrompt({ cv, jd, hasJD, outLang }),
         isPreview,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1200 : 1700,
+        maxCompletionTokens: isPreview ? 1200 : 1800,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -1295,7 +1295,7 @@ export default async function handler(req, res) {
             }),
             isPreview: false,
             passType: "repair",
-            maxCompletionTokens: 1800,
+            maxCompletionTokens: 2200,
           });
 
           if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
