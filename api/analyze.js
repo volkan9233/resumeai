@@ -1630,9 +1630,14 @@ export default async function handler(req, res) {
     }
 
     normalized.optimized_cv = currentOptimized;
-    const rescoredOptimized = computeDeterministicAtsScore(currentOptimized, jd);
-const improvementBonus = computeImprovementBonus(cv, currentOptimized);
-normalized.optimized_ats_score = clampScore(rescoredOptimized + improvementBonus);
+    normalized.optimized_cv = currentOptimized;
+
+normalized.optimized_ats_score = computeFinalOptimizedScore(
+  cv,
+  currentOptimized,
+  normalized.ats_score,
+  jd
+);
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
