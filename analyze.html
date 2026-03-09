@@ -606,7 +606,9 @@ scoreLabelGeneral: "ATS Readiness Score:",
 scoreLabelJob: "ATS Match Score:",
 kwMetaGeneral: "{count} recommended keywords found",
 kwMetaJob: "{count} missing keywords found",
-      analyzeEta: "Analysis usually takes around 30–60 seconds."
+      analyzeEta: "Analysis usually takes around 30–60 seconds.",
+      tailorLabel: "Tailor to a job description",
+tailorHint: "Optional — turn this on to paste a job description for a more targeted ATS match."
     },
 
     tr: {
@@ -656,7 +658,10 @@ scoreLabelGeneral: "ATS Hazırlık Skoru:",
 scoreLabelJob: "ATS Uyum Skoru:",
 kwMetaGeneral: "{count} önerilen anahtar kelime bulundu",
 kwMetaJob: "{count} eksik anahtar kelime bulundu",
-      analyzeEta: "Analiz genelde 30–60 saniye sürer."
+      analyzeEta: "Analiz genelde 30–60 saniye sürer.",
+      tailorLabel: "İlana göre uyarlama yap",
+tailorHint: "Opsiyonel — daha hedefli ATS eşleşmesi için bunu açıp iş ilanını yapıştır."
+      
     },
 
     es: {
@@ -706,7 +711,9 @@ scoreLabelGeneral: "Puntuación de preparación ATS:",
 scoreLabelJob: "Puntuación ATS:",
 kwMetaGeneral: "Se encontraron {count} palabras clave recomendadas",
 kwMetaJob: "Se encontraron {count} palabras clave faltantes",
-      analyzeEta: "El análisis suele tardar entre 30 y 60 segundos."
+      analyzeEta: "El análisis suele tardar entre 30 y 60 segundos.",
+      tailorLabel: "Adaptar a una descripción del puesto",
+tailorHint: "Opcional: actívalo para pegar una descripción del puesto y obtener una coincidencia ATS más precisa."
     },
 
     ru: {
@@ -756,7 +763,9 @@ scoreLabelGeneral: "Оценка готовности к ATS:",
 scoreLabelJob: "ATS Совпадение:",
 kwMetaGeneral: "Найдено рекомендуемых ключевых слов: {count}",
 kwMetaJob: "Найдено недостающих ключевых слов: {count}",
-      analyzeEta: "Анализ обычно занимает 30–60 секунд."
+      analyzeEta: "Анализ обычно занимает 30–60 секунд.",
+      tailorLabel: "Адаптировать под вакансию",
+tailorHint: "Необязательно — включите это, чтобы вставить описание вакансии и получить более точное ATS-сопоставление."
     },
 
     fr: {
@@ -806,7 +815,9 @@ scoreLabelGeneral: "Score de préparation ATS :",
 scoreLabelJob: "Score de compatibilité ATS :",
 kwMetaGeneral: "{count} mots-clés recommandés trouvés",
 kwMetaJob: "{count} mots-clés manquants trouvés",
-      analyzeEta: "L’analyse prend généralement entre 30 et 60 secondes."
+      analyzeEta: "L’analyse prend généralement entre 30 et 60 secondes.",
+      tailorLabel: "Adapter à une offre d’emploi",
+tailorHint: "Optionnel — activez ceci pour coller une offre d’emploi et obtenir une correspondance ATS plus précise."
     },
 
     ar: {
@@ -904,7 +915,9 @@ scoreLabelGeneral: "ATS 就绪评分：",
 scoreLabelJob: "ATS 匹配度：",
 kwMetaGeneral: "已发现 {count} 个推荐关键词",
 kwMetaJob: "已发现 {count} 个缺失关键词",
-      analyzeEta: "分析通常需要约 30–60 秒。"
+      analyzeEta: "分析通常需要约 30–60 秒。",
+      tailorLabel: "根据职位描述定制",
+tailorHint: "可选——开启后可粘贴职位描述，以获得更精准的 ATS 匹配结果。"
     }
   };
 
@@ -956,6 +969,8 @@ setText("#weakLockBanner", t.weakLockedNote);
 setText("#noJobHelp", t.noJobHelp);
   setText("#resumeHelpText", t.resumeHelpText);
 setText("#resumeHelpBtn", t.resumeHelpBtn);
+  setText("#tailorLabel", t.tailorLabel);
+setText("#tailorHint", t.tailorHint);
 
   window.__scoreLabel = t.scoreLabel;
   window.__needBoth = t.needBoth;
