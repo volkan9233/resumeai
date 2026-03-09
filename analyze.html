@@ -846,6 +846,7 @@ kwMetaJob: "已发现 {count} 个缺失关键词",
   setPh("#job", t.jobPh);
 
   setText("#btn", t.analyze);
+  setText("#analyzeEta", t.analyzeEta);
 
   const h3s = document.querySelectorAll(".out .sec h3");
   if (h3s[0]) h3s[0].childNodes[0].textContent = t.missing;
