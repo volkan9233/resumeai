@@ -1862,7 +1862,7 @@ export default async function handler(req, res) {
         ? analysisData.missing_keywords
         : [],
       weak_sentences: filterWeakSentences(
-  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : [],
+  Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : [],
   outLang
 ),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
