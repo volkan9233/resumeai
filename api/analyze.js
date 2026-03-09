@@ -1803,7 +1803,8 @@ export default async function handler(req, res) {
           ? previewData.missing_keywords
           : [],
         weak_sentences: filterWeakSentences(
-  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
+  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : [],
+  outLang
 ),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
