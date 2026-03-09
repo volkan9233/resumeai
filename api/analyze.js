@@ -1146,9 +1146,11 @@ function buildOptimizeCvPrompt({
   hasJD,
   summary,
   missingKeywords,
+  outLang,
 }) {
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
 
   return hasJD
     ? `
@@ -1184,6 +1186,8 @@ HARD FACT LOCK:
 - You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
 - If a term is not explicitly supported, do NOT add it.
 - This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
+
+${englishStyleBlock}
 
 QUALITY TARGET:
 - The optimized CV must feel clearly stronger than the original, not just lightly polished.
