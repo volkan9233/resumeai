@@ -1280,9 +1280,11 @@ function buildRepairPrompt({
   summary,
   missingKeywords,
   unsupportedTerms = [],
+  outLang,
 }) {
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
   const unsupportedText = Array.isArray(unsupportedTerms) && unsupportedTerms.length
     ? unsupportedTerms.join(", ")
     : "(none)";
@@ -1322,6 +1324,8 @@ HARD FACT LOCK:
 - You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
 - Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
 - If a term is not explicitly supported, remove it.
+
+${englishStyleBlock}
 
 QUALITY TARGET:
 - The final output should feel premium and clearly stronger than the original.
