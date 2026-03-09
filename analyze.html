@@ -320,10 +320,9 @@ a.link:hover{ text-decoration:underline; }
     <textarea id="resume" placeholder="Paste your resume here..."></textarea>
 
     <div class="resumeHelp">
-  <span class="resumeHelpText">Don’t have a resume?</span>
+  <span class="resumeHelpText" id="resumeHelpText">Don’t have a resume?</span>
 
-  <a class="resumeHelpBtn" href="/create.html">✨ Build one in 2 minutes</a>
-
+  <a class="resumeHelpBtn" id="resumeHelpBtn" href="/create.html">✨ Build one in 2 minutes</a>
 </div>
     <div class="resumeHelpText" id="noJobHelp" style="margin-top:8px;">
   No job description? You’ll still get a general ATS review.
@@ -516,6 +515,8 @@ if (!localStorage.getItem(convKey)) {
       copyFail: "Copy failed.",
       nothingToCopy: "Nothing to copy.",
       noJobHelp: "If you don’t have a job description, you’ll still get a general ATS review.",
+      resumeHelpText: "Don’t have a resume?",
+      resumeHelpBtn: "✨ Build one in 2 minutes",
       resultGeneralTitle: "General ATS Review",
 resultGeneralDesc: "Based on resume structure, clarity, and ATS-friendly best practices.",
 resultJobTitle: "Job-Specific ATS Match",
@@ -564,6 +565,8 @@ kwMetaJob: "{count} missing keywords found",
       copyFail: "Kopyalama başarısız.",
       nothingToCopy: "Kopyalanacak bir şey yok.",
       noJobHelp: "İş ilanı yoksa genel bir ATS değerlendirmesi alırsınız.",
+      resumeHelpText: "Özgeçmişin yok mu?",
+resumeHelpBtn: "✨ 2 dakikada oluştur",
       resultGeneralTitle: "Genel ATS Değerlendirmesi",
 resultGeneralDesc: "CV yapısı, netlik ve ATS uyumlu en iyi uygulamalara göre hazırlanmıştır.",
 resultJobTitle: "İlana Özel ATS Eşleşmesi",
@@ -612,6 +615,8 @@ kwMetaJob: "{count} eksik anahtar kelime bulundu",
       copyFail: "Error al copiar.",
       nothingToCopy: "Nada que copiar.",
       noJobHelp: "Si no tienes una descripción del puesto, aun así recibirás una revisión ATS general.",
+      resumeHelpText: "¿No tienes un CV?",
+resumeHelpBtn: "✨ Crea uno en 2 minutos",
       resultGeneralTitle: "Revisión ATS General",
 resultGeneralDesc: "Basado en la estructura del CV, la claridad y las mejores prácticas compatibles con ATS.",
 resultJobTitle: "Coincidencia ATS Específica para el Puesto",
@@ -660,6 +665,8 @@ kwMetaJob: "Se encontraron {count} palabras clave faltantes",
       copyFail: "Не удалось скопировать.",
       nothingToCopy: "Нечего копировать.",
       noJobHelp: "Нет описания вакансии? Вы всё равно получите общий ATS-анализ.",
+      resumeHelpText: "Нет резюме?",
+resumeHelpBtn: "✨ Создать за 2 минуты",
       resultGeneralTitle: "Общая ATS-проверка",
 resultGeneralDesc: "Основано на структуре резюме, ясности и лучших практиках ATS.",
 resultJobTitle: "ATS-соответствие для конкретной вакансии",
@@ -708,6 +715,8 @@ kwMetaJob: "Найдено недостающих ключевых слов: {co
       copyFail: "Échec de la copie.",
       nothingToCopy: "Rien à copier.",
       noJobHelp: "Si vous n’avez pas d’offre d’emploi, vous recevrez quand même une analyse ATS générale.",
+      resumeHelpText: "Vous n’avez pas de CV ?",
+resumeHelpBtn: "✨ Créez-en un en 2 minutes",
       resultGeneralTitle: "Revue ATS Générale",
 resultGeneralDesc: "Basé sur la structure du CV, la clarté et les bonnes pratiques compatibles ATS.",
 resultJobTitle: "Correspondance ATS Spécifique au Poste",
@@ -804,6 +813,8 @@ kwMetaJob: "تم العثور على {count} كلمة مفتاحية ناقصة"
       copyFail: "复制失败。",
       nothingToCopy: "没有可复制的内容。",
       noJobHelp: "没有职位描述？你仍然会获得一份通用 ATS 分析。",
+      resumeHelpText: "还没有简历？",
+resumeHelpBtn: "✨ 2 分钟创建一份",
       resultGeneralTitle: "通用 ATS 评估",
 resultGeneralDesc: "基于简历结构、清晰度和 ATS 友好最佳实践。",
 resultJobTitle: "岗位专属 ATS 匹配",
