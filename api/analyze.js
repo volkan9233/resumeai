@@ -1048,6 +1048,7 @@ function buildOptimizeCvPrompt({
   missingKeywords,
 }) {
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
+  const allowedTermsText = buildAllowedTermsText(cv, jd);
 
   return hasJD
     ? `
@@ -1064,25 +1065,44 @@ STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
-- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, channels, or software.
 - Do NOT replace generic platform language with specific platforms unless explicitly present in the resume or job description.
 - If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
-- Use the analysis summary and missing keywords to strengthen the CV truthfully.
-- Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
-- Avoid shallow synonym swaps and lightly polished copies.
+- Use the analysis summary to improve wording truthfully.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
+- Keep already-strong bullets unchanged or only lightly polish them.
+- Focus most of the rewrite effort on the weaker summary lines and weaker/support-heavy bullets.
+- Preserve the role structure and bullet structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
+- Do NOT remove meaningful bullets unless they are duplicate/redundant.
 - Use canonical section headings only.
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
+- If a term is not explicitly supported, do NOT add it.
+- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
 
 QUALITY TARGET:
 - The optimized CV must feel clearly stronger than the original, not just lightly polished.
-- Improve bullets by adding clarity, scope, recruiter-friendly wording, and business context without inventing facts.
-- Keep already-strong bullets strong; do not rewrite them into flatter or more generic versions.
-- Focus most of the improvement effort on the weakest bullets and summary lines.
+- Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
+- Do NOT flatten already-specific bullets into generic corporate language.
+- Keep the resume realistic, premium, and ATS-friendly.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
 HIGH PRIORITY KEYWORDS / GAPS:
 ${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- no unsupported tools/platforms/acronyms added
+- no invented achievements/results added
+- no unjustified ownership escalation
+- no major bullet loss
+- no merged bullets that reduce clarity
 
 RESUME:
 ${cv}
@@ -1104,25 +1124,44 @@ STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
-- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, or achievements.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, channels, or software.
 - Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
 - If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
-- Use the analysis summary and missing keywords to strengthen the CV truthfully.
-- Every experience bullet should become clearer, more recruiter-ready, and more ATS-friendly.
-- Avoid shallow synonym swaps and lightly polished copies.
+- Use the analysis summary to improve wording truthfully.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
+- Keep already-strong bullets unchanged or only lightly polish them.
+- Focus most of the rewrite effort on the weaker summary lines and weaker/support-heavy bullets.
+- Preserve the role structure and bullet structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
+- Do NOT remove meaningful bullets unless they are duplicate/redundant.
 - Use canonical section headings only.
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
+- If a term is not explicitly supported, do NOT add it.
+- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
 
 QUALITY TARGET:
 - The optimized CV must feel clearly stronger than the original, not just lightly polished.
-- Improve bullets by adding clarity, scope, recruiter-friendly wording, and business context without inventing facts.
-- Keep already-strong bullets strong; do not rewrite them into flatter or more generic versions.
-- Focus most of the improvement effort on the weakest bullets and summary lines.
+- Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
+- Do NOT flatten already-specific bullets into generic corporate language.
+- Keep the resume realistic, premium, and ATS-friendly.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
 HIGH PRIORITY KEYWORDS / GAPS:
 ${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- no unsupported tools/platforms/acronyms added
+- no invented achievements/results added
+- no unjustified ownership escalation
+- no major bullet loss
+- no merged bullets that reduce clarity
 
 RESUME:
 ${cv}
