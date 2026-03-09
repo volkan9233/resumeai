@@ -1038,8 +1038,10 @@ CRITICAL RULES (must follow):
 }
 
 function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }) {
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
   if (hasJD) {
     return `
+    
 Return JSON in this exact schema:
 
 {
@@ -1069,6 +1071,8 @@ REQUIREMENTS:
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
+
+${englishStyleBlock}
 
 RESUME:
 ${cv}
@@ -1109,6 +1113,8 @@ REQUIREMENTS:
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
+
+${englishStyleBlock}
 
 RESUME:
 ${cv}
