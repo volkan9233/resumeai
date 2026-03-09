@@ -618,10 +618,18 @@ async function callOpenAIJson({
       const text = extractAssistantText(parsed);
 
       if (!text || !text.trim()) {
-        lastError = new Error("Model returned empty content");
-        if (finishReason === "length") continue;
-        continue;
-      }
+  console.log("EMPTY MODEL CONTENT", {
+    model,
+    passType,
+    isPreview,
+    finishReason,
+    rawPreview: raw.slice(0, 800),
+  });
+
+  lastError = new Error("Model returned empty content");
+  if (finishReason === "length") continue;
+  continue;
+}
 
       let data;
       try {
