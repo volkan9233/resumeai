@@ -389,7 +389,7 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   return bonus;
 }
 
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "") {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
   const origNorm = normalizeCompareText(originalCv);
@@ -407,6 +407,10 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "") {
   }
 
   if (countWeakVerbHits(optimizedCv) >= 2) return true;
+
+  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
+    return true;
+  }
 
   return false;
 }
