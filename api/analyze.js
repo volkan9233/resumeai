@@ -526,7 +526,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2000),
       },
     ];
   }
@@ -545,12 +545,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 1700),
     },
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2000),
     },
   ];
 }
