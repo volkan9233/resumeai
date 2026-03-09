@@ -382,14 +382,22 @@ function isClearlyWeakSentence(sentence = "") {
   return false;
 }
 
-function filterWeakSentences(items = []) {
+function filterWeakSentences(items = [], outLang = "") {
   return (Array.isArray(items) ? items : [])
     .filter((x) => {
       const sentence = String(x?.sentence || "").trim();
       const rewrite = String(x?.rewrite || "").trim();
+
       if (!sentence || !rewrite) return false;
       if (normalizeCompareText(sentence) === normalizeCompareText(rewrite)) return false;
-      return isClearlyWeakSentence(sentence);
+      if (!isClearlyWeakSentence(sentence)) return false;
+
+      if (outLang === "English") {
+        if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return false;
+        if (hasUnsupportedImpactClaims(sentence, rewrite)) return false;
+      }
+
+      return true;
     })
     .slice(0, 12);
 }
