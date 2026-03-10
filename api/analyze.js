@@ -1652,15 +1652,10 @@ ${cv}
 `.trim();
 }
 
-function buildOptimizeCvPrompt({
-  cv,
-  jd,
-  hasJD,
-  summary,
-  missingKeywords,
-  bulletUpgrades,
-  outLang,
-}) {
+function buildOptimizeCvPrompt({ cv, jd, hasJD, outLang, roleFamily })
+  const rolePack = getRolePack(roleFamily);
+  const roleHints = (rolePack.styleHints || []).join("\n- ");
+  const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
@@ -1676,6 +1671,12 @@ Return JSON in this exact schema:
 
 TASK:
 Rewrite the resume into a materially stronger ATS-friendly version aligned to the same job description.
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
