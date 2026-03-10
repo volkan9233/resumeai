@@ -1364,7 +1364,10 @@ CRITICAL RULES (must follow):
 `.trim();
 }
 
-function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }) {
+function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang, roleFamily })
+  const rolePack = getRolePack(roleFamily);
+  const roleHints = (rolePack.styleHints || []).join("\n- ");
+  const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
   if (hasJD) {
     return `
 Return JSON in this exact schema:
@@ -1381,6 +1384,12 @@ Return JSON in this exact schema:
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
 }
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
@@ -1570,13 +1579,11 @@ ${cv}
 `.trim();
 }
 
-function buildTargetedBulletUpgradePrompt({
-  cv,
-  jd,
-  hasJD,
-  weakSentences,
-  outLang,
-}) {
+function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, outLang, roleFamily })
+
+    const rolePack = getRolePack(roleFamily);
+  const roleHints = (rolePack.styleHints || []).join("\n- ");
+  const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
   const weakText = (Array.isArray(weakSentences) ? weakSentences : [])
     .map((item, idx) => `${idx + 1}. ${String(item?.sentence || "").trim()}`)
     .filter(Boolean)
@@ -1594,6 +1601,12 @@ Return JSON in this exact schema:
 
 TASK:
 Create premium-quality bullet rewrites ONLY for the provided weak resume sentences.
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 STRICT RULES:
 - Rewrite ONLY the listed source sentences.
@@ -1810,17 +1823,10 @@ ${cv}
 `.trim();
 }
 
-function buildRepairPrompt({
-  cv,
-  jd,
-  hasJD,
-  currentOptimizedCv,
-  summary,
-  missingKeywords,
-  bulletUpgrades,
-  unsupportedTerms = [],
-  outLang,
-}) {
+function buildRepairPrompt({ cv, jd, hasJD, outLang, roleFamily })
+  const rolePack = getRolePack(roleFamily);
+  const roleHints = (rolePack.styleHints || []).join("\n- ");
+  const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
@@ -1840,6 +1846,12 @@ Return JSON in this exact schema:
 TASK:
 You already generated an optimized resume, but it still needs cleanup.
 Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
