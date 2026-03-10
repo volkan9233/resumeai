@@ -944,38 +944,18 @@ function getSkillsLines(cv = "") {
   return out.filter(Boolean);
 }
 
-function getKeywordBreadthScore(cv = "") {
+function getKeywordBreadthScore(cv = "", roleFamily = "generic") {
   const text = normalizeCompareText(cv);
   const skills = uniqueTrimmedStrings(getSkillsLines(cv));
+  const roleKeywords = getRoleKeywordSuggestions(roleFamily);
 
   let score = 0;
 
   score += Math.min(8, skills.length);
 
-  const keywordHits = [
-    "google ads",
-    "meta ads",
-    "google analytics",
-    "google analytics 4",
-    "tag manager",
-    "seo",
-    "sem",
-    "ctr",
-    "cpc",
-    "cpa",
-    "roas",
-    "landing page",
-    "excel",
-    "google sheets",
-    "hubspot",
-    "search console",
-    "a b test",
-    "email marketing",
-    "performans pazarlamasi",
-    "icerik stratejisi",
-    "veri analizi",
-    "raporlama",
-  ].filter((term) => text.includes(normalizeCompareText(term))).length;
+  const keywordHits = roleKeywords.filter((term) =>
+    text.includes(normalizeCompareText(term))
+  ).length;
 
   score += Math.min(7, keywordHits);
 
@@ -1004,9 +984,11 @@ function getReadabilityScore(cv = "") {
   return Math.min(20, score);
 }
 
-function getBulletStrengthScore(cv = "") {
+function getBulletStrengthScore(cv = "", roleFamily = "generic") {
   const bullets = getBulletLines(cv);
   if (!bullets.length) return 0;
+
+  const roleSpecificRe = getRoleSpecificityRegex(roleFamily);
 
   let score = 8;
   let weakCount = 0;
@@ -1018,7 +1000,13 @@ function getBulletStrengthScore(cv = "") {
     const wc = countWords(bullet);
     if (WEAK_PHRASE_RE.test(bullet)) weakCount += 1;
     if (STRONG_ACTION_RE.test(bullet)) strongCount += 1;
-    if (SPECIFICITY_RE.test(bullet)) specificityCount += 1;
+    if (
+      SPECIFICITY_RE.test(bullet) ||
+      roleSpecificRe.test(bullet) ||
+      BUSINESS_CONTEXT_RE.test(bullet)
+    ) {
+      specificityCount += 1;
+    }
     if (wc >= 5 && wc <= 24) solidLengthCount += 1;
   }
 
@@ -1066,13 +1054,13 @@ function getJdAlignmentScore(cv = "", jd = "") {
   return Math.max(0, Math.min(10, Math.round(ratio * 10)));
 }
 
-function computeDeterministicAtsScore(cv = "", jd = "") {
+function computeDeterministicAtsScore(cv = "", jd = "", roleFamily = "generic") {
   const hasJD = !!String(jd || "").trim();
 
   const sectionScore = getSectionPresenceScore(cv);
-  const bulletScore = getBulletStrengthScore(cv);
+  const bulletScore = getBulletStrengthScore(cv, roleFamily);
   const readabilityScore = getReadabilityScore(cv);
-  const keywordScore = getKeywordBreadthScore(cv);
+  const keywordScore = getKeywordBreadthScore(cv, roleFamily);
   const jdScore = getJdAlignmentScore(cv, jd);
 
   let total = 0;
