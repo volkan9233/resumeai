@@ -90,6 +90,218 @@ const ENGLISH_WEAK_SWAP_RE =
 const ENGLISH_CORPORATE_FLUFF_RE =
   /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|strategic initiatives|in-depth data analysis|for consistency|for team accessibility|to ensure data accuracy|to ensure accuracy and relevance|to streamline communication efforts|to support informed marketing strategies|to enhance engagement|to optimize user experience)\b/i;
 
+const ROLE_PACKS = {
+  marketing: {
+    keywords: [
+      "google ads", "meta ads", "ga4", "google analytics", "google tag manager",
+      "seo", "sem", "ppc", "cpc", "ctr", "cpa", "roas", "roi",
+      "landing page", "a/b testing", "ab testing", "remarketing", "retargeting",
+      "lead generation", "email marketing", "content marketing", "campaign",
+      "audience targeting", "audience segmentation", "social media", "brand awareness",
+      "conversion optimization", "performance marketing", "analytics", "reporting"
+    ],
+    strongTerms: [
+      "google ads", "meta ads", "google analytics", "ga4", "google tag manager",
+      "seo", "sem", "ppc", "cpc", "ctr", "cpa", "roas", "roi",
+      "landing page", "a/b test", "ab test", "email marketing",
+      "remarketing", "retargeting", "audience segmentation", "lead generation",
+      "campaign", "content", "reporting", "analytics"
+    ],
+    suggestedKeywords: [
+      "digital marketing strategy", "content marketing", "ppc campaigns",
+      "social media strategy", "campaign optimization", "data analysis",
+      "lead generation", "customer engagement", "seo strategy",
+      "brand management", "cross-channel marketing", "performance metrics",
+      "conversion optimization", "analytics tools", "market trends"
+    ],
+    styleHints: [
+      "Keep marketing bullets tool-aware and channel-aware.",
+      "Preserve platforms, metrics, channels, and campaign context.",
+      "Do not replace real tools with vague marketing language."
+    ]
+  },
+
+  customer_support: {
+    keywords: [
+      "customer support", "customer service", "ticket handling", "ticket follow-up",
+      "issue resolution", "issue escalation", "customer communication", "live chat",
+      "email support", "complaint handling", "service support", "service quality",
+      "customer requests", "case follow-up", "customer feedback", "support records",
+      "crm", "zendesk", "freshdesk", "help desk", "sla", "response time",
+      "resolution time", "escalation", "service operations"
+    ],
+    strongTerms: [
+      "customer support", "customer service", "ticket", "issue resolution",
+      "issue escalation", "email support", "live chat", "customer communication",
+      "complaint", "feedback", "support records", "case follow-up", "crm",
+      "help desk", "sla", "response time", "resolution", "service quality"
+    ],
+    suggestedKeywords: [
+      "customer satisfaction", "problem-solving", "crm software",
+      "customer retention", "service improvement", "team collaboration",
+      "performance metrics", "conflict resolution", "customer engagement",
+      "multitasking", "time management", "feedback analysis",
+      "process optimization", "technical support", "ticket management"
+    ],
+    styleHints: [
+      "Keep support bullets realistic, concise, and service-oriented.",
+      "Prefer issue handling, follow-up, escalation, response, documentation, and coordination language.",
+      "Avoid inflated business-outcome endings unless clearly supported."
+    ]
+  },
+
+  operations: {
+    keywords: [
+      "operations", "scheduling", "reporting", "documentation", "calendar management",
+      "process follow-up", "process improvement", "cross-team coordination",
+      "internal communication", "vendor communication", "tracking spreadsheet",
+      "meeting coordination", "administrative support", "status updates",
+      "workflow", "operations support", "records", "compliance", "coordination"
+    ],
+    strongTerms: [
+      "operations", "scheduling", "reporting", "documentation", "calendar",
+      "vendor", "coordination", "tracking", "workflow", "records",
+      "meeting", "process", "administrative", "spreadsheet"
+    ],
+    suggestedKeywords: [
+      "project coordination", "stakeholder communication", "timeline tracking",
+      "process improvement", "documentation management", "vendor coordination",
+      "meeting scheduling", "cross-functional support", "status reporting",
+      "workflow management", "operational efficiency", "task coordination"
+    ],
+    styleHints: [
+      "Keep operations bullets execution-focused and coordination-focused.",
+      "Use documentation, scheduling, reporting, tracking, and workflow language naturally."
+    ]
+  },
+
+  sales: {
+    keywords: [
+      "sales support", "lead follow-up", "client communication", "pipeline",
+      "crm", "sales reporting", "account support", "prospect", "quote",
+      "proposal", "customer follow-up", "sales coordination", "order processing",
+      "revenue", "client relationship", "deal tracking", "sales operations"
+    ],
+    strongTerms: [
+      "sales", "lead", "client", "crm", "pipeline", "proposal",
+      "quote", "follow-up", "account", "deal", "order", "reporting"
+    ],
+    suggestedKeywords: [
+      "sales pipeline", "lead management", "client relationship management",
+      "sales reporting", "crm software", "deal tracking", "account coordination",
+      "revenue support", "sales operations", "prospect outreach"
+    ],
+    styleHints: [
+      "Keep sales bullets commercial but truthful.",
+      "Do not invent revenue, quotas, or conversion results."
+    ]
+  },
+
+  hr: {
+    keywords: [
+      "recruitment", "candidate screening", "interview scheduling", "hr support",
+      "employee records", "onboarding", "offboarding", "payroll support",
+      "policy documentation", "training coordination", "hr administration",
+      "talent acquisition", "candidate communication", "compliance"
+    ],
+    strongTerms: [
+      "recruitment", "candidate", "interview", "onboarding", "employee records",
+      "hr", "policy", "training", "payroll", "compliance", "screening"
+    ],
+    suggestedKeywords: [
+      "talent acquisition", "employee onboarding", "hr administration",
+      "candidate coordination", "interview scheduling", "employee documentation",
+      "policy compliance", "training support", "stakeholder communication"
+    ],
+    styleHints: [
+      "Keep HR bullets process-focused, documentation-focused, and coordination-focused."
+    ]
+  },
+
+  finance: {
+    keywords: [
+      "financial reporting", "reconciliation", "accounts payable", "accounts receivable",
+      "invoice processing", "budget tracking", "expense reporting", "forecasting",
+      "variance analysis", "excel", "financial analysis", "ledger", "audit support"
+    ],
+    strongTerms: [
+      "financial reporting", "reconciliation", "accounts payable", "accounts receivable",
+      "invoice", "budget", "forecast", "variance", "audit", "ledger", "excel"
+    ],
+    suggestedKeywords: [
+      "financial analysis", "budget management", "invoice reconciliation",
+      "expense tracking", "variance reporting", "audit preparation",
+      "accounts management", "forecast support", "financial accuracy"
+    ],
+    styleHints: [
+      "Keep finance bullets accuracy-focused and reporting-focused.",
+      "Do not invent savings, margins, budgets, or financial outcomes."
+    ]
+  },
+
+  generic: {
+    keywords: [],
+    strongTerms: [
+      "reporting", "documentation", "coordination", "analysis",
+      "communication", "scheduling", "records", "support", "tracking"
+    ],
+    suggestedKeywords: [
+      "reporting", "documentation", "cross-functional collaboration",
+      "process improvement", "stakeholder communication", "data tracking",
+      "problem-solving", "time management", "team coordination"
+    ],
+    styleHints: [
+      "Keep bullets concise, truthful, and execution-focused.",
+      "Do not force role-specific jargon unless clearly supported by the resume."
+    ]
+  }
+};
+
+function buildRoleRegex(terms = []) {
+  if (!Array.isArray(terms) || !terms.length) return /$^/i;
+  const escaped = terms
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`\\b(${escaped.join("|")})\\b`, "i");
+}
+
+function detectRoleFamily(cv = "", jd = "") {
+  const text = normalizeCompareText(`${cv}\n${jd}`);
+  const scores = {};
+
+  for (const [role, pack] of Object.entries(ROLE_PACKS)) {
+    if (role === "generic") continue;
+    let score = 0;
+
+    for (const kw of pack.keywords || []) {
+      const normKw = normalizeCompareText(kw);
+      if (text.includes(normKw)) score += normKw.split(" ").length >= 2 ? 3 : 2;
+    }
+
+    scores[role] = score;
+  }
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) return "generic";
+  if (sorted[0][1] < 3) return "generic";
+
+  return sorted[0][0];
+}
+
+function getRolePack(roleFamily = "generic") {
+  return ROLE_PACKS[roleFamily] || ROLE_PACKS.generic;
+}
+
+function getRoleSpecificityRegex(roleFamily = "generic") {
+  return buildRoleRegex(getRolePack(roleFamily).strongTerms || []);
+}
+
+function getRoleKeywordSuggestions(roleFamily = "generic") {
+  return getRolePack(roleFamily).suggestedKeywords || [];
+}
+
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
   if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
