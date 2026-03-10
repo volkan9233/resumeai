@@ -1467,50 +1467,62 @@ function buildEnglishStyleBlock() {
 ENGLISH WRITING STYLE:
 - Write like a strong US resume, not marketing copy.
 - Keep bullets concise, concrete, and natural.
-- Prefer 9-18 words per bullet when possible.
-- Prefer one clear pattern: action + scope + tool/channel/context + purpose.
-- If no tool is present, use action + task scope + business context.
-- Do NOT add filler words such as:
-  impactful, dynamic, seamless, comprehensive, robust, overall, various.
-- Do NOT add unsupported outcome clauses such as:
-  resulting in, driving, boosting, enhancing, improving, increasing, streamlining, ensuring, maximizing, delivering
-  unless the original text clearly supports that outcome.
-- Do NOT turn one weak verb into another weak verb.
-  Avoid swaps like:
-  helped -> assisted
-  supported -> contributed
-  worked on -> participated in
-- For support-level work, prefer honest execution language such as:
-  coordinated, prepared, tracked, documented, maintained, scheduled, monitored, supported execution of, collaborated with.
-- For customer support, admin, operations, and coordinator roles, prefer plain execution language over strategic business-impact language.
-- Avoid endings such as:
-  to enhance service delivery
-  to streamline issue resolution
-  to inform team performance
-  to optimize targeting efforts
-  unless clearly supported by the original resume.
-- For support and admin roles, prefer:
-  handled, responded to, tracked, documented, maintained, coordinated, followed up on, updated, prepared
-  over:
-  facilitated, optimized, drove, enabled, transformed, maximized
-- Keep already-strong bullets short and sharp.
-- Do NOT over-expand bullets just to sound more professional.
+- Prefer 8-16 words per bullet when possible.
+- Prefer these truthful patterns:
+  action + task scope + context
+  action + task scope + tool/channel
+  action + task scope + outcome context (only if clearly supported)
+- If the original sentence is support-level work, keep it support-level.
+- Make the rewrite stronger, but never more inflated than the source.
+
+DO NOT USE WEAK-TO-WEAK SWAPS:
+- helped -> assisted
+- supported -> contributed
+- worked on -> participated in
+- handled -> facilitated
+
+DO NOT USE CORPORATE-FLUFF OR INFLATED VERBS SUCH AS:
+- facilitated
+- leveraged
+- spearheaded
+- championed
+- drove
+- maximized
+- enhanced
+- optimized
+unless the original text clearly supports that level of ownership or impact.
+
+DO NOT ADD GENERIC ENDINGS SUCH AS:
+- to ensure timely resolution
+- to enhance service satisfaction
+- to maintain operational efficiency
+- for continuous improvement
+- to streamline operations
+- to support strategic decisions
+unless the original sentence clearly supports that exact business outcome.
+
+PREFER GROUNDED VERBS SUCH AS:
+- responded to
+- resolved
+- followed up on
+- documented
+- updated
+- prepared
+- monitored
+- coordinated
+- maintained
+- escalated
+- communicated with
 
 GOOD REWRITE EXAMPLES:
-- helped prepare weekly campaign reports and performance summaries
-  -> prepared weekly campaign reports and performance summaries to support performance tracking
+- helped customers with account and order-related issues
+  -> resolved customer account and order-related issues
 
-- worked on content planning and email marketing activities for client accounts
-  -> supported content planning and email marketing execution across client accounts
+- supported daily communication with customers
+  -> responded to daily customer inquiries and follow-up requests
 
-- answered customer inquiries through email and live chat
-  -> responded to customer inquiries through email and live chat channels
-
-- supported the team with daily customer service tasks
-  -> handled daily customer service tasks and follow-up coordination
-
-- assisted with routine communication between customers and support staff
-  -> coordinated routine communication between customers and support staff
+- prepared reports about common support issues
+  -> prepared reports on recurring support issues
 `.trim();
 }
 
