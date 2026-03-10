@@ -2927,6 +2927,20 @@ function forceSafeResume(originalCv = "", optimizedCv = "") {
   return out.trim();
 }
 
+function countUnchangedBullets(originalCv = "", optimizedCv = "") {
+  const orig = getBulletLines(originalCv).map(canonicalizeTerm).filter(Boolean);
+  const optSet = new Set(
+    getBulletLines(optimizedCv).map(canonicalizeTerm).filter(Boolean)
+  );
+
+  let same = 0;
+  for (const line of orig) {
+    if (optSet.has(line)) same++;
+  }
+
+  return { same, total: orig.length };
+}
+
 function inferRoleProfile(cv = "", jd = "") {
   const combined = `${cv || ""}\n${jd || ""}`;
   const combinedNorm = canonicalizeTerm(combined);
