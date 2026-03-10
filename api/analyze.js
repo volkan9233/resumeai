@@ -1563,6 +1563,12 @@ Return JSON in this exact schema:
   "summary": string
 }
 
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
+
 HARD REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
 - component_scores must reflect general ATS readiness honestly.
@@ -1658,6 +1664,12 @@ Return JSON in this exact schema:
 
 TASK:
 Create premium-quality bullet rewrites ONLY for the provided weak resume sentences.
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 STRICT RULES:
 - Rewrite ONLY the listed source sentences.
@@ -1787,6 +1799,12 @@ Return JSON in this exact schema:
 
 TASK:
 Rewrite the resume into a materially stronger ATS-friendly version.
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
@@ -1959,6 +1977,12 @@ Return JSON in this exact schema:
 TASK:
 You already generated an optimized resume, but it still needs cleanup.
 Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
