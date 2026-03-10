@@ -1582,7 +1582,14 @@ ${cv}
 `.trim();
 }
 
-function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, outLang, roleFamily }) {
+function buildTargetedBulletUpgradePrompt({
+  cv,
+  jd,
+  hasJD,
+  weakSentences,
+  outLang,
+  roleFamily,
+}) {
 
     const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
@@ -1668,7 +1675,16 @@ ${cv}
 `.trim();
 }
 
-function buildOptimizeCvPrompt({ cv, jd, hasJD, outLang, roleFamily }) {
+function buildOptimizeCvPrompt({
+  cv,
+  jd,
+  hasJD,
+  summary,
+  missingKeywords,
+  bulletUpgrades,
+  outLang,
+  roleFamily,
+}) {
   const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
   const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
@@ -1826,7 +1842,18 @@ ${cv}
 `.trim();
 }
 
-function buildRepairPrompt({ cv, jd, hasJD, outLang, roleFamily }) {
+function buildRepairPrompt({
+  cv,
+  jd,
+  hasJD,
+  currentOptimizedCv,
+  summary,
+  missingKeywords,
+  bulletUpgrades,
+  unsupportedTerms = [],
+  outLang,
+  roleFamily,
+}) {
   const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
   const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
