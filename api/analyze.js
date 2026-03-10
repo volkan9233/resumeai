@@ -2144,6 +2144,8 @@ export default async function handler(req, res) {
       typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
     const outLang = LANG_MAP[langCode] || "English";
     const hasJD = typeof jd === "string" && jd.trim().length > 0;
+    const roleFamily = detectRoleFamily(cv, jd);
+    console.log("ROLE FAMILY", { roleFamily });
 
     if (reqMode === "linkedin") {
       const liMeta =
