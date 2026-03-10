@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+  import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 import crypto from "crypto";
 
@@ -17,185 +17,22 @@ const rlFull = new Ratelimit({
   limiter: Ratelimit.slidingWindow(3, "1 m"),
   prefix: "resumeai:rl:full",
 });
+  const WEAK_SENTENCE_RE =
+  /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
 
-function uniqueTrimmedStrings(arr = []) {
-  return Array.from(
-    new Set(
-      (Array.isArray(arr) ? arr : [])
-        .map((x) => String(x || "").trim())
-        .filter(Boolean)
-    )
-  );
-}
+const STRONG_SPECIFIC_RE =
+  /\b(google ads|meta ads|meta ads manager|google analytics|google analytics 4|ga4|google tag manager|seo|sem|ctr|cpc|cpa|roas|roi|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|retargeting|lead generation|email marketing|segmentasyon|yeniden pazarlama|veri analizi|raporlama|kpi)\b/i;
 
-function escapeRegex(str = "") {
-  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+const WEAK_PHRASE_RE =
+  /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
 
-function buildPhraseRegex(terms = []) {
-  const safe = uniqueTrimmedStrings(terms).map(escapeRegex).filter(Boolean);
-  if (!safe.length) return /$a/;
-  return new RegExp(`\\b(?:${safe.join("|")})\\b`, "i");
-}
+const STRONG_ACTION_RE =
+  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created)\b/i;
 
-function normalizeCompareText(str = "") {
-  return String(str)
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}\s+%/-]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const SPECIFICITY_RE =
+  /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
 
-function countWords(str = "") {
-  return String(str).trim().split(/\s+/).filter(Boolean).length;
-}
-
-function getNonEmptyLines(str = "") {
-  return String(str)
-    .replace(/\r/g, "")
-    .split("\n")
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
-function getBulletLines(str = "") {
-  return String(str)
-    .replace(/\r/g, "")
-    .split("\n")
-    .map((x) => x.trim())
-    .filter((x) => /^[-•·‣▪▫◦]\s+/.test(x))
-    .map((x) => x.replace(/^[-•·‣▪▫◦]\s+/, "").trim())
-    .filter(Boolean);
-}
-
-const ROLE_TERM_GROUPS = {
-  marketing: [
-    "google ads",
-    "meta ads",
-    "meta ads manager",
-    "google analytics",
-    "google analytics 4",
-    "ga4",
-    "google tag manager",
-    "tag manager",
-    "seo",
-    "sem",
-    "ctr",
-    "cpc",
-    "cpa",
-    "roas",
-    "roi",
-    "cro",
-    "landing page",
-    "a/b test",
-    "ab test",
-    "search console",
-    "hubspot",
-    "remarketing",
-    "retargeting",
-    "audience segmentation",
-    "lead generation",
-    "email marketing",
-    "campaign reporting",
-    "content planning",
-    "content strategy",
-    "social media management",
-    "paid advertising",
-    "campaign optimization",
-    "market research",
-    "competitor analysis",
-  ],
-  customer_success: [
-    "customer success",
-    "customer onboarding",
-    "client onboarding",
-    "onboarding",
-    "account management",
-    "account support",
-    "customer communication",
-    "client communication",
-    "customer retention",
-    "retention",
-    "renewal",
-    "renewals",
-    "churn",
-    "customer satisfaction",
-    "client satisfaction",
-    "csat",
-    "nps",
-    "qbr",
-    "account updates",
-    "customer success reports",
-    "at-risk accounts",
-    "customer feedback",
-    "client engagement",
-    "customer experience",
-  ],
-  support: [
-    "issue resolution",
-    "service-related issues",
-    "ticket triage",
-    "ticketing system",
-    "support tickets",
-    "follow-up calls",
-    "customer records",
-    "internal systems",
-    "training materials",
-    "onboarding documents",
-    "escalation management",
-    "help desk",
-  ],
-  operations: [
-    "process improvement",
-    "process optimization",
-    "documentation",
-    "reporting",
-    "scheduling",
-    "workflow management",
-    "cross-functional collaboration",
-    "stakeholder communication",
-    "internal reporting",
-    "project workflows",
-    "record keeping",
-    "document management",
-  ],
-  admin: [
-    "microsoft office",
-    "excel",
-    "google sheets",
-    "powerpoint",
-    "presentation",
-    "meeting materials",
-    "calendar management",
-    "scheduling tasks",
-  ],
-  project: [
-    "project coordination",
-    "project management",
-    "status tracking",
-    "timelines",
-    "deliverables",
-    "meeting coordination",
-  ],
-  data: [
-    "data analysis",
-    "analytics",
-    "dashboard",
-    "looker studio",
-    "data studio",
-    "kpi",
-    "performance metrics",
-    "reporting",
-  ],
-};
-
-const ALL_ROLE_TERMS = uniqueTrimmedStrings(
-  Object.values(ROLE_TERM_GROUPS).flat()
-);
-
-// Sadece gerçekten “unsupported fact/tool/platform/acronym” kontrolünde kullanılacak terimler
-const HARD_FACT_TERMS = uniqueTrimmedStrings([
+const FACT_SENSITIVE_TERMS = [
   "google ads",
   "meta ads",
   "meta ads manager",
@@ -228,90 +65,26 @@ const HARD_FACT_TERMS = uniqueTrimmedStrings([
   "remarketing",
   "retargeting",
   "audience segmentation",
+  "segmentasyon",
+  "yeniden pazarlama",
   "lead generation",
   "email marketing",
   "kpi",
   "marketing automation",
-  "automation",
-  "csat",
-  "nps",
-  "qbr",
-  "ticketing system",
-  "support tickets",
-  "help desk",
-  "microsoft office",
-  "excel",
-  "google sheets",
-  "powerpoint",
-]);
-
-const STRONG_SPECIFIC_RE = buildPhraseRegex(ALL_ROLE_TERMS);
-const SPECIFICITY_RE = buildPhraseRegex(ALL_ROLE_TERMS);
-
-const WEAK_SENTENCE_RE =
-  /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
-
-const WEAK_PHRASE_RE =
-  /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
-
-const STRONG_ACTION_RE =
-  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created|responded|resolved|guided|communicated|relayed|documented|collected|scheduled|updated|monitored)\b/i;
+  "automation"
+];
 
 const EN_WEAK_REWRITE_START_RE =
-  /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided|facilitated)\b/i;
-
-const EN_SOFT_FILLER_RE =
-  /\b(aimed at|focused on|with a focus on|designed to|to improve|to enhance|to strengthen|to maximize|to optimize|to drive|to facilitate)\b/i;
+  /^(helped|assisted|supported|contributed|participated|aided)\b/i;
 
 const EN_UNSUPPORTED_IMPACT_RE =
-  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty)\b/i;
+  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|strengthen(?:ed)? market presence|maximize engagement|optimize(?:d|s|ing)? follow-up strategies|improve(?:d|s|ing)? campaign outcomes|enhance(?:d|s|ing)? brand visibility)\b/i;
 
 const ENGLISH_RISKY_RESULT_RE =
-  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering|aimed at|focused on|designed to)\b/i;
+  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering)\b/i;
 
 const ENGLISH_WEAK_SWAP_RE =
   /\b(assisted|contributed|participated|supported|helped)\b/i;
-
-function countTermHits(text = "", terms = []) {
-  const norm = normalizeCompareText(text);
-  return uniqueTrimmedStrings(terms).filter((term) =>
-    norm.includes(normalizeCompareText(term))
-  ).length;
-}
-
-function inferRoleGroups(cv = "", jd = "") {
-  const combined = `${cv || ""}\n${jd || ""}`;
-  const scored = Object.entries(ROLE_TERM_GROUPS)
-    .map(([key, terms]) => ({
-      key,
-      hits: countTermHits(combined, terms),
-      terms,
-    }))
-    .filter((x) => x.hits > 0)
-    .sort((a, b) => b.hits - a.hits);
-
-  if (!scored.length) return [];
-
-  const top = scored[0]?.hits || 0;
-
-  return scored.filter((x, idx) => {
-    if (idx === 0) return true;
-    if (idx > 1) return false;
-    return x.hits >= 2 || x.hits >= Math.max(1, top - 1);
-  });
-}
-
-function buildRoleContextText(cv = "", jd = "") {
-  const groups = inferRoleGroups(cv, jd);
-  if (!groups.length) return "No strong role signal detected from the input.";
-
-  return groups
-    .map(
-      (g) =>
-        `- ${g.key}: ${g.terms.slice(0, 12).join(", ")}`
-    )
-    .join("\n");
-}
 
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
@@ -385,6 +158,8 @@ function buildOpenAIPayload({
   if (isGpt5Model(model)) {
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+
+    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiyoruz
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -428,6 +203,47 @@ function safeJsonParse(text) {
     }
     throw new Error("Model did not return valid JSON");
   }
+}
+
+function normalizeCompareText(str = "") {
+  return String(str)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s+%/-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function uniqueTrimmedStrings(arr = []) {
+  return Array.from(
+    new Set(
+      (Array.isArray(arr) ? arr : [])
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function countWords(str = "") {
+  return String(str).trim().split(/\s+/).filter(Boolean).length;
+}
+
+function getNonEmptyLines(str = "") {
+  return String(str)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function getBulletLines(str = "") {
+  return String(str)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter((x) => /^[-•·‣▪▫◦]\s+/.test(x))
+    .map((x) => x.replace(/^[-•·‣▪▫◦]\s+/, "").trim())
+    .filter(Boolean);
 }
 
 function isSectionHeader(line = "") {
@@ -561,47 +377,26 @@ function isClearlyWeakSentence(sentence = "") {
   const wordCount = s.split(/\s+/).filter(Boolean).length;
 
   if (!hasSpecific && wordCount <= 8) return true;
-  if (
-    !hasSpecific &&
-    /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)
-  )
-    return true;
+  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) return true;
 
   return false;
 }
 
-function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
-  const orig = String(originalText || "");
-  const opt = String(candidateText || "");
-  return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
-}
-
-function filterWeakSentences(items = [], outLang = "") {
+function filterWeakSentences(items = []) {
   return (Array.isArray(items) ? items : [])
     .filter((x) => {
       const sentence = String(x?.sentence || "").trim();
       const rewrite = String(x?.rewrite || "").trim();
-
       if (!sentence || !rewrite) return false;
       if (normalizeCompareText(sentence) === normalizeCompareText(rewrite)) return false;
-      if (!isClearlyWeakSentence(sentence)) return false;
-
-      if (outLang === "English") {
-        if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return false;
-        if (ENGLISH_WEAK_SWAP_RE.test(rewrite)) return false;
-        if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(sentence))
-          return false;
-        if (hasUnsupportedImpactClaims(sentence, rewrite)) return false;
-      }
-
-      return true;
+      return isClearlyWeakSentence(sentence);
     })
     .slice(0, 12);
 }
 
-function getExplicitFactTerms(text = "") {
+  function getExplicitFactTerms(text = "") {
   const norm = normalizeCompareText(text);
-  return HARD_FACT_TERMS.filter((term, idx, arr) => {
+  return FACT_SENSITIVE_TERMS.filter((term, idx, arr) => {
     return norm.includes(normalizeCompareText(term)) && arr.indexOf(term) === idx;
   });
 }
@@ -633,6 +428,13 @@ function countWeakEnglishRewriteStarts(cv = "") {
   ).length;
 }
 
+function hasUnsupportedImpactClaims(originalCv = "", optimizedCv = "") {
+  const orig = String(originalCv || "");
+  const opt = String(optimizedCv || "");
+
+  return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
+}
+
 function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
   const origBullets = getBulletLines(originalCv);
   const optBullets = getBulletLines(optimizedCv);
@@ -648,21 +450,40 @@ function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
 
     const origHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(orig);
     const optHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(opt);
+
     if (!origHasRiskyResult && optHasRiskyResult) hits += 1;
 
     const origWeak = ENGLISH_WEAK_SWAP_RE.test(orig);
     const optWeak = ENGLISH_WEAK_SWAP_RE.test(opt);
-    if (origWeak && optWeak) hits += 1;
 
-    const origSoftFiller = EN_SOFT_FILLER_RE.test(orig);
-    const optSoftFiller = EN_SOFT_FILLER_RE.test(opt);
-    if (!origSoftFiller && optSoftFiller) hits += 1;
+    if (origWeak && optWeak) hits += 1;
   }
 
   return hits;
 }
 
-function computeFinalOptimizedScore(
+function computeImprovementBonus(originalCv = "", optimizedCv = "") {
+  if (!originalCv || !optimizedCv) return 0;
+
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  const weakGain = Math.max(0, weakBefore - weakAfter);
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  const rewriteRatio = total > 0 ? 1 - same / total : 0;
+
+  let bonus = 0;
+
+  bonus += Math.min(6, weakGain * 1.5);
+
+  if (rewriteRatio >= 0.6) bonus += 3;
+  else if (rewriteRatio >= 0.4) bonus += 2;
+  else if (rewriteRatio >= 0.25) bonus += 1;
+
+  return bonus;
+}
+
+  function computeFinalOptimizedScore(
   originalCv = "",
   optimizedCv = "",
   originalScore = 0,
@@ -687,18 +508,26 @@ function computeFinalOptimizedScore(
   const rewriteRatio = total > 0 ? 1 - same / total : 0;
 
   let lift = 0;
+
+  // ana artış ama yumuşatılmış
   lift += rawLift * 0.48;
+
+  // zayıf ifadeler gerçekten azaldıysa küçük bonus
   lift += Math.min(3, weakGain) * 0.8;
 
+  // gerçekten rewrite yapılmışsa küçük bonus
   if (rewriteRatio >= 0.7) lift += 3;
   else if (rewriteRatio >= 0.5) lift += 2;
   else if (rewriteRatio >= 0.3) lift += 1;
 
-  const meaningfulChange = rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+  const meaningfulChange =
+    rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+
   if (!meaningfulChange) return base;
 
   lift = Math.round(lift);
 
+  // başlangıç skoruna göre tavan
   const cap =
     base < 40 ? 19 :
     base < 55 ? 16 :
@@ -728,15 +557,20 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", out
   }
 
   if (outLang === "English" && countEnglishStyleRiskHits(originalCv, optimizedCv) >= 2) {
-    return true;
-  }
+  return true;
+}
 
-  if (countWeakVerbHits(optimizedCv) >= 2) return true;
-  if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
-  if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
-  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) return true;
+if (countWeakVerbHits(optimizedCv) >= 2) return true;
 
-  return false;
+if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
+
+if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
+
+if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
+  return true;
+}
+
+return false;
 }
 
 function getSectionPresenceScore(cv = "") {
@@ -774,44 +608,40 @@ function getSkillsLines(cv = "") {
   return out.filter(Boolean);
 }
 
-function getKeywordBreadthScore(cv = "", jd = "") {
+function getKeywordBreadthScore(cv = "") {
   const text = normalizeCompareText(cv);
   const skills = uniqueTrimmedStrings(getSkillsLines(cv));
-  const roleGroups = inferRoleGroups(cv, jd);
 
   let score = 0;
+
   score += Math.min(8, skills.length);
 
-  const relevantTerms = roleGroups.length
-    ? uniqueTrimmedStrings(roleGroups.flatMap((g) => ROLE_TERM_GROUPS[g.key] || []))
-    : ALL_ROLE_TERMS;
-
-  const relevantHits = relevantTerms.filter((term) =>
-    text.includes(normalizeCompareText(term))
-  ).length;
-  score += Math.min(4, relevantHits);
-
-  const topHits = roleGroups[0]?.hits || 0;
-  const secondHits = roleGroups[1]?.hits || 0;
-
-  if (topHits >= 3) score += 1;
-  if (topHits >= 5) score += 1;
-  if (secondHits >= 2) score += 1;
-
-  const businessHits = [
-    "cross-functional collaboration",
-    "stakeholder communication",
-    "reporting",
-    "documentation",
-    "process improvement",
-    "process optimization",
-    "issue resolution",
-    "account management",
-    "customer feedback",
-    "client communication",
+  const keywordHits = [
+    "google ads",
+    "meta ads",
+    "google analytics",
+    "google analytics 4",
+    "tag manager",
+    "seo",
+    "sem",
+    "ctr",
+    "cpc",
+    "cpa",
+    "roas",
+    "landing page",
+    "excel",
+    "google sheets",
+    "hubspot",
+    "search console",
+    "a b test",
+    "email marketing",
+    "performans pazarlamasi",
+    "icerik stratejisi",
+    "veri analizi",
+    "raporlama",
   ].filter((term) => text.includes(normalizeCompareText(term))).length;
 
-  score += Math.min(3, businessHits);
+  score += Math.min(7, keywordHits);
 
   return Math.min(15, score);
 }
@@ -903,11 +733,11 @@ function getJdAlignmentScore(cv = "", jd = "") {
 function computeDeterministicAtsScore(cv = "", jd = "") {
   const hasJD = !!String(jd || "").trim();
 
-  const sectionScore = getSectionPresenceScore(cv);
-  const bulletScore = getBulletStrengthScore(cv);
-  const readabilityScore = getReadabilityScore(cv);
-  const keywordScore = getKeywordBreadthScore(cv, jd);
-  const jdScore = getJdAlignmentScore(cv, jd);
+  const sectionScore = getSectionPresenceScore(cv);     // 0-25
+  const bulletScore = getBulletStrengthScore(cv);       // 0-40
+  const readabilityScore = getReadabilityScore(cv);     // 0-20
+  const keywordScore = getKeywordBreadthScore(cv);      // 0-15
+  const jdScore = getJdAlignmentScore(cv, jd);          // 0-10
 
   let total = 0;
 
@@ -966,7 +796,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     return [
       {
         reasoningEffort: null,
-        temperature: isPreview ? 0.2 : 0.25,
+        temperature: isPreview ? 0.2 : 0.3,
         maxCompletionTokens,
       },
     ];
@@ -977,12 +807,17 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+      },
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
       },
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
       },
     ];
   }
@@ -990,14 +825,19 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
   if (passType === "repair") {
     return [
       {
-        reasoningEffort: "low",
+        reasoningEffort: "medium",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
       },
       {
-        reasoningEffort: "none",
-        temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 7000),
+      },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
       },
     ];
   }
@@ -1007,12 +847,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 1100),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1200),
       },
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 1500),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
       },
     ];
   }
@@ -1021,28 +861,19 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     {
       reasoningEffort: "low",
       temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+    },
+    {
+      reasoningEffort: "low",
+      temperature: null,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 3000),
     },
     {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
     },
   ];
-}
-
-async function fetchWithTimeout(url, options, timeoutMs = 65000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 async function callOpenAIJson({
@@ -1065,29 +896,25 @@ async function callOpenAIJson({
 
   for (const attempt of attempts) {
     try {
-      const openaiRes = await fetchWithTimeout(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(
-            buildOpenAIPayload({
-              model,
-              messages: [
-                { role: "system", content: system },
-                { role: "user", content: userPrompt },
-              ],
-              reasoningEffort: attempt.reasoningEffort,
-              temperature: attempt.temperature,
-              maxCompletionTokens: attempt.maxCompletionTokens,
-            })
-          ),
+      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-        passType === "optimize" || passType === "repair" ? 70000 : 60000
-      );
+        body: JSON.stringify(
+          buildOpenAIPayload({
+            model,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: userPrompt },
+            ],
+            reasoningEffort: attempt.reasoningEffort,
+            temperature: attempt.temperature,
+            maxCompletionTokens: attempt.maxCompletionTokens,
+          })
+        ),
+      });
 
       const raw = await openaiRes.text();
 
@@ -1138,21 +965,9 @@ async function callOpenAIJson({
 
       return data;
     } catch (err) {
-      if (err?.name === "AbortError") {
-        lastError = new Error("OpenAI request timed out");
-        lastError.status = 504;
-        lastError.details = "The upstream request exceeded the timeout window.";
-      } else {
-        lastError = err;
-      }
-
-      if (
-        lastError?.status &&
-        lastError.status >= 400 &&
-        lastError.status < 500 &&
-        lastError.status !== 429
-      ) {
-        throw lastError;
+      lastError = err;
+      if (err?.status && err.status >= 400 && err.status < 500 && err.status !== 429) {
+        throw err;
       }
     }
   }
@@ -1222,34 +1037,7 @@ CRITICAL RULES (must follow):
 `.trim();
 }
 
-function buildEnglishStyleBlock() {
-  return `
-ENGLISH WRITING STYLE:
-- Write like a strong US resume, not marketing copy.
-- Keep bullets concise, concrete, and natural.
-- Prefer 10-18 words per bullet when possible.
-- Prefer one clear action + scope + context structure.
-- Do NOT add filler words such as:
-  impactful, dynamic, seamless, comprehensive, robust, overall, various.
-- Do NOT add unsupported outcome clauses such as:
-  resulting in, driving, boosting, enhancing, improving, increasing, streamlining, ensuring, maximizing, delivering
-  unless the original text clearly supports that outcome.
-- Do NOT turn one weak verb into another weak verb.
-  Avoid swaps like:
-  helped -> assisted
-  supported -> contributed
-  worked on -> participated in
-- For support-level work, prefer honest execution language such as:
-  coordinated, prepared, tracked, documented, maintained, scheduled, supported execution of, collaborated with.
-- Keep already-strong bullets short and sharp.
-- Do NOT over-expand bullets just to sound more professional.
-`.trim();
-}
-
 function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }) {
-  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
-  const roleContextText = buildRoleContextText(cv, jd);
-
   if (hasJD) {
     return `
 Return JSON in this exact schema:
@@ -1281,11 +1069,6 @@ REQUIREMENTS:
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
-
-ROLE CONTEXT:
-${roleContextText}
-
-${englishStyleBlock}
 
 RESUME:
 ${cv}
@@ -1327,20 +1110,36 @@ REQUIREMENTS:
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
 
-ROLE CONTEXT:
-${roleContextText}
-
-${englishStyleBlock}
-
 RESUME:
 ${cv}
 `.trim();
 }
 
-function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
-  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
-  const roleContextText = buildRoleContextText(cv, jd);
+function buildEnglishStyleBlock() {
+  return `
+ENGLISH WRITING STYLE:
+- Write like a strong US resume, not marketing copy.
+- Keep bullets concise, concrete, and natural.
+- Prefer 10-18 words per bullet when possible.
+- Prefer one clear action + scope + context structure.
+- Do NOT add filler words such as:
+  impactful, dynamic, seamless, comprehensive, robust, overall, various.
+- Do NOT add unsupported outcome clauses such as:
+  resulting in, driving, boosting, enhancing, improving, increasing, streamlining, ensuring, maximizing, delivering
+  unless the original text clearly supports that outcome.
+- Do NOT turn one weak verb into another weak verb.
+  Avoid swaps like:
+  helped -> assisted
+  supported -> contributed
+  worked on -> participated in
+- For support-level work, prefer honest execution language such as:
+  coordinated, prepared, tracked, documented, maintained, scheduled, supported execution of, collaborated with.
+- Keep already-strong bullets short and sharp.
+- Do NOT over-expand bullets just to sound more professional.
+`.trim();
+}
 
+function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
   if (hasJD) {
     return `
 Return JSON in this exact schema:
@@ -1364,7 +1163,7 @@ HARD REQUIREMENTS:
 - missing_keywords MUST include 12-20 items genuinely missing or underrepresented from the JOB DESCRIPTION.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
 - weak_sentences MUST include 7-12 items from the resume text when genuinely weak examples exist.
-- Do NOT force the count if there are fewer genuinely weak examples.
+- Do NOT force the count if there are fewer genuinely weak examples, but try to return more than before by checking weak experience bullets first, then weak summary/project/additional-info lines.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
 - Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
@@ -1373,14 +1172,9 @@ HARD REQUIREMENTS:
 - Do NOT include already-strong sentences just to fill the count.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- summary MUST be detailed (8-12 bullet lines) in ${outLang}.
+- summary MUST be detailed (8-12 bullet lines) in ${outLang} covering job fit, top missing skills/keywords, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
-
-ROLE CONTEXT:
-${roleContextText}
-
-${englishStyleBlock}
 
 RESUME:
 ${cv}
@@ -1413,7 +1207,7 @@ HARD REQUIREMENTS:
 - These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume terms based on the candidate's likely role, seniority, and experience.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
 - weak_sentences MUST include 8-12 items from the resume text when genuinely weak examples exist.
-- Do NOT force the count if there are fewer genuinely weak examples.
+- Do NOT force the count if there are fewer genuinely weak examples, but try to return more than before by checking weak experience bullets first, then weak summary/project/additional-info lines.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
 - Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
@@ -1422,14 +1216,9 @@ HARD REQUIREMENTS:
 - Do NOT include already-strong sentences just to fill the count.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- summary MUST be detailed (8-12 bullet lines) in ${outLang}.
+- summary MUST be detailed (8-12 bullet lines) in ${outLang} covering general ATS readiness, top keyword gaps, biggest ATS risks, and top rewrite themes.
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
-
-ROLE CONTEXT:
-${roleContextText}
-
-${englishStyleBlock}
 
 RESUME:
 ${cv}
@@ -1447,7 +1236,6 @@ function buildOptimizeCvPrompt({
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
-  const roleContextText = buildRoleContextText(cv, jd);
 
   return hasJD
     ? `
@@ -1480,15 +1268,13 @@ STRICT RULES:
 - Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated.
 - Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, or improved follow-up unless explicitly supported by the resume or job description.
 
-ROLE CONTEXT:
-${roleContextText}
-
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
 
 HARD FACT LOCK:
 - You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
 - If a term is not explicitly supported, do NOT add it.
+- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
 
 ${englishStyleBlock}
 
@@ -1547,15 +1333,13 @@ STRICT RULES:
 - Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated.
 - Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, or improved follow-up unless explicitly supported by the resume or job description.
 
-ROLE CONTEXT:
-${roleContextText}
-
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
 
 HARD FACT LOCK:
 - You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
 - If a term is not explicitly supported, do NOT add it.
+- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
 
 ${englishStyleBlock}
 
@@ -1596,11 +1380,9 @@ function buildRepairPrompt({
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
-  const unsupportedText =
-    Array.isArray(unsupportedTerms) && unsupportedTerms.length
-      ? unsupportedTerms.join(", ")
-      : "(none)";
-  const roleContextText = buildRoleContextText(cv, jd);
+  const unsupportedText = Array.isArray(unsupportedTerms) && unsupportedTerms.length
+    ? unsupportedTerms.join(", ")
+    : "(none)";
 
   return hasJD
     ? `
@@ -1626,9 +1408,6 @@ STRICT RULES:
 - Preserve bullet count and structure as much as possible.
 - Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
-
-ROLE CONTEXT:
-${roleContextText}
 
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
@@ -1694,9 +1473,6 @@ STRICT RULES:
 - Preserve bullet count and structure as much as possible.
 - Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
-
-ROLE CONTEXT:
-${roleContextText}
 
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
@@ -1763,7 +1539,7 @@ RULES:
 - Output VALUES must be in ${outLang} (proper nouns/tools can stay).
 - headlines: exactly 1 item.
 - about.short: 600-900 chars, punchy, no emojis.
-- experience_fix: up to 1 item.
+- experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
 - skills.top: 7-10 items.
 - recruiter.keywords: 5-8 items.
 - No extra keys. Return ONLY valid JSON.
@@ -1936,7 +1712,7 @@ export default async function handler(req, res) {
               }),
           isPreview,
           passType: "main",
-          maxCompletionTokens: isPreview ? 1100 : 2200,
+          maxCompletionTokens: isPreview ? 1200 : 2400,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1974,9 +1750,8 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
+    // PREVIEW: tek çağrı
     if (isPreview) {
-      console.log("STEP 1: preview analysis start");
-
       let previewData;
       try {
         previewData = await callOpenAIJson({
@@ -1986,7 +1761,7 @@ export default async function handler(req, res) {
           userPrompt: buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }),
           isPreview: true,
           passType: "main",
-          maxCompletionTokens: 1100,
+          maxCompletionTokens: 1200,
         });
       } catch (err) {
         return res.status(err?.status || 500).json({
@@ -1995,8 +1770,6 @@ export default async function handler(req, res) {
           details: err?.details || String(err),
         });
       }
-
-      console.log("STEP 2: preview analysis done");
 
       const componentScores =
         previewData?.component_scores && typeof previewData.component_scores === "object"
@@ -2016,9 +1789,8 @@ export default async function handler(req, res) {
           ? previewData.missing_keywords
           : [],
         weak_sentences: filterWeakSentences(
-          Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : [],
-          outLang
-        ),
+  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
+),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
 
@@ -2033,8 +1805,7 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log("STEP 1: full analysis start");
-
+    // FULL ATS: analysis + optimize + gerekiyorsa repair
     let analysisData;
     try {
       analysisData = await callOpenAIJson({
@@ -2044,7 +1815,7 @@ export default async function handler(req, res) {
         userPrompt: buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }),
         isPreview: false,
         passType: "main",
-        maxCompletionTokens: 1800,
+        maxCompletionTokens: 2200,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -2053,8 +1824,6 @@ export default async function handler(req, res) {
         details: err?.details || String(err),
       });
     }
-
-    console.log("STEP 2: full analysis done");
 
     const componentScores =
       analysisData?.component_scores && typeof analysisData.component_scores === "object"
@@ -2074,45 +1843,39 @@ export default async function handler(req, res) {
         ? analysisData.missing_keywords
         : [],
       weak_sentences: filterWeakSentences(
-        Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : [],
-        outLang
-      ),
+  Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
+),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
       optimized_cv: "",
       optimized_ats_score: mergedBaseScore,
     };
 
-    let currentOptimized = "";
+        let currentOptimized = "";
     let unsupportedTerms = [];
 
     try {
-      console.log("STEP 3: optimize start");
-
       const optimizeData = await callOpenAIJson({
         apiKey,
         model,
         system: buildAtsSystem(outLang),
         userPrompt: buildOptimizeCvPrompt({
-          cv,
-          jd,
-          hasJD,
-          summary: normalized.summary,
-          missingKeywords: normalized.missing_keywords,
-          outLang,
-        }),
+  cv,
+  jd,
+  hasJD,
+  summary: normalized.summary,
+  missingKeywords: normalized.missing_keywords,
+  outLang,
+}),
         isPreview: false,
         passType: "optimize",
-        maxCompletionTokens: 3000,
+        maxCompletionTokens: 3800,
       });
-
-      console.log("STEP 4: optimize done");
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
         unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
-    } catch (err) {
-      console.log("STEP 4: optimize failed", err?.message || String(err));
+    } catch {
       currentOptimized = "";
       unsupportedTerms = [];
     }
@@ -2122,47 +1885,70 @@ export default async function handler(req, res) {
       unsupportedTerms = [];
     }
 
-    if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTerms.length > 0) {
+if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTerms.length > 0) {
       try {
-        console.log("STEP 5: repair start");
-
         const repaired = await callOpenAIJson({
           apiKey,
           model,
           system: buildAtsSystem(outLang),
           userPrompt: buildRepairPrompt({
-            cv,
-            jd,
-            hasJD,
-            currentOptimizedCv: currentOptimized || cv,
-            summary: normalized.summary,
-            missingKeywords: normalized.missing_keywords,
-            unsupportedTerms,
-            outLang,
-          }),
+  cv,
+  jd,
+  hasJD,
+  currentOptimizedCv: currentOptimized || cv,
+  summary: normalized.summary,
+  missingKeywords: normalized.missing_keywords,
+  unsupportedTerms,
+  outLang,
+}),
           isPreview: false,
           passType: "repair",
-          maxCompletionTokens: 3200,
+          maxCompletionTokens: 4600,
         });
-
-        console.log("STEP 6: repair done");
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
           currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
           unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
         }
-      } catch (err) {
-        console.log("STEP 6: repair failed", err?.message || String(err));
+      } catch {
+        // mevcut optimize sürüm kalsın
+      }
+    }
+
+    if (unsupportedTerms.length > 0) {
+      try {
+        const cleaned = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildOptimizeCvPrompt({
+  cv,
+  jd,
+  hasJD,
+  summary: normalized.summary,
+  missingKeywords: normalized.missing_keywords,
+  outLang,
+}),
+          isPreview: false,
+          passType: "repair",
+          maxCompletionTokens: 4600,
+        });
+
+        if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
+          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
+        }
+      } catch {
+        // mevcut optimize sürüm kalsın
       }
     }
 
     normalized.optimized_cv = currentOptimized;
     normalized.optimized_ats_score = computeFinalOptimizedScore(
-      cv,
-      currentOptimized,
-      normalized.ats_score,
-      jd
-    );
+  cv,
+  currentOptimized,
+  normalized.ats_score,
+  jd
+);
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
