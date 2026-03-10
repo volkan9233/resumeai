@@ -1394,6 +1394,12 @@ ROLE CONTEXT:
 - role writing guidance:
 - ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
+
 REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
 - component_scores must reflect resume-to-job alignment honestly.
@@ -1507,6 +1513,12 @@ Return JSON in this exact schema:
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
 }
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 ROLE CONTEXT:
 - detected_role_family: ${roleFamily}
