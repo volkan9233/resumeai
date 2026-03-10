@@ -1,4 +1,4 @@
-  import { Redis } from "@upstash/redis";
+import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 import crypto from "crypto";
 
@@ -17,7 +17,8 @@ const rlFull = new Ratelimit({
   limiter: Ratelimit.slidingWindow(3, "1 m"),
   prefix: "resumeai:rl:full",
 });
-  const WEAK_SENTENCE_RE =
+
+const WEAK_SENTENCE_RE =
   /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
 
 const STRONG_SPECIFIC_RE =
@@ -27,7 +28,7 @@ const WEAK_PHRASE_RE =
   /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
 
 const STRONG_ACTION_RE =
-  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created)\b/i;
+  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created|monitored|documented|scheduled|reviewed)\b/i;
 
 const SPECIFICITY_RE =
   /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
@@ -71,7 +72,7 @@ const FACT_SENSITIVE_TERMS = [
   "email marketing",
   "kpi",
   "marketing automation",
-  "automation"
+  "automation",
 ];
 
 const EN_WEAK_REWRITE_START_RE =
@@ -85,6 +86,9 @@ const ENGLISH_RISKY_RESULT_RE =
 
 const ENGLISH_WEAK_SWAP_RE =
   /\b(assisted|contributed|participated|supported|helped)\b/i;
+
+const ENGLISH_CORPORATE_FLUFF_RE =
+  /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|strategic initiatives|in-depth data analysis|for consistency|for team accessibility|to ensure data accuracy|to ensure accuracy and relevance|to streamline communication efforts|to support informed marketing strategies|to enhance engagement|to optimize user experience)\b/i;
 
 function getClientIp(req) {
   const xf = req.headers["x-forwarded-for"];
@@ -159,7 +163,6 @@ function buildOpenAIPayload({
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
-    // GPT-5 ailesinde temperature sadece reasoning_effort:none için gönderiyoruz
     if (reasoningEffort === "none" && typeof temperature === "number") {
       body.temperature = temperature;
     }
@@ -244,6 +247,29 @@ function getBulletLines(str = "") {
     .filter((x) => /^[-•·‣▪▫◦]\s+/.test(x))
     .map((x) => x.replace(/^[-•·‣▪▫◦]\s+/, "").trim())
     .filter(Boolean);
+}
+
+function tokenizeForSimilarity(str = "") {
+  return String(str)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((x) => x && x.length > 1);
+}
+
+function jaccardSimilarity(a = "", b = "") {
+  const aSet = new Set(tokenizeForSimilarity(a));
+  const bSet = new Set(tokenizeForSimilarity(b));
+  if (!aSet.size || !bSet.size) return 0;
+
+  let intersection = 0;
+  for (const token of aSet) {
+    if (bSet.has(token)) intersection += 1;
+  }
+
+  const union = new Set([...aSet, ...bSet]).size;
+  return union ? intersection / union : 0;
 }
 
 function isSectionHeader(line = "") {
@@ -367,6 +393,51 @@ function countWeakVerbHits(cv = "") {
   return bullets.filter((b) => WEAK_PHRASE_RE.test(b)).length;
 }
 
+function countCorporateFluffHits(cv = "") {
+  return getBulletLines(cv).filter((b) => ENGLISH_CORPORATE_FLUFF_RE.test(b)).length;
+}
+
+function getOverlongBulletRatio(cv = "") {
+  const bullets = getBulletLines(cv);
+  if (!bullets.length) return 0;
+  const overlong = bullets.filter((b) => countWords(b) >= 23).length;
+  return overlong / bullets.length;
+}
+
+function countPersistingWeakSources(optimizedCv = "", weakSentences = []) {
+  const lines = getNonEmptyLines(optimizedCv).map(normalizeCompareText);
+  if (!lines.length) return 0;
+
+  let hits = 0;
+  for (const item of Array.isArray(weakSentences) ? weakSentences : []) {
+    const source = normalizeCompareText(String(item?.sentence || ""));
+    if (!source) continue;
+    if (lines.some((line) => line === source)) hits += 1;
+  }
+
+  return hits;
+}
+
+function isShallowRewrite(sentence = "", rewrite = "") {
+  const s = String(sentence || "").trim();
+  const r = String(rewrite || "").trim();
+  if (!s || !r) return true;
+
+  const sim = jaccardSimilarity(s, r);
+  if (normalizeCompareText(s) === normalizeCompareText(r)) return true;
+  if (sim >= 0.86) return true;
+
+  const sWords = countWords(s);
+  const rWords = countWords(r);
+
+  if (ENGLISH_WEAK_SWAP_RE.test(s) && ENGLISH_WEAK_SWAP_RE.test(r) && sim >= 0.55) {
+    return true;
+  }
+
+  if (rWords >= sWords + 8 && sim >= 0.58) return true;
+  return false;
+}
+
 function isClearlyWeakSentence(sentence = "") {
   const s = String(sentence || "").trim();
   if (!s) return false;
@@ -377,24 +448,59 @@ function isClearlyWeakSentence(sentence = "") {
   const wordCount = s.split(/\s+/).filter(Boolean).length;
 
   if (!hasSpecific && wordCount <= 8) return true;
-  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) return true;
+  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) {
+    return true;
+  }
 
   return false;
 }
 
 function filterWeakSentences(items = []) {
   return (Array.isArray(items) ? items : [])
-    .filter((x) => {
-      const sentence = String(x?.sentence || "").trim();
-      const rewrite = String(x?.rewrite || "").trim();
-      if (!sentence || !rewrite) return false;
-      if (normalizeCompareText(sentence) === normalizeCompareText(rewrite)) return false;
-      return isClearlyWeakSentence(sentence);
-    })
+    .map((x) => ({
+      sentence: String(x?.sentence || "").trim(),
+      rewrite: String(x?.rewrite || "").trim(),
+    }))
+    .filter((x) => x.sentence && x.rewrite)
+    .filter((x) => normalizeCompareText(x.sentence) !== normalizeCompareText(x.rewrite))
+    .filter((x) => isClearlyWeakSentence(x.sentence))
+    .filter((x) => !isShallowRewrite(x.sentence, x.rewrite))
     .slice(0, 12);
 }
 
-  function getExplicitFactTerms(text = "") {
+function normalizeBulletUpgrades(items = []) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const source = String(item?.source || item?.sentence || "").trim();
+    const rewrite = String(item?.rewrite || item?.after || "").trim();
+    const reason = String(item?.reason || "").trim();
+    if (!source || !rewrite) continue;
+    if (isShallowRewrite(source, rewrite)) continue;
+
+    const key = `${normalizeCompareText(source)}__${normalizeCompareText(rewrite)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ source, rewrite, reason });
+  }
+
+  return out.slice(0, 8);
+}
+
+function buildPriorityRewriteText(bulletUpgrades = []) {
+  const items = normalizeBulletUpgrades(bulletUpgrades);
+  if (!items.length) return "(none)";
+
+  return items
+    .map((item, idx) => {
+      const reasonLine = item.reason ? `\n  why: ${item.reason}` : "";
+      return `${idx + 1}. source: ${item.source}\n  stronger rewrite target: ${item.rewrite}${reasonLine}`;
+    })
+    .join("\n\n");
+}
+
+function getExplicitFactTerms(text = "") {
   const norm = normalizeCompareText(text);
   return FACT_SENSITIVE_TERMS.filter((term, idx, arr) => {
     return norm.includes(normalizeCompareText(term)) && arr.indexOf(term) === idx;
@@ -483,7 +589,7 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   return bonus;
 }
 
-  function computeFinalOptimizedScore(
+function computeFinalOptimizedScore(
   originalCv = "",
   optimizedCv = "",
   originalScore = 0,
@@ -509,25 +615,18 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
 
   let lift = 0;
 
-  // ana artış ama yumuşatılmış
   lift += rawLift * 0.48;
-
-  // zayıf ifadeler gerçekten azaldıysa küçük bonus
   lift += Math.min(3, weakGain) * 0.8;
 
-  // gerçekten rewrite yapılmışsa küçük bonus
   if (rewriteRatio >= 0.7) lift += 3;
   else if (rewriteRatio >= 0.5) lift += 2;
   else if (rewriteRatio >= 0.3) lift += 1;
 
-  const meaningfulChange =
-    rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
-
+  const meaningfulChange = rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
   if (!meaningfulChange) return base;
 
   lift = Math.round(lift);
 
-  // başlangıç skoruna göre tavan
   const cap =
     base < 40 ? 19 :
     base < 55 ? 16 :
@@ -539,7 +638,13 @@ function computeImprovementBonus(originalCv = "", optimizedCv = "") {
   return clampScore(base + lift);
 }
 
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", outLang = "") {
+function shouldRepairOptimizedCv(
+  originalCv = "",
+  optimizedCv = "",
+  jd = "",
+  outLang = "",
+  weakSentences = []
+) {
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
 
   const origNorm = normalizeCompareText(originalCv);
@@ -556,21 +661,30 @@ function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", out
     return true;
   }
 
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  if (weakBefore > 0 && weakAfter >= weakBefore) return true;
+
+  if (countPersistingWeakSources(optimizedCv, weakSentences) >= 2) return true;
+
   if (outLang === "English" && countEnglishStyleRiskHits(originalCv, optimizedCv) >= 2) {
-  return true;
-}
+    return true;
+  }
 
-if (countWeakVerbHits(optimizedCv) >= 2) return true;
+  if (outLang === "English" && countCorporateFluffHits(optimizedCv) >= 2) {
+    return true;
+  }
 
-if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
+  if (outLang === "English" && getOverlongBulletRatio(optimizedCv) > 0.35) {
+    return true;
+  }
 
-if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
+  if (countWeakVerbHits(optimizedCv) >= 2) return true;
+  if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
+  if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
+  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) return true;
 
-if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) {
-  return true;
-}
-
-return false;
+  return false;
 }
 
 function getSectionPresenceScore(cv = "") {
@@ -733,11 +847,11 @@ function getJdAlignmentScore(cv = "", jd = "") {
 function computeDeterministicAtsScore(cv = "", jd = "") {
   const hasJD = !!String(jd || "").trim();
 
-  const sectionScore = getSectionPresenceScore(cv);     // 0-25
-  const bulletScore = getBulletStrengthScore(cv);       // 0-40
-  const readabilityScore = getReadabilityScore(cv);     // 0-20
-  const keywordScore = getKeywordBreadthScore(cv);      // 0-15
-  const jdScore = getJdAlignmentScore(cv, jd);          // 0-10
+  const sectionScore = getSectionPresenceScore(cv);
+  const bulletScore = getBulletStrengthScore(cv);
+  const readabilityScore = getReadabilityScore(cv);
+  const keywordScore = getKeywordBreadthScore(cv);
+  const jdScore = getJdAlignmentScore(cv, jd);
 
   let total = 0;
 
@@ -796,7 +910,7 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
     return [
       {
         reasoningEffort: null,
-        temperature: isPreview ? 0.2 : 0.3,
+        temperature: isPreview ? 0.2 : 0.25,
         maxCompletionTokens,
       },
     ];
@@ -810,14 +924,9 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
         maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
       },
       {
-        reasoningEffort: "medium",
-        temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
-      },
-      {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 4600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 5000),
       },
     ];
   }
@@ -830,14 +939,24 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
         maxCompletionTokens: Math.max(maxCompletionTokens, 5200),
       },
       {
-        reasoningEffort: "medium",
+        reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 7000),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 6000),
       },
+    ];
+  }
+
+  if (passType === "bullet") {
+    return [
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 5600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
       },
     ];
   }
@@ -864,14 +983,9 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
     },
     {
-      reasoningEffort: "low",
-      temperature: null,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 3000),
-    },
-    {
       reasoningEffort: "none",
       temperature: 0.2,
-      maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2800),
     },
   ];
 }
@@ -996,6 +1110,8 @@ CRITICAL RULES (must follow):
   clarity, specificity, scope, action strength, business context, recruiter readability.
 - If a rewrite is too similar to the original, rewrite it again more strongly.
 - Keep optimized_cv ATS-friendly, clean, realistic, and parser-friendly.
+- For English output, write like a strong US resume writer, not a marketing copywriter.
+- Premium quality means: grounded, concise, specific, and recruiter-ready.
 
 HEADING RULES:
 - For Turkish optimized_cv outputs, use these exact headings when relevant:
@@ -1066,6 +1182,7 @@ REQUIREMENTS:
 - Select only sentences that are genuinely weak, vague, generic, or support-heavy.
 - Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
 - Prefer weak experience bullets first, then summary only if necessary.
+- Rewrites must be clearly stronger, not cosmetic.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -1106,6 +1223,7 @@ REQUIREMENTS:
 - Select only sentences that are genuinely weak, vague, generic, or support-heavy.
 - Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
 - Prefer weak experience bullets first, then summary only if necessary.
+- Rewrites must be clearly stronger, not cosmetic.
 - summary MUST be 4-6 bullet lines in ${outLang}.
 - summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
 - Do NOT add extra keys. Do NOT add optimized_cv.
@@ -1120,8 +1238,9 @@ function buildEnglishStyleBlock() {
 ENGLISH WRITING STYLE:
 - Write like a strong US resume, not marketing copy.
 - Keep bullets concise, concrete, and natural.
-- Prefer 10-18 words per bullet when possible.
-- Prefer one clear action + scope + context structure.
+- Prefer 9-18 words per bullet when possible.
+- Prefer one clear pattern: action + scope + tool/channel/context + purpose.
+- If no tool is present, use action + task scope + business context.
 - Do NOT add filler words such as:
   impactful, dynamic, seamless, comprehensive, robust, overall, various.
 - Do NOT add unsupported outcome clauses such as:
@@ -1133,9 +1252,15 @@ ENGLISH WRITING STYLE:
   supported -> contributed
   worked on -> participated in
 - For support-level work, prefer honest execution language such as:
-  coordinated, prepared, tracked, documented, maintained, scheduled, supported execution of, collaborated with.
+  coordinated, prepared, tracked, documented, maintained, scheduled, monitored, supported execution of, collaborated with.
 - Keep already-strong bullets short and sharp.
 - Do NOT over-expand bullets just to sound more professional.
+- Good rewrite pattern examples:
+  helped prepare weekly campaign reports and performance summaries
+  -> prepared weekly campaign reports and performance summaries to support performance tracking
+
+  worked on content planning and email marketing activities for client accounts
+  -> supported content planning and email marketing execution across client accounts
 `.trim();
 }
 
@@ -1225,17 +1350,101 @@ ${cv}
 `.trim();
 }
 
+function buildTargetedBulletUpgradePrompt({
+  cv,
+  jd,
+  hasJD,
+  weakSentences,
+  outLang,
+}) {
+  const weakText = (Array.isArray(weakSentences) ? weakSentences : [])
+    .map((item, idx) => `${idx + 1}. ${String(item?.sentence || "").trim()}`)
+    .filter(Boolean)
+    .join("\n");
+
+  return hasJD
+    ? `
+Return JSON in this exact schema:
+
+{
+  "bullet_upgrades": [
+    { "source": string, "rewrite": string, "reason": string }
+  ]
+}
+
+TASK:
+Create premium-quality bullet rewrites ONLY for the provided weak resume sentences.
+
+STRICT RULES:
+- Rewrite ONLY the listed source sentences.
+- Keep each rewrite truthful, ATS-friendly, and recruiter-ready.
+- Do NOT invent numbers, results, tools, platforms, budgets, clients, or ownership.
+- If the original is support-level work, keep it support-level but make it sharper and more specific.
+- Each rewrite must be materially stronger than the source, not a synonym swap.
+- For English output, target roughly 9-18 words when possible.
+- Prefer this structure when truthful:
+  action + task scope + tool/channel/context + purpose
+- reason must be short and explain what improved.
+- Output VALUES only in ${outLang}.
+- Return 3-8 items depending on real quality opportunities.
+- No extra keys.
+
+WEAK SOURCE SENTENCES:
+${weakText || "(none)"}
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim()
+    : `
+Return JSON in this exact schema:
+
+{
+  "bullet_upgrades": [
+    { "source": string, "rewrite": string, "reason": string }
+  ]
+}
+
+TASK:
+Create premium-quality bullet rewrites ONLY for the provided weak resume sentences.
+
+STRICT RULES:
+- Rewrite ONLY the listed source sentences.
+- Keep each rewrite truthful, ATS-friendly, and recruiter-ready.
+- Do NOT invent numbers, results, tools, platforms, budgets, clients, or ownership.
+- If the original is support-level work, keep it support-level but make it sharper and more specific.
+- Each rewrite must be materially stronger than the source, not a synonym swap.
+- For English output, target roughly 9-18 words when possible.
+- Prefer this structure when truthful:
+  action + task scope + tool/channel/context + purpose
+- reason must be short and explain what improved.
+- Output VALUES only in ${outLang}.
+- Return 3-8 items depending on real quality opportunities.
+- No extra keys.
+
+WEAK SOURCE SENTENCES:
+${weakText || "(none)"}
+
+RESUME:
+${cv}
+`.trim();
+}
+
 function buildOptimizeCvPrompt({
   cv,
   jd,
   hasJD,
   summary,
   missingKeywords,
+  bulletUpgrades,
   outLang,
 }) {
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
+  const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
 
   return hasJD
     ? `
@@ -1246,48 +1455,54 @@ Return JSON in this exact schema:
 }
 
 TASK:
-Rewrite the resume into a stronger ATS-friendly version aligned to the same job description.
+Rewrite the resume into a materially stronger ATS-friendly version aligned to the same job description.
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
 - Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, channels, or software.
-- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume or job description.
-- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
+- If the original text is support-oriented, you may make it clearer and sharper, but do NOT upgrade it into full ownership unless clearly supported.
 - Use the analysis summary to improve wording truthfully.
-- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
+- Treat missing keywords as context only. NEVER force JD keywords into the resume unless the underlying work is already supported by the original resume text.
 - Keep already-strong bullets unchanged or only lightly polish them.
 - Focus most of the rewrite effort on the weaker summary lines and weaker/support-heavy bullets.
 - Preserve the role structure and bullet structure as much as possible.
 - Do NOT merge multiple bullets into one if that removes detail.
-- Do NOT remove meaningful bullets unless they are duplicate/redundant.
+- Do NOT remove meaningful bullets unless they are duplicate or clearly redundant.
 - Use canonical section headings only.
-- For English output, do NOT rewrite weak bullets into corporate-fluff language.
-- Avoid rewrites that begin with: assisted, supported, contributed, participated, aided, unless no stronger truthful verb is possible.
-- Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated.
-- Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, or improved follow-up unless explicitly supported by the resume or job description.
+- The final resume should feel premium: concise, grounded, specific, and clearly stronger than the original.
 
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
 
 HARD FACT LOCK:
-- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
-- If a term is not explicitly supported, do NOT add it.
-- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
+- JD context can guide emphasis, but it cannot introduce new work history facts.
+- If a term is not explicitly supported by the original resume, do NOT add it.
+- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, dashboard, automation, etc.
+
+PRIORITY REWRITE TARGETS:
+${priorityRewriteText}
+
+HOW TO USE THE PRIORITY REWRITE TARGETS:
+- Treat each rewrite target as the minimum quality bar for that source sentence.
+- You may adapt wording to fit the full resume, but the final bullet should be at least as strong, specific, and truthful.
+- Do NOT copy low-quality original wording when a stronger target is provided.
 
 ${englishStyleBlock}
 
 QUALITY TARGET:
-- The optimized CV must feel clearly stronger than the original, not just lightly polished.
-- Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
-- Do NOT flatten already-specific bullets into generic corporate language.
+- Upgrade weak bullets using clarity + scope + business context.
+- Preserve specific tools and channels already present.
+- Avoid bloated endings and corporate fluff.
 - Keep the resume realistic, premium, and ATS-friendly.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
-HIGH PRIORITY KEYWORDS / GAPS:
+HIGH PRIORITY KEYWORD GAPS (context only, do not force):
 ${keywordsText || "(none)"}
 
 SELF-CHECK BEFORE RETURNING:
@@ -1296,6 +1511,7 @@ SELF-CHECK BEFORE RETURNING:
 - no unjustified ownership escalation
 - no major bullet loss
 - no merged bullets that reduce clarity
+- weak bullets materially improved, not cosmetically polished
 
 RESUME:
 ${cv}
@@ -1311,7 +1527,7 @@ Return JSON in this exact schema:
 }
 
 TASK:
-Rewrite the resume into a stronger ATS-friendly version.
+Rewrite the resume into a materially stronger ATS-friendly version.
 
 STRICT RULES:
 - Keep the header identity block exactly as written.
@@ -1319,40 +1535,45 @@ STRICT RULES:
 - Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
 - Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, channels, or software.
 - Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
-- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- If the original text is support-oriented, you may make it clearer and sharper, but do NOT upgrade it into full ownership unless clearly supported.
 - Use the analysis summary to improve wording truthfully.
-- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
+- Treat missing keywords as context only. Do NOT force keywords into the resume unless the underlying work is already supported by the original resume text.
 - Keep already-strong bullets unchanged or only lightly polish them.
 - Focus most of the rewrite effort on the weaker summary lines and weaker/support-heavy bullets.
 - Preserve the role structure and bullet structure as much as possible.
 - Do NOT merge multiple bullets into one if that removes detail.
-- Do NOT remove meaningful bullets unless they are duplicate/redundant.
+- Do NOT remove meaningful bullets unless they are duplicate or clearly redundant.
 - Use canonical section headings only.
-- For English output, do NOT rewrite weak bullets into corporate-fluff language.
-- Avoid rewrites that begin with: assisted, supported, contributed, participated, aided, unless no stronger truthful verb is possible.
-- Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated.
-- Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, or improved follow-up unless explicitly supported by the resume or job description.
+- The final resume should feel premium: concise, grounded, specific, and clearly stronger than the original.
 
 ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
 ${allowedTermsText}
 
 HARD FACT LOCK:
 - You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
-- If a term is not explicitly supported, do NOT add it.
-- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, audience segmentation, dashboard, automation, etc.
+- If a term is not explicitly supported by the original resume, do NOT add it.
+- This includes examples like LinkedIn Ads, CRO, HubSpot, Salesforce, CRM, Looker Studio, Data Studio, KPI, ROI, retargeting, funnel optimization, dashboard, automation, etc.
+
+PRIORITY REWRITE TARGETS:
+${priorityRewriteText}
+
+HOW TO USE THE PRIORITY REWRITE TARGETS:
+- Treat each rewrite target as the minimum quality bar for that source sentence.
+- You may adapt wording to fit the full resume, but the final bullet should be at least as strong, specific, and truthful.
+- Do NOT copy low-quality original wording when a stronger target is provided.
 
 ${englishStyleBlock}
 
 QUALITY TARGET:
-- The optimized CV must feel clearly stronger than the original, not just lightly polished.
-- Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
-- Do NOT flatten already-specific bullets into generic corporate language.
+- Upgrade weak bullets using clarity + scope + business context.
+- Preserve specific tools and channels already present.
+- Avoid bloated endings and corporate fluff.
 - Keep the resume realistic, premium, and ATS-friendly.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
-HIGH PRIORITY KEYWORDS / GAPS:
+HIGH PRIORITY KEYWORD GAPS (context only, do not force):
 ${keywordsText || "(none)"}
 
 SELF-CHECK BEFORE RETURNING:
@@ -1361,6 +1582,7 @@ SELF-CHECK BEFORE RETURNING:
 - no unjustified ownership escalation
 - no major bullet loss
 - no merged bullets that reduce clarity
+- weak bullets materially improved, not cosmetically polished
 
 RESUME:
 ${cv}
@@ -1374,6 +1596,7 @@ function buildRepairPrompt({
   currentOptimizedCv,
   summary,
   missingKeywords,
+  bulletUpgrades,
   unsupportedTerms = [],
   outLang,
 }) {
@@ -1383,6 +1606,7 @@ function buildRepairPrompt({
   const unsupportedText = Array.isArray(unsupportedTerms) && unsupportedTerms.length
     ? unsupportedTerms.join(", ")
     : "(none)";
+  const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
 
   return hasJD
     ? `
@@ -1401,7 +1625,7 @@ STRICT RULES:
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
 - Do NOT invent metrics, tools, platforms, acronyms, channels, or achievements.
-- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the original resume.
 - Do NOT upgrade support-oriented work into full ownership unless clearly supported.
 - Keep already-strong bullets strong.
 - Focus the rewrite effort on weaker/support-heavy bullets and any awkward summary lines.
@@ -1415,9 +1639,13 @@ ${allowedTermsText}
 REMOVE THESE UNSUPPORTED TERMS IF PRESENT:
 ${unsupportedText}
 
+PRIORITY REWRITE TARGETS:
+${priorityRewriteText}
+
 HARD FACT LOCK:
-- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
-- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the original resume.
+- JD context can guide emphasis, but it cannot introduce new work history facts.
+- Missing keywords are context only. Do NOT add a keyword unless the work is already supported by the original resume.
 - If a term is not explicitly supported, remove it.
 
 ${englishStyleBlock}
@@ -1426,12 +1654,13 @@ QUALITY TARGET:
 - The final output should feel premium and clearly stronger than the original.
 - Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
 - Do NOT flatten already-good bullets.
+- Avoid bloated or corporate-fluff wording.
 - Keep the resume truthful, realistic, and recruiter-ready.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
-HIGH PRIORITY KEYWORDS / GAPS:
+HIGH PRIORITY KEYWORD GAPS (context only, do not force):
 ${keywordsText || "(none)"}
 
 SELF-CHECK BEFORE RETURNING:
@@ -1440,6 +1669,7 @@ SELF-CHECK BEFORE RETURNING:
 - no invented outcomes
 - no unjustified ownership escalation
 - no major bullet loss
+- priority rewrite targets reflected at premium quality level
 
 RESUME (original):
 ${cv}
@@ -1466,7 +1696,7 @@ STRICT RULES:
 - Keep existing experience titles unchanged.
 - Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
 - Do NOT invent metrics, tools, platforms, acronyms, channels, or achievements.
-- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the original resume.
 - Do NOT upgrade support-oriented work into full ownership unless clearly supported.
 - Keep already-strong bullets strong.
 - Focus the rewrite effort on weaker/support-heavy bullets and any awkward summary lines.
@@ -1480,9 +1710,12 @@ ${allowedTermsText}
 REMOVE THESE UNSUPPORTED TERMS IF PRESENT:
 ${unsupportedText}
 
+PRIORITY REWRITE TARGETS:
+${priorityRewriteText}
+
 HARD FACT LOCK:
-- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
-- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the original resume.
+- Missing keywords are context only. Do NOT add a keyword unless the work is already supported by the original resume.
 - If a term is not explicitly supported, remove it.
 
 ${englishStyleBlock}
@@ -1491,12 +1724,13 @@ QUALITY TARGET:
 - The final output should feel premium and clearly stronger than the original.
 - Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
 - Do NOT flatten already-good bullets.
+- Avoid bloated or corporate-fluff wording.
 - Keep the resume truthful, realistic, and recruiter-ready.
 
 ANALYSIS SUMMARY:
 ${summary || "(none)"}
 
-HIGH PRIORITY KEYWORDS / GAPS:
+HIGH PRIORITY KEYWORD GAPS (context only, do not force):
 ${keywordsText || "(none)"}
 
 SELF-CHECK BEFORE RETURNING:
@@ -1505,6 +1739,7 @@ SELF-CHECK BEFORE RETURNING:
 - no invented outcomes
 - no unjustified ownership escalation
 - no major bullet loss
+- priority rewrite targets reflected at premium quality level
 
 RESUME (original):
 ${cv}
@@ -1750,7 +1985,6 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
-    // PREVIEW: tek çağrı
     if (isPreview) {
       let previewData;
       try {
@@ -1789,8 +2023,8 @@ export default async function handler(req, res) {
           ? previewData.missing_keywords
           : [],
         weak_sentences: filterWeakSentences(
-  Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
-),
+          Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
+        ),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
 
@@ -1805,7 +2039,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // FULL ATS: analysis + optimize + gerekiyorsa repair
     let analysisData;
     try {
       analysisData = await callOpenAIJson({
@@ -1843,14 +2076,41 @@ export default async function handler(req, res) {
         ? analysisData.missing_keywords
         : [],
       weak_sentences: filterWeakSentences(
-  Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
-),
+        Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
+      ),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
       optimized_cv: "",
       optimized_ats_score: mergedBaseScore,
     };
 
-        let currentOptimized = "";
+    let bulletUpgrades = [];
+    if (normalized.weak_sentences.length > 0) {
+      try {
+        const bulletData = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildTargetedBulletUpgradePrompt({
+            cv,
+            jd,
+            hasJD,
+            weakSentences: normalized.weak_sentences,
+            outLang,
+          }),
+          isPreview: false,
+          passType: "bullet",
+          maxCompletionTokens: 1800,
+        });
+
+        bulletUpgrades = normalizeBulletUpgrades(
+          Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : []
+        );
+      } catch {
+        bulletUpgrades = [];
+      }
+    }
+
+    let currentOptimized = "";
     let unsupportedTerms = [];
 
     try {
@@ -1859,13 +2119,14 @@ export default async function handler(req, res) {
         model,
         system: buildAtsSystem(outLang),
         userPrompt: buildOptimizeCvPrompt({
-  cv,
-  jd,
-  hasJD,
-  summary: normalized.summary,
-  missingKeywords: normalized.missing_keywords,
-  outLang,
-}),
+          cv,
+          jd,
+          hasJD,
+          summary: normalized.summary,
+          missingKeywords: normalized.missing_keywords,
+          bulletUpgrades,
+          outLang,
+        }),
         isPreview: false,
         passType: "optimize",
         maxCompletionTokens: 3800,
@@ -1885,22 +2146,31 @@ export default async function handler(req, res) {
       unsupportedTerms = [];
     }
 
-if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTerms.length > 0) {
+    if (
+      shouldRepairOptimizedCv(
+        cv,
+        currentOptimized,
+        jd,
+        outLang,
+        normalized.weak_sentences
+      ) || unsupportedTerms.length > 0
+    ) {
       try {
         const repaired = await callOpenAIJson({
           apiKey,
           model,
           system: buildAtsSystem(outLang),
           userPrompt: buildRepairPrompt({
-  cv,
-  jd,
-  hasJD,
-  currentOptimizedCv: currentOptimized || cv,
-  summary: normalized.summary,
-  missingKeywords: normalized.missing_keywords,
-  unsupportedTerms,
-  outLang,
-}),
+            cv,
+            jd,
+            hasJD,
+            currentOptimizedCv: currentOptimized || cv,
+            summary: normalized.summary,
+            missingKeywords: normalized.missing_keywords,
+            bulletUpgrades,
+            unsupportedTerms,
+            outLang,
+          }),
           isPreview: false,
           passType: "repair",
           maxCompletionTokens: 4600,
@@ -1921,14 +2191,17 @@ if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTer
           apiKey,
           model,
           system: buildAtsSystem(outLang),
-          userPrompt: buildOptimizeCvPrompt({
-  cv,
-  jd,
-  hasJD,
-  summary: normalized.summary,
-  missingKeywords: normalized.missing_keywords,
-  outLang,
-}),
+          userPrompt: buildRepairPrompt({
+            cv,
+            jd,
+            hasJD,
+            currentOptimizedCv: currentOptimized || cv,
+            summary: normalized.summary,
+            missingKeywords: normalized.missing_keywords,
+            bulletUpgrades,
+            unsupportedTerms,
+            outLang,
+          }),
           isPreview: false,
           passType: "repair",
           maxCompletionTokens: 4600,
@@ -1944,11 +2217,11 @@ if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang) || unsupportedTer
 
     normalized.optimized_cv = currentOptimized;
     normalized.optimized_ats_score = computeFinalOptimizedScore(
-  cv,
-  currentOptimized,
-  normalized.ats_score,
-  jd
-);
+      cv,
+      currentOptimized,
+      normalized.ats_score,
+      jd
+    );
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
