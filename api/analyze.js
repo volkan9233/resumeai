@@ -2424,6 +2424,13 @@ export default async function handler(req, res) {
         bulletUpgrades = normalizeBulletUpgrades(
           Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : []
         );
+
+        if (bulletUpgrades.length > 0) {
+      normalized.weak_sentences = bulletUpgrades.map((item) => ({
+        sentence: item.source,
+        rewrite: item.rewrite,
+      }));
+    }
       } catch {
         bulletUpgrades = [];
       }
