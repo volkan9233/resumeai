@@ -33,6 +33,9 @@ const STRONG_ACTION_RE =
 const SPECIFICITY_RE =
   /\b(google ads|meta ads|meta ads manager|facebook ads|instagram ads|linkedin ads|tiktok ads|google analytics|google analytics 4|ga4|google tag manager|tag manager|seo|sem|ctr|cpc|cpa|roas|roi|cro|landing page|a\/b test|ab test|search console|hubspot|excel|google sheets|remarketing|lead generation|email marketing|içerik stratejisi|performans pazarlaması|veri analizi|raporlama|müşteri segmentasyonu|yeniden pazarlama|retargeting|audience segmentation|kpi)\b/i;
 
+const BUSINESS_CONTEXT_RE =
+  /\b(campaign|campaigns|audience|performance|report|reports|reporting|landing page|content|email marketing|email|social media|client|clients|stakeholder|stakeholders|team|teams|segmentation|remarketing|analysis|strategy|strategies|operations|workflow|calendar|calendars|materials|assets|market research|competitor analysis|lead generation|brand awareness|conversion|conversions|targeting|dashboard|documentation|presentations|customer|customers|ticket|tickets|issue|issues|service|support|case|cases|complaint|complaints|feedback|records|requests|follow-up|coordination|scheduling|vendor|process|communication|tracking|administrative)\b/i;
+
 const FACT_SENSITIVE_TERMS = [
   "google ads",
   "meta ads",
@@ -1364,7 +1367,7 @@ CRITICAL RULES (must follow):
 `.trim();
 }
 
-function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang, roleFamily })
+function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang, roleFamily }) {
   const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
   const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
@@ -1484,7 +1487,7 @@ ENGLISH WRITING STYLE:
 `.trim();
 }
 
-function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang, roleFamily })
+function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang, roleFamily }) {
   const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
   const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
@@ -1579,7 +1582,7 @@ ${cv}
 `.trim();
 }
 
-function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, outLang, roleFamily })
+function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, outLang, roleFamily }) {
 
     const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
@@ -1665,7 +1668,7 @@ ${cv}
 `.trim();
 }
 
-function buildOptimizeCvPrompt({ cv, jd, hasJD, outLang, roleFamily })
+function buildOptimizeCvPrompt({ cv, jd, hasJD, outLang, roleFamily }) {
   const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
   const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
@@ -1823,7 +1826,7 @@ ${cv}
 `.trim();
 }
 
-function buildRepairPrompt({ cv, jd, hasJD, outLang, roleFamily })
+function buildRepairPrompt({ cv, jd, hasJD, outLang, roleFamily }) {
   const rolePack = getRolePack(roleFamily);
   const roleHints = (rolePack.styleHints || []).join("\n- ");
   const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
