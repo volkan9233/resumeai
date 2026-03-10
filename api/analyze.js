@@ -1482,14 +1482,35 @@ ENGLISH WRITING STYLE:
   worked on -> participated in
 - For support-level work, prefer honest execution language such as:
   coordinated, prepared, tracked, documented, maintained, scheduled, monitored, supported execution of, collaborated with.
+- For customer support, admin, operations, and coordinator roles, prefer plain execution language over strategic business-impact language.
+- Avoid endings such as:
+  to enhance service delivery
+  to streamline issue resolution
+  to inform team performance
+  to optimize targeting efforts
+  unless clearly supported by the original resume.
+- For support and admin roles, prefer:
+  handled, responded to, tracked, documented, maintained, coordinated, followed up on, updated, prepared
+  over:
+  facilitated, optimized, drove, enabled, transformed, maximized
 - Keep already-strong bullets short and sharp.
 - Do NOT over-expand bullets just to sound more professional.
-- Good rewrite pattern examples:
-  helped prepare weekly campaign reports and performance summaries
+
+GOOD REWRITE EXAMPLES:
+- helped prepare weekly campaign reports and performance summaries
   -> prepared weekly campaign reports and performance summaries to support performance tracking
 
-  worked on content planning and email marketing activities for client accounts
+- worked on content planning and email marketing activities for client accounts
   -> supported content planning and email marketing execution across client accounts
+
+- answered customer inquiries through email and live chat
+  -> responded to customer inquiries through email and live chat channels
+
+- supported the team with daily customer service tasks
+  -> handled daily customer service tasks and follow-up coordination
+
+- assisted with routine communication between customers and support staff
+  -> coordinated routine communication between customers and support staff
 `.trim();
 }
 
