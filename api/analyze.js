@@ -650,24 +650,34 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   return false;
 }
 
-function isClearlyWeakSentence(sentence = "") {
+function isClearlyWeakSentence(sentence = "", roleFamily = "generic") {
   const s = String(sentence || "").trim();
   if (!s) return false;
 
+  const roleSpecificRe = getRoleSpecificityRegex(roleFamily);
+
   if (WEAK_SENTENCE_RE.test(s)) return true;
 
-  const hasSpecific = STRONG_SPECIFIC_RE.test(s);
+  const hasSpecific =
+    STRONG_SPECIFIC_RE.test(s) ||
+    roleSpecificRe.test(s) ||
+    BUSINESS_CONTEXT_RE.test(s);
+
   const wordCount = s.split(/\s+/).filter(Boolean).length;
 
   if (!hasSpecific && wordCount <= 8) return true;
-  if (!hasSpecific && /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di))\b/i.test(s)) {
+
+  if (
+    !hasSpecific &&
+    /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di)|worked on|helped with|assisted in)\b/i.test(s)
+  ) {
     return true;
   }
 
   return false;
 }
 
-function filterWeakSentences(items = []) {
+function filterWeakSentences(items = [], roleFamily = "generic") {
   return (Array.isArray(items) ? items : [])
     .map((x) => ({
       sentence: String(x?.sentence || "").trim(),
@@ -675,7 +685,7 @@ function filterWeakSentences(items = []) {
     }))
     .filter((x) => x.sentence && x.rewrite)
     .filter((x) => normalizeCompareText(x.sentence) !== normalizeCompareText(x.rewrite))
-    .filter((x) => isClearlyWeakSentence(x.sentence))
+    .filter((x) => isClearlyWeakSentence(x.sentence, roleFamily))
     .filter((x) => !isShallowRewrite(x.sentence, x.rewrite))
     .slice(0, 12);
 }
