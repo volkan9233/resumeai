@@ -167,6 +167,80 @@ function getBulletLines(str = "") {
     .filter(Boolean);
 }
 
+function extractSummaryLines(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const out = [];
+  let inSummary = false;
+
+  for (const line of lines) {
+    if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) {
+      inSummary = true;
+      continue;
+    }
+    if (inSummary && isSectionHeader(line)) break;
+    if (inSummary) {
+      out.push(
+        ...line
+          .split(/(?<=[.?!])\s+/)
+          .map((x) => x.trim())
+          .filter(Boolean)
+      );
+    }
+  }
+
+  return out;
+}
+
+function lowerFirst(str = "") {
+  const s = String(str || "").trim();
+  if (!s) return s;
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 8, maxCount = 12) {
+  const bullets = getBulletLines(cv).map((sentence) => ({
+    sentence,
+    sourceType: "bullet",
+  }));
+
+  const summaries = extractSummaryLines(cv).map((sentence) => ({
+    sentence,
+    sourceType: "summary",
+  }));
+
+  const all = [...bullets, ...summaries]
+    .map((item) => {
+      const profile = getSentenceSignalProfile(item.sentence, roleInput);
+      let rank =
+        profile.weakScore * 3 -
+        profile.strongScore +
+        (profile.startsWeak ? 4 : 0) +
+        (profile.hasWeakPhrase ? 3 : 0) +
+        (!profile.hasSpecific ? 2 : 0) +
+        (item.sourceType === "bullet" ? 2 : 0);
+
+      if (/^(supported|assisted|helped|worked on|responsible for|handled)\b/i.test(item.sentence)) {
+        rank += 4;
+      }
+
+      if (/\b(team|support staff|internal service updates|daily tasks)\b/i.test(item.sentence)) {
+        rank += 2;
+      }
+
+      return { ...item, profile, rank };
+    })
+    .filter((x) => x.profile.isWeakCandidate || x.profile.weakScore >= 3)
+    .sort((a, b) => {
+      return (
+        b.rank - a.rank ||
+        b.profile.weakScore - a.profile.weakScore ||
+        a.profile.strongScore - b.profile.strongScore ||
+        (a.sourceType === "bullet" ? -1 : 1)
+      );
+    });
+
+  const
+
 function tokenizeForSimilarity(str = "") {
   return String(str)
     .toLowerCase()
@@ -2540,7 +2614,6 @@ const WEAK_PHRASE_RE =
 
 const STRONG_ACTION_RE =
   /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|denetledim|doğruladım|uzlaştırdım|işledim|eğitim verdim|değerlendirdim|engineered|built|developed|designed|implemented|integrated|tested|debugged|validated|automated|configured|deployed|maintained|optimized|planned|executed|created|responded|resolved|documented|scheduled|reviewed|updated|monitored|processed|reconciled|screened|analyzed|reported|tracked|managed|delivered|verified|produced|prepared|mapped|facilitated|taught|assessed|inspected|coordinated|collaborated|communicated|organized|compiled|addressed|guided)\b/i;
-
 const EN_WEAK_REWRITE_START_RE =
   /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided)\b/i;
 
@@ -3640,12 +3713,11 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   const sWords = countWords(s);
   const rWords = countWords(r);
 
-  if (ENGLISH_WEAK_SWAP_RE.test(s) && ENGLISH_WEAK_SWAP_RE.test(r) && sim >= 0.68) {
+  if (ENGLISH_WEAK_SWAP_RE.test(s) && ENGLISH_WEAK_SWAP_RE.test(r) && sim >= 0.72) {
     return true;
   }
 
-  if (sim >= 0.82 && Math.abs(rWords - sWords) <= 2) return true;
-  if (rWords >= sWords + 12 && sim >= 0.62) return true;
+  if (rWords >= sWords + 14 && sim >= 0.72) return true;
   return false;
 }
 
@@ -3678,7 +3750,8 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
       const stronger =
         x.rewriteProfile.strongScore > x.sourceProfile.strongScore ||
         x.rewriteProfile.weakScore < x.sourceProfile.weakScore ||
-        (x.rewriteProfile.hasSpecific && !x.sourceProfile.hasSpecific);
+        (x.sourceProfile.weakScore >= 6 &&
+          x.rewriteProfile.weakScore <= x.sourceProfile.weakScore + 1);
 
       return stronger;
     })
@@ -3687,9 +3760,14 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
 
       if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
       if (hasUnsupportedImpactClaims(x.sentence, x.rewrite)) return false;
-      if (ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) && !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)) {
+
+      if (
+        ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) &&
+        !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)
+      ) {
         return false;
       }
+
       if (EN_SOFT_FILLER_RE.test(x.rewrite) && !EN_SOFT_FILLER_RE.test(x.sentence)) {
         return false;
       }
@@ -3699,6 +3777,7 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
     .sort((a, b) => {
       const aDelta = a.sourceProfile.weakScore - a.rewriteProfile.weakScore;
       const bDelta = b.sourceProfile.weakScore - b.rewriteProfile.weakScore;
+
       return (
         b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
         bDelta - aDelta ||
@@ -3730,20 +3809,29 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     const stronger =
       rewriteProfile.strongScore > sourceProfile.strongScore ||
       rewriteProfile.weakScore < sourceProfile.weakScore ||
-      (rewriteProfile.hasSpecific && !sourceProfile.hasSpecific);
+      (sourceProfile.weakScore >= 6 &&
+        rewriteProfile.weakScore <= sourceProfile.weakScore + 1);
 
     if (!stronger) continue;
 
     if (outLang === "English") {
       if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
       if (hasUnsupportedImpactClaims(source, rewrite)) continue;
-      if (ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) && !ENGLISH_CORPORATE_FLUFF_RE.test(source)) continue;
-      if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) continue;
+      if (
+        ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) &&
+        !ENGLISH_CORPORATE_FLUFF_RE.test(source)
+      ) {
+        continue;
+      }
+      if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) {
+        continue;
+      }
     }
 
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
     if (seen.has(key)) continue;
     seen.add(key);
+
     out.push({ source, rewrite, reason, sourceProfile, rewriteProfile });
   }
 
