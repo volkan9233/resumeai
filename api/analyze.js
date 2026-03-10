@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+      import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 import crypto from "crypto";
 
@@ -71,7 +71,10 @@ function canonicalizeTerm(str = "") {
     [/quality assurance/g, "qa"],
     [/user experience/g, "ux"],
     [/user interface/g, "ui"],
-    [/continuous integration continuous deployment|continuous integration continuous delivery|ci cd/g, "ci/cd"],
+    [
+      /continuous integration continuous deployment|continuous integration continuous delivery|ci cd/g,
+      "ci/cd",
+    ],
     [/restful api|rest apis/g, "rest api"],
     [/electronic health record/g, "ehr"],
     [/electronic medical record/g, "emr"],
@@ -109,7 +112,9 @@ function containsCanonicalTermInNormalizedText(normalizedText = "", term = "") {
     return normalizedText.includes(termNorm);
   }
 
-  return new RegExp(`(?:^|\\s)${escapeRegex(termNorm)}(?:$|\\s)`, "i").test(normalizedText);
+  return new RegExp(`(?:^|\\s)${escapeRegex(termNorm)}(?:$|\\s)`, "i").test(
+    normalizedText
+  );
 }
 
 function countTermHits(text = "", terms = []) {
@@ -138,12 +143,19 @@ function countOccurrencesNormalized(text = "", term = "") {
     return count;
   }
 
-  const m = textNorm.match(new RegExp(`(?:^|\\s)${escapeRegex(termNorm)}(?:$|\\s)`, "gi"));
+  const m = textNorm.match(
+    new RegExp(`(?:^|\\s)${escapeRegex(termNorm)}(?:$|\\s)`, "gi")
+  );
   return Array.isArray(m) ? m.length : 0;
 }
 
 function countWords(str = "") {
   return String(str).trim().split(/\s+/).filter(Boolean).length;
+}
+
+function capitalizeFirst(str = "") {
+  const s = String(str || "").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 }
 
 function getNonEmptyLines(str = "") {
@@ -595,12 +607,7 @@ const ROLE_PACKS = {
       "feature prioritization",
       "cross-functional collaboration",
     ],
-    toolTerms: [
-      "jira",
-      "confluence",
-      "figma",
-      "analytics",
-    ],
+    toolTerms: ["jira", "confluence", "figma", "analytics"],
     methodologyTerms: [
       "agile",
       "scrum",
@@ -695,14 +702,7 @@ const ROLE_PACKS = {
       "excel",
       "sql",
     ],
-    toolTerms: [
-      "jira",
-      "confluence",
-      "excel",
-      "sql",
-      "power bi",
-      "visio",
-    ],
+    toolTerms: ["jira", "confluence", "excel", "sql", "power bi", "visio"],
     methodologyTerms: [
       "requirements gathering",
       "process mapping",
@@ -807,14 +807,7 @@ const ROLE_PACKS = {
       "ifrs",
       "gaap",
     ],
-    toolTerms: [
-      "excel",
-      "sap",
-      "oracle",
-      "quickbooks",
-      "netsuite",
-      "erp",
-    ],
+    toolTerms: ["excel", "sap", "oracle", "quickbooks", "netsuite", "erp"],
     methodologyTerms: [
       "month-end close",
       "reconciliation",
@@ -921,13 +914,7 @@ const ROLE_PACKS = {
       "greenhouse",
       "ats",
     ],
-    toolTerms: [
-      "workday",
-      "greenhouse",
-      "ats",
-      "excel",
-      "hris",
-    ],
+    toolTerms: ["workday", "greenhouse", "ats", "excel", "hris"],
     methodologyTerms: [
       "candidate screening",
       "interview coordination",
@@ -1026,12 +1013,7 @@ const ROLE_PACKS = {
       "vendor communication",
       "process improvement",
     ],
-    toolTerms: [
-      "excel",
-      "erp",
-      "sap",
-      "jira",
-    ],
+    toolTerms: ["excel", "erp", "sap", "jira"],
     methodologyTerms: [
       "process improvement",
       "workflow tracking",
@@ -1129,12 +1111,7 @@ const ROLE_PACKS = {
       "sap",
       "erp",
     ],
-    toolTerms: [
-      "sap",
-      "erp",
-      "excel",
-      "warehouse management",
-    ],
+    toolTerms: ["sap", "erp", "excel", "warehouse management"],
     methodologyTerms: [
       "inventory control",
       "shipment tracking",
@@ -1230,11 +1207,7 @@ const ROLE_PACKS = {
       "sap",
       "erp",
     ],
-    toolTerms: [
-      "sap",
-      "erp",
-      "excel",
-    ],
+    toolTerms: ["sap", "erp", "excel"],
     methodologyTerms: [
       "vendor evaluation",
       "sourcing",
@@ -1329,17 +1302,8 @@ const ROLE_PACKS = {
       "salesforce",
       "hubspot",
     ],
-    toolTerms: [
-      "salesforce",
-      "hubspot",
-      "crm",
-      "excel",
-    ],
-    methodologyTerms: [
-      "pipeline management",
-      "lead follow-up",
-      "account coordination",
-    ],
+    toolTerms: ["salesforce", "hubspot", "crm", "excel"],
+    methodologyTerms: ["pipeline management", "lead follow-up", "account coordination"],
     responsibilityTerms: [
       "client communication",
       "proposal preparation",
@@ -1434,18 +1398,8 @@ const ROLE_PACKS = {
       "resolution time",
       "help desk",
     ],
-    toolTerms: [
-      "zendesk",
-      "freshdesk",
-      "crm",
-      "help desk",
-    ],
-    methodologyTerms: [
-      "ticket management",
-      "issue escalation",
-      "sla",
-      "case follow-up",
-    ],
+    toolTerms: ["zendesk", "freshdesk", "crm", "help desk"],
+    methodologyTerms: ["ticket management", "issue escalation", "sla", "case follow-up"],
     responsibilityTerms: [
       "customer communication",
       "case follow-up",
@@ -1540,17 +1494,8 @@ const ROLE_PACKS = {
       "csat",
       "qbr",
     ],
-    toolTerms: [
-      "crm",
-      "salesforce",
-      "hubspot",
-    ],
-    methodologyTerms: [
-      "customer onboarding",
-      "renewal support",
-      "account management",
-      "qbr",
-    ],
+    toolTerms: ["crm", "salesforce", "hubspot"],
+    methodologyTerms: ["customer onboarding", "renewal support", "account management", "qbr"],
     responsibilityTerms: [
       "client communication",
       "renewal follow-up",
@@ -1634,17 +1579,8 @@ const ROLE_PACKS = {
       "scheduling",
       "executive support",
     ],
-    toolTerms: [
-      "excel",
-      "powerpoint",
-      "office",
-      "google sheets",
-    ],
-    methodologyTerms: [
-      "calendar coordination",
-      "meeting scheduling",
-      "document management",
-    ],
+    toolTerms: ["excel", "powerpoint", "office", "google sheets"],
+    methodologyTerms: ["calendar coordination", "meeting scheduling", "document management"],
     responsibilityTerms: [
       "appointment scheduling",
       "travel arrangements",
@@ -1733,13 +1669,7 @@ const ROLE_PACKS = {
       "confluence",
       "agile",
     ],
-    toolTerms: [
-      "jira",
-      "confluence",
-      "excel",
-      "primavera p6",
-      "ms project",
-    ],
+    toolTerms: ["jira", "confluence", "excel", "primavera p6", "ms project"],
     methodologyTerms: [
       "agile",
       "scrum",
@@ -2055,12 +1985,7 @@ const ROLE_PACKS = {
       "learning materials",
       "student progress",
     ],
-    toolTerms: [
-      "excel",
-      "powerpoint",
-      "google classroom",
-      "office",
-    ],
+    toolTerms: ["excel", "powerpoint", "google classroom", "office"],
     methodologyTerms: [
       "lesson planning",
       "curriculum development",
@@ -2149,12 +2074,7 @@ const ROLE_PACKS = {
       "appointment coordination",
       "patient communication",
     ],
-    toolTerms: [
-      "ehr",
-      "emr",
-      "excel",
-      "office",
-    ],
+    toolTerms: ["ehr", "emr", "excel", "office"],
     methodologyTerms: [
       "patient intake",
       "insurance verification",
@@ -2247,12 +2167,7 @@ const ROLE_PACKS = {
       "construction documentation",
       "inspection",
     ],
-    toolTerms: [
-      "autocad",
-      "revit",
-      "primavera p6",
-      "excel",
-    ],
+    toolTerms: ["autocad", "revit", "primavera p6", "excel"],
     methodologyTerms: [
       "site inspection",
       "quantity takeoff",
