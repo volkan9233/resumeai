@@ -1475,7 +1475,10 @@ ENGLISH WRITING STYLE:
 `.trim();
 }
 
-function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
+function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang, roleFamily })
+  const rolePack = getRolePack(roleFamily);
+  const roleHints = (rolePack.styleHints || []).join("\n- ");
+  const roleKeywords = (rolePack.suggestedKeywords || []).join(", ");
   if (hasJD) {
     return `
 Return JSON in this exact schema:
@@ -1492,6 +1495,12 @@ Return JSON in this exact schema:
   "weak_sentences": [{"sentence": string, "rewrite": string}],
   "summary": string
 }
+
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
 
 HARD REQUIREMENTS:
 - This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
