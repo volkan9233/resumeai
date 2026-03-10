@@ -825,7 +825,8 @@ function computeFinalOptimizedScore(
 
   if (!optNorm || origNorm === optNorm) return base;
 
-  const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd);
+  const roleFamily = detectRoleFamily(originalCv, jd);
+const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd, roleFamily);
   const rawLift = Math.max(0, rescoredOptimized - base);
 
   const weakBefore = countWeakVerbHits(originalCv);
