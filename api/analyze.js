@@ -1434,6 +1434,12 @@ Return JSON in this exact schema:
   "summary": string
 }
 
+ROLE CONTEXT:
+- detected_role_family: ${roleFamily}
+- role-specific emphasis: ${roleKeywords || "(none)"}
+- role writing guidance:
+- ${roleHints || "Keep the rewrite grounded and role-appropriate."}
+
 REQUIREMENTS:
 - This is a GENERAL ATS REVIEW because no job description is provided.
 - component_scores must reflect general ATS readiness honestly.
