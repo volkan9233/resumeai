@@ -167,6 +167,56 @@ function getBulletLines(str = "") {
     .filter(Boolean);
 }
 
+function tokenizeForSimilarity(str = "") {
+  return String(str)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((x) => x && x.length > 1);
+}
+
+function jaccardSimilarity(a = "", b = "") {
+  const aSet = new Set(tokenizeForSimilarity(a));
+  const bSet = new Set(tokenizeForSimilarity(b));
+  if (!aSet.size || !bSet.size) return 0;
+
+  let intersection = 0;
+  for (const token of aSet) {
+    if (bSet.has(token)) intersection += 1;
+  }
+
+  const union = new Set([...aSet, ...bSet]).size;
+  return union ? intersection / union : 0;
+}
+
+function capitalizeFirst(str = "") {
+  const s = String(str || "").trim();
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function lowerFirst(str = "") {
+  const s = String(str || "").trim();
+  if (!s) return s;
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+function splitSentenceEnding(str = "") {
+  const s = String(str || "").trim();
+  const m = s.match(/[.?!]+$/);
+  return {
+    body: s.replace(/[.?!]+$/, "").trim(),
+    ending: m ? m[0] : ".",
+  };
+}
+
+function isSectionHeader(line = "") {
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|CORE SUMMARY|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|EDUCATION|LANGUAGES|CERTIFICATIONS|LICENSES|PROJECTS|ADDITIONAL INFORMATION|AWARDS|ACHIEVEMENTS|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
+    String(line).trim()
+  );
+}
+
 function extractSummaryLines(cv = "") {
   const lines = getNonEmptyLines(cv);
   const out = [];
@@ -191,77 +241,113 @@ function extractSummaryLines(cv = "") {
   return out;
 }
 
-function lowerFirst(str = "") {
-  const s = String(str || "").trim();
-  if (!s) return s;
-  return s.charAt(0).toLowerCase() + s.slice(1);
-}
+function extractHeaderBlock(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const header = [];
 
-function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 8, maxCount = 12) {
-  const bullets = getBulletLines(cv).map((sentence) => ({
-    sentence,
-    sourceType: "bullet",
-  }));
-
-  const summaries = extractSummaryLines(cv).map((sentence) => ({
-    sentence,
-    sourceType: "summary",
-  }));
-
-  const all = [...bullets, ...summaries]
-    .map((item) => {
-      const profile = getSentenceSignalProfile(item.sentence, roleInput);
-      let rank =
-        profile.weakScore * 3 -
-        profile.strongScore +
-        (profile.startsWeak ? 4 : 0) +
-        (profile.hasWeakPhrase ? 3 : 0) +
-        (!profile.hasSpecific ? 2 : 0) +
-        (item.sourceType === "bullet" ? 2 : 0);
-
-      if (/^(supported|assisted|helped|worked on|responsible for|handled)\b/i.test(item.sentence)) {
-        rank += 4;
-      }
-
-      if (/\b(team|support staff|internal service updates|daily tasks)\b/i.test(item.sentence)) {
-        rank += 2;
-      }
-
-      return { ...item, profile, rank };
-    })
-    .filter((x) => x.profile.isWeakCandidate || x.profile.weakScore >= 3)
-    .sort((a, b) => {
-      return (
-        b.rank - a.rank ||
-        b.profile.weakScore - a.profile.weakScore ||
-        a.profile.strongScore - b.profile.strongScore ||
-        (a.sourceType === "bullet" ? -1 : 1)
-      );
-    });
-
-  const
-
-function tokenizeForSimilarity(str = "") {
-  return String(str)
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter((x) => x && x.length > 1);
-}
-
-function jaccardSimilarity(a = "", b = "") {
-  const aSet = new Set(tokenizeForSimilarity(a));
-  const bSet = new Set(tokenizeForSimilarity(b));
-  if (!aSet.size || !bSet.size) return 0;
-
-  let intersection = 0;
-  for (const token of aSet) {
-    if (bSet.has(token)) intersection += 1;
+  for (const line of lines) {
+    if (isSectionHeader(line)) break;
+    header.push(line);
   }
 
-  const union = new Set([...aSet, ...bSet]).size;
-  return union ? intersection / union : 0;
+  return header.slice(0, 6);
+}
+
+function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
+  const originalHeader = extractHeaderBlock(originalCv);
+  if (!originalHeader.length) return String(optimizedCv || "").trim();
+
+  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
+  const sectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
+
+  if (sectionIdx === -1) return String(optimizedCv || "").trim();
+
+  const body = lines.slice(sectionIdx).join("\n").trim();
+  return `${originalHeader.join("\n")}\n\n${body}`.trim();
+}
+
+function extractExperienceTitles(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const titles = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (
+      /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
+      /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
+    ) {
+      const prev = lines[i - 1];
+      if (prev && !isSectionHeader(prev) && !prev.includes("@") && !/^\d/.test(prev)) {
+        titles.push(prev);
+      }
+    }
+  }
+
+  return titles;
+}
+
+function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
+  const origTitles = extractExperienceTitles(originalCv);
+  if (!origTitles.length) return String(optimizedCv || "").trim();
+
+  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
+  let titleIdx = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = String(lines[i]).trim();
+    if (
+      /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
+      /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
+    ) {
+      let j = i - 1;
+      while (j >= 0 && !String(lines[j]).trim()) j--;
+      if (j >= 0 && titleIdx < origTitles.length) {
+        lines[j] = origTitles[titleIdx];
+        titleIdx += 1;
+      }
+    }
+  }
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function normalizeOptimizedHeadings(text = "") {
+  return String(text || "")
+    .replace(/\r/g, "")
+    .replace(/^PROFILE$/gim, "PROFESSIONAL SUMMARY")
+    .replace(/^CORE SUMMARY$/gim, "PROFESSIONAL SUMMARY")
+    .replace(/^WORK EXPERIENCE$/gim, "EXPERIENCE")
+    .replace(/^PROFESSIONAL EXPERIENCE$/gim, "EXPERIENCE")
+    .replace(/^(CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES)$/gim, "SKILLS")
+    .replace(/^LICENSES$/gim, "CERTIFICATIONS")
+    .replace(/^BİLDİĞİ DİLLER$/gim, "DİLLER")
+    .replace(/^YETENEKLER$/gim, "YETKİNLİKLER")
+    .replace(/^BECERİLER$/gim, "YETKİNLİKLER")
+    .replace(/^PROFİL$/gim, "PROFESYONEL ÖZET")
+    .replace(/^İŞ DENEYİMİ$/gim, "DENEYİM")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function forceSafeResume(originalCv = "", optimizedCv = "") {
+  let out = String(optimizedCv || "").trim();
+  out = normalizeOptimizedHeadings(out);
+  out = replaceHeaderBlock(originalCv, out);
+  out = restoreExperienceTitles(originalCv, out);
+  out = normalizeOptimizedHeadings(out);
+  return out.trim();
+}
+
+function countUnchangedBullets(originalCv = "", optimizedCv = "") {
+  const orig = getBulletLines(originalCv).map(canonicalizeTerm).filter(Boolean);
+  const optSet = new Set(getBulletLines(optimizedCv).map(canonicalizeTerm).filter(Boolean));
+
+  let same = 0;
+  for (const line of orig) {
+    if (optSet.has(line)) same += 1;
+  }
+
+  return { same, total: orig.length };
 }
 
 const ROLE_PACKS = {
@@ -402,7 +488,6 @@ const ROLE_PACKS = {
       "tested",
       "debugged",
       "documented",
-      "supported",
       "collaborated with",
       "integrated with",
     ],
@@ -453,14 +538,7 @@ const ROLE_PACKS = {
       "defect management",
       "uat",
     ],
-    toolTerms: [
-      "selenium",
-      "cypress",
-      "postman",
-      "jira",
-      "api testing",
-      "test automation",
-    ],
+    toolTerms: ["selenium", "cypress", "postman", "jira", "api testing", "test automation"],
     methodologyTerms: [
       "regression testing",
       "smoke testing",
@@ -477,16 +555,7 @@ const ROLE_PACKS = {
       "bug verification",
       "quality validation",
     ],
-    businessContextTerms: [
-      "testing",
-      "test case",
-      "defect",
-      "bug",
-      "validation",
-      "release",
-      "quality",
-      "uat",
-    ],
+    businessContextTerms: ["testing", "test case", "defect", "bug", "validation", "release", "quality", "uat"],
     suggestedKeywords: [
       "test cases",
       "regression testing",
@@ -499,104 +568,21 @@ const ROLE_PACKS = {
       "release testing",
       "bug verification",
     ],
-    preferredVerbs: [
-      "tested",
-      "validated",
-      "documented",
-      "reported",
-      "tracked",
-      "verified",
-      "executed",
-      "reviewed",
-      "automated",
-    ],
-    safeSupportVerbs: [
-      "documented",
-      "tracked",
-      "verified",
-      "executed",
-      "reviewed",
-      "supported",
-    ],
-    keepRules: [
-      "Preserve testing scope, defect handling, release context, and tools when present.",
-    ],
-    avoidRules: [
-      "Do not invent automation ownership, release quality improvement, or defect reduction results.",
-    ],
-    styleHints: [
-      "QA bullets should sound methodical, evidence-based, and release-aware.",
-    ],
+    preferredVerbs: ["tested", "validated", "documented", "reported", "tracked", "verified", "executed", "reviewed", "automated"],
+    safeSupportVerbs: ["documented", "tracked", "verified", "executed", "reviewed"],
+    keepRules: ["Preserve testing scope, defect handling, release context, and tools when present."],
+    avoidRules: ["Do not invent automation ownership, release quality improvement, or defect reduction results."],
+    styleHints: ["QA bullets should sound methodical, evidence-based, and release-aware."],
   },
 
   data: {
-    titles: [
-      "data analyst",
-      "business intelligence analyst",
-      "bi analyst",
-      "reporting analyst",
-      "analytics specialist",
-      "data specialist",
-    ],
-    keywords: [
-      "data analysis",
-      "analytics",
-      "dashboard",
-      "reporting",
-      "kpi",
-      "trend analysis",
-      "data validation",
-      "performance metrics",
-    ],
-    strongTerms: [
-      "sql",
-      "python",
-      "excel",
-      "tableau",
-      "power bi",
-      "looker studio",
-      "dashboard",
-      "kpi",
-      "data modeling",
-      "etl",
-      "reporting",
-      "analysis",
-    ],
-    toolTerms: [
-      "sql",
-      "python",
-      "excel",
-      "tableau",
-      "power bi",
-      "looker studio",
-      "google sheets",
-    ],
-    methodologyTerms: [
-      "etl",
-      "data modeling",
-      "trend analysis",
-      "kpi tracking",
-      "report automation",
-      "data validation",
-    ],
-    responsibilityTerms: [
-      "dashboard creation",
-      "report generation",
-      "trend analysis",
-      "performance reporting",
-      "data validation",
-    ],
-    businessContextTerms: [
-      "data",
-      "analytics",
-      "dashboard",
-      "reporting",
-      "metrics",
-      "kpi",
-      "insights",
-      "trends",
-      "performance",
-    ],
+    titles: ["data analyst", "business intelligence analyst", "bi analyst", "reporting analyst", "analytics specialist", "data specialist"],
+    keywords: ["data analysis", "analytics", "dashboard", "reporting", "kpi", "trend analysis", "data validation", "performance metrics"],
+    strongTerms: ["sql", "python", "excel", "tableau", "power bi", "looker studio", "dashboard", "kpi", "data modeling", "etl", "reporting", "analysis"],
+    toolTerms: ["sql", "python", "excel", "tableau", "power bi", "looker studio", "google sheets"],
+    methodologyTerms: ["etl", "data modeling", "trend analysis", "kpi tracking", "report automation", "data validation"],
+    responsibilityTerms: ["dashboard creation", "report generation", "trend analysis", "performance reporting", "data validation"],
+    businessContextTerms: ["data", "analytics", "dashboard", "reporting", "metrics", "kpi", "insights", "trends", "performance"],
     suggestedKeywords: [
       "SQL",
       "data visualization",
@@ -611,93 +597,21 @@ const ROLE_PACKS = {
       "ETL",
       "Excel reporting",
     ],
-    preferredVerbs: [
-      "analyzed",
-      "reported",
-      "tracked",
-      "validated",
-      "prepared",
-      "reviewed",
-      "maintained",
-      "documented",
-      "modeled",
-    ],
-    safeSupportVerbs: [
-      "reported",
-      "tracked",
-      "validated",
-      "prepared",
-      "maintained",
-      "documented",
-    ],
-    keepRules: [
-      "Preserve dashboards, reporting cadence, KPIs, tools, and dataset context.",
-    ],
-    avoidRules: [
-      "Do not invent business impact, forecast accuracy gains, or advanced modeling experience.",
-    ],
-    styleHints: [
-      "Data bullets should stay analytical, specific, and tool-aware.",
-    ],
+    preferredVerbs: ["analyzed", "reported", "tracked", "validated", "prepared", "reviewed", "maintained", "documented", "modeled"],
+    safeSupportVerbs: ["reported", "tracked", "validated", "prepared", "maintained", "documented"],
+    keepRules: ["Preserve dashboards, reporting cadence, KPIs, tools, and dataset context."],
+    avoidRules: ["Do not invent business impact, forecast accuracy gains, or advanced modeling experience."],
+    styleHints: ["Data bullets should stay analytical, specific, and tool-aware."],
   },
 
   product: {
-    titles: [
-      "product manager",
-      "product owner",
-      "associate product manager",
-      "technical product manager",
-      "product specialist",
-    ],
-    keywords: [
-      "product roadmap",
-      "backlog",
-      "requirements",
-      "user stories",
-      "feature planning",
-      "stakeholder alignment",
-      "product discovery",
-      "release planning",
-    ],
-    strongTerms: [
-      "roadmap",
-      "backlog",
-      "user stories",
-      "requirements gathering",
-      "acceptance criteria",
-      "jira",
-      "confluence",
-      "agile",
-      "scrum",
-      "feature prioritization",
-      "cross-functional collaboration",
-    ],
+    titles: ["product manager", "product owner", "associate product manager", "technical product manager", "product specialist"],
+    keywords: ["product roadmap", "backlog", "requirements", "user stories", "feature planning", "stakeholder alignment", "product discovery", "release planning"],
+    strongTerms: ["roadmap", "backlog", "user stories", "requirements gathering", "acceptance criteria", "jira", "confluence", "agile", "scrum", "feature prioritization", "cross-functional collaboration"],
     toolTerms: ["jira", "confluence", "figma", "analytics"],
-    methodologyTerms: [
-      "agile",
-      "scrum",
-      "user stories",
-      "backlog prioritization",
-      "release planning",
-      "product discovery",
-    ],
-    responsibilityTerms: [
-      "requirements definition",
-      "feature prioritization",
-      "stakeholder communication",
-      "roadmap planning",
-      "release coordination",
-    ],
-    businessContextTerms: [
-      "product",
-      "feature",
-      "roadmap",
-      "backlog",
-      "requirements",
-      "stakeholders",
-      "release",
-      "user stories",
-    ],
+    methodologyTerms: ["agile", "scrum", "user stories", "backlog prioritization", "release planning", "product discovery"],
+    responsibilityTerms: ["requirements definition", "feature prioritization", "stakeholder communication", "roadmap planning", "release coordination"],
+    businessContextTerms: ["product", "feature", "roadmap", "backlog", "requirements", "stakeholders", "release", "user stories"],
     suggestedKeywords: [
       "product roadmap",
       "backlog prioritization",
@@ -710,90 +624,21 @@ const ROLE_PACKS = {
       "Agile",
       "Jira",
     ],
-    preferredVerbs: [
-      "defined",
-      "prioritized",
-      "coordinated",
-      "documented",
-      "planned",
-      "aligned",
-      "reviewed",
-      "tracked",
-    ],
-    safeSupportVerbs: [
-      "coordinated",
-      "documented",
-      "tracked",
-      "reviewed",
-      "supported",
-      "aligned with",
-    ],
-    keepRules: [
-      "Preserve roadmap, backlog, requirements, stakeholder, and release language.",
-    ],
-    avoidRules: [
-      "Do not invent product strategy ownership, revenue outcomes, or market impact.",
-    ],
-    styleHints: [
-      "Product bullets should stay requirements- and delivery-oriented unless leadership is clearly supported.",
-    ],
+    preferredVerbs: ["defined", "prioritized", "coordinated", "documented", "planned", "aligned", "reviewed", "tracked"],
+    safeSupportVerbs: ["coordinated", "documented", "tracked", "reviewed", "aligned with"],
+    keepRules: ["Preserve roadmap, backlog, requirements, stakeholder, and release language."],
+    avoidRules: ["Do not invent product strategy ownership, revenue outcomes, or market impact."],
+    styleHints: ["Product bullets should stay requirements- and delivery-oriented unless leadership is clearly supported."],
   },
 
   business_analysis: {
-    titles: [
-      "business analyst",
-      "systems analyst",
-      "process analyst",
-      "operations analyst",
-    ],
-    keywords: [
-      "business requirements",
-      "process analysis",
-      "gap analysis",
-      "workflow analysis",
-      "stakeholder interviews",
-      "documentation",
-      "reporting",
-    ],
-    strongTerms: [
-      "requirements gathering",
-      "process mapping",
-      "gap analysis",
-      "documentation",
-      "stakeholder management",
-      "jira",
-      "confluence",
-      "reporting",
-      "excel",
-      "sql",
-    ],
+    titles: ["business analyst", "systems analyst", "process analyst", "operations analyst"],
+    keywords: ["business requirements", "process analysis", "gap analysis", "workflow analysis", "stakeholder interviews", "documentation", "reporting"],
+    strongTerms: ["requirements gathering", "process mapping", "gap analysis", "documentation", "stakeholder management", "jira", "confluence", "reporting", "excel", "sql"],
     toolTerms: ["jira", "confluence", "excel", "sql", "power bi", "visio"],
-    methodologyTerms: [
-      "requirements gathering",
-      "process mapping",
-      "gap analysis",
-      "workflow analysis",
-      "uat",
-      "agile",
-      "scrum",
-    ],
-    responsibilityTerms: [
-      "requirements documentation",
-      "stakeholder communication",
-      "process improvement",
-      "workflow analysis",
-      "test support",
-    ],
-    businessContextTerms: [
-      "requirements",
-      "process",
-      "stakeholder",
-      "workflow",
-      "analysis",
-      "documentation",
-      "reporting",
-      "uat",
-    ],
+    methodologyTerms: ["requirements gathering", "process mapping", "gap analysis", "workflow analysis", "uat", "agile", "scrum"],
+    responsibilityTerms: ["requirements documentation", "stakeholder communication", "process improvement", "workflow analysis", "test support"],
+    businessContextTerms: ["requirements", "process", "stakeholder", "workflow", "analysis", "documentation", "reporting", "uat"],
     suggestedKeywords: [
       "requirements gathering",
       "process mapping",
@@ -806,1327 +651,232 @@ const ROLE_PACKS = {
       "Confluence",
       "process improvement",
     ],
-    preferredVerbs: [
-      "analyzed",
-      "documented",
-      "mapped",
-      "coordinated",
-      "reviewed",
-      "tracked",
-      "supported",
-    ],
-    safeSupportVerbs: [
-      "documented",
-      "coordinated",
-      "tracked",
-      "supported",
-      "reviewed",
-    ],
-    keepRules: [
-      "Preserve requirements, workflow, stakeholder, documentation, and analysis context.",
-    ],
-    avoidRules: [
-      "Do not invent transformation leadership or quantified efficiency gains.",
-    ],
-    styleHints: [
-      "Business analysis bullets should sound structured, evidence-based, and process-aware.",
-    ],
+    preferredVerbs: ["analyzed", "documented", "mapped", "coordinated", "reviewed", "tracked", "supported"],
+    safeSupportVerbs: ["documented", "coordinated", "tracked", "reviewed"],
+    keepRules: ["Preserve requirements, workflow, stakeholder, documentation, and analysis context."],
+    avoidRules: ["Do not invent transformation leadership or quantified efficiency gains."],
+    styleHints: ["Business analysis bullets should sound structured, evidence-based, and process-aware."],
   },
 
   finance: {
-    titles: [
-      "accountant",
-      "financial analyst",
-      "finance specialist",
-      "accounts payable specialist",
-      "accounts receivable specialist",
-      "bookkeeper",
-      "finance assistant",
-    ],
-    keywords: [
-      "financial reporting",
-      "reconciliation",
-      "accounts payable",
-      "accounts receivable",
-      "invoice processing",
-      "budget tracking",
-      "expense reporting",
-      "forecasting",
-      "variance analysis",
-      "audit support",
-      "ledger",
-      "month-end",
-    ],
-    strongTerms: [
-      "financial reporting",
-      "reconciliation",
-      "accounts payable",
-      "accounts receivable",
-      "invoice processing",
-      "budgeting",
-      "forecasting",
-      "variance analysis",
-      "audit",
-      "ledger",
-      "excel",
-      "ifrs",
-      "gaap",
-    ],
+    titles: ["accountant", "financial analyst", "finance specialist", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "finance assistant"],
+    keywords: ["financial reporting", "reconciliation", "accounts payable", "accounts receivable", "invoice processing", "budget tracking", "expense reporting", "forecasting", "variance analysis", "audit support", "ledger", "month-end"],
+    strongTerms: ["financial reporting", "reconciliation", "accounts payable", "accounts receivable", "invoice processing", "budgeting", "forecasting", "variance analysis", "audit", "ledger", "excel", "ifrs", "gaap"],
     toolTerms: ["excel", "sap", "oracle", "quickbooks", "netsuite", "erp"],
-    methodologyTerms: [
-      "month-end close",
-      "reconciliation",
-      "variance analysis",
-      "budget tracking",
-      "forecasting",
-      "audit support",
-    ],
-    responsibilityTerms: [
-      "invoice review",
-      "ledger maintenance",
-      "financial reporting",
-      "expense tracking",
-      "account reconciliation",
-    ],
-    businessContextTerms: [
-      "invoice",
-      "reconciliation",
-      "budget",
-      "expense",
-      "forecast",
-      "variance",
-      "audit",
-      "ledger",
-      "payable",
-      "receivable",
-      "month-end",
-    ],
-    suggestedKeywords: [
-      "financial reporting",
-      "account reconciliation",
-      "budget tracking",
-      "variance analysis",
-      "forecasting",
-      "month-end close",
-      "AP/AR",
-      "audit support",
-      "Excel",
-      "ERP systems",
-      "GAAP",
-      "IFRS",
-    ],
-    preferredVerbs: [
-      "prepared",
-      "reconciled",
-      "processed",
-      "reviewed",
-      "tracked",
-      "reported",
-      "maintained",
-      "documented",
-    ],
-    safeSupportVerbs: [
-      "prepared",
-      "reconciled",
-      "processed",
-      "reviewed",
-      "tracked",
-      "maintained",
-    ],
-    keepRules: [
-      "Preserve finance and accounting controls, reporting, reconciliation, and close-process context.",
-    ],
-    avoidRules: [
-      "Do not invent savings, margin impact, budget ownership, or financial leadership.",
-    ],
+    methodologyTerms: ["month-end close", "reconciliation", "variance analysis", "budget tracking", "forecasting", "audit support"],
+    responsibilityTerms: ["invoice review", "ledger maintenance", "financial reporting", "expense tracking", "account reconciliation"],
+    businessContextTerms: ["invoice", "reconciliation", "budget", "expense", "forecast", "variance", "audit", "ledger", "payable", "receivable", "month-end"],
+    suggestedKeywords: ["financial reporting", "account reconciliation", "budget tracking", "variance analysis", "forecasting", "month-end close", "AP/AR", "audit support", "Excel", "ERP systems", "GAAP", "IFRS"],
+    preferredVerbs: ["prepared", "reconciled", "processed", "reviewed", "tracked", "reported", "maintained", "documented"],
+    safeSupportVerbs: ["prepared", "reconciled", "processed", "reviewed", "tracked", "maintained"],
+    keepRules: ["Preserve finance and accounting controls, reporting, reconciliation, and close-process context."],
+    avoidRules: ["Do not invent savings, margin impact, budget ownership, or financial leadership."],
     styleHints: ["Finance bullets should sound controlled, accurate, and compliance-aware."],
   },
 
   hr: {
-    titles: [
-      "hr specialist",
-      "human resources specialist",
-      "recruiter",
-      "talent acquisition specialist",
-      "hr coordinator",
-      "people operations specialist",
-    ],
-    keywords: [
-      "recruitment",
-      "candidate screening",
-      "interview scheduling",
-      "employee records",
-      "onboarding",
-      "offboarding",
-      "training coordination",
-      "hr administration",
-      "compliance",
-      "payroll support",
-    ],
-    strongTerms: [
-      "recruiting",
-      "candidate screening",
-      "interview scheduling",
-      "onboarding",
-      "offboarding",
-      "employee records",
-      "talent acquisition",
-      "compliance",
-      "payroll support",
-      "workday",
-      "greenhouse",
-      "ats",
-    ],
+    titles: ["hr specialist", "human resources specialist", "recruiter", "talent acquisition specialist", "hr coordinator", "people operations specialist"],
+    keywords: ["recruitment", "candidate screening", "interview scheduling", "employee records", "onboarding", "offboarding", "training coordination", "hr administration", "compliance", "payroll support"],
+    strongTerms: ["recruiting", "candidate screening", "interview scheduling", "onboarding", "offboarding", "employee records", "talent acquisition", "compliance", "payroll support", "workday", "greenhouse", "ats"],
     toolTerms: ["workday", "greenhouse", "ats", "excel", "hris"],
-    methodologyTerms: [
-      "candidate screening",
-      "interview coordination",
-      "onboarding",
-      "offboarding",
-      "policy compliance",
-    ],
-    responsibilityTerms: [
-      "candidate communication",
-      "interview scheduling",
-      "employee documentation",
-      "training coordination",
-      "record maintenance",
-    ],
-    businessContextTerms: [
-      "candidate",
-      "interview",
-      "employee",
-      "onboarding",
-      "policy",
-      "training",
-      "records",
-      "compliance",
-      "payroll",
-      "hr",
-    ],
-    suggestedKeywords: [
-      "talent acquisition",
-      "candidate screening",
-      "interview coordination",
-      "employee onboarding",
-      "HR administration",
-      "policy compliance",
-      "record management",
-      "ATS",
-      "Workday",
-      "Greenhouse",
-    ],
-    preferredVerbs: [
-      "screened",
-      "scheduled",
-      "coordinated",
-      "maintained",
-      "prepared",
-      "documented",
-      "supported",
-      "updated",
-    ],
-    safeSupportVerbs: [
-      "scheduled",
-      "coordinated",
-      "maintained",
-      "documented",
-      "supported",
-      "updated",
-    ],
-    keepRules: [
-      "Preserve recruiting, onboarding, records, scheduling, and compliance context.",
-    ],
-    avoidRules: [
-      "Do not invent hiring success rates, retention impact, or people leadership.",
-    ],
+    methodologyTerms: ["candidate screening", "interview coordination", "onboarding", "offboarding", "policy compliance"],
+    responsibilityTerms: ["candidate communication", "interview scheduling", "employee documentation", "training coordination", "record maintenance"],
+    businessContextTerms: ["candidate", "interview", "employee", "onboarding", "policy", "training", "records", "compliance", "payroll", "hr"],
+    suggestedKeywords: ["talent acquisition", "candidate screening", "interview coordination", "employee onboarding", "HR administration", "policy compliance", "record management", "ATS", "Workday", "Greenhouse"],
+    preferredVerbs: ["screened", "scheduled", "coordinated", "maintained", "prepared", "documented", "updated"],
+    safeSupportVerbs: ["scheduled", "coordinated", "maintained", "documented", "updated"],
+    keepRules: ["Preserve recruiting, onboarding, records, scheduling, and compliance context."],
+    avoidRules: ["Do not invent hiring success rates, retention impact, or people leadership."],
     styleHints: ["HR bullets should stay process-driven, accurate, and policy-aware."],
   },
 
   operations: {
-    titles: [
-      "operations manager",
-      "operations specialist",
-      "operations coordinator",
-      "operations analyst",
-      "office manager",
-    ],
-    keywords: [
-      "operations",
-      "workflow",
-      "documentation",
-      "reporting",
-      "process coordination",
-      "process improvement",
-      "scheduling",
-      "cross-functional coordination",
-      "vendor communication",
-      "record keeping",
-    ],
-    strongTerms: [
-      "operations",
-      "workflow",
-      "process coordination",
-      "documentation",
-      "reporting",
-      "scheduling",
-      "status updates",
-      "vendor communication",
-      "process improvement",
-    ],
+    titles: ["operations manager", "operations specialist", "operations coordinator", "operations analyst", "office manager"],
+    keywords: ["operations", "workflow", "documentation", "reporting", "process coordination", "process improvement", "scheduling", "cross-functional coordination", "vendor communication", "record keeping"],
+    strongTerms: ["operations", "workflow", "process coordination", "documentation", "reporting", "scheduling", "status updates", "vendor communication", "process improvement"],
     toolTerms: ["excel", "erp", "sap", "jira"],
     methodologyTerms: ["process improvement", "workflow tracking", "status reporting"],
-    responsibilityTerms: [
-      "process coordination",
-      "record maintenance",
-      "status tracking",
-      "meeting coordination",
-      "vendor communication",
-    ],
-    businessContextTerms: [
-      "workflow",
-      "operations",
-      "process",
-      "documentation",
-      "records",
-      "reporting",
-      "coordination",
-      "follow-up",
-      "vendor",
-      "status updates",
-    ],
-    suggestedKeywords: [
-      "process improvement",
-      "workflow coordination",
-      "vendor communication",
-      "cross-functional collaboration",
-      "status reporting",
-      "documentation",
-      "task prioritization",
-      "operational tracking",
-      "process documentation",
-      "resource coordination",
-    ],
-    preferredVerbs: [
-      "coordinated",
-      "tracked",
-      "organized",
-      "maintained",
-      "documented",
-      "scheduled",
-      "reported",
-      "monitored",
-    ],
-    safeSupportVerbs: [
-      "coordinated",
-      "tracked",
-      "organized",
-      "maintained",
-      "documented",
-      "scheduled",
-      "monitored",
-    ],
-    keepRules: [
-      "Preserve workflow, reporting, coordination, scheduling, and process language.",
-    ],
-    avoidRules: [
-      "Do not invent transformation leadership, strategic ownership, or quantified efficiency gains.",
-    ],
+    responsibilityTerms: ["process coordination", "record maintenance", "status tracking", "meeting coordination", "vendor communication"],
+    businessContextTerms: ["workflow", "operations", "process", "documentation", "records", "reporting", "coordination", "follow-up", "vendor", "status updates"],
+    suggestedKeywords: ["process improvement", "workflow coordination", "vendor communication", "cross-functional collaboration", "status reporting", "documentation", "task prioritization", "operational tracking", "process documentation", "resource coordination"],
+    preferredVerbs: ["coordinated", "tracked", "organized", "maintained", "documented", "scheduled", "reported", "monitored"],
+    safeSupportVerbs: ["coordinated", "tracked", "organized", "maintained", "documented", "scheduled", "monitored"],
+    keepRules: ["Preserve workflow, reporting, coordination, scheduling, and process language."],
+    avoidRules: ["Do not invent transformation leadership, strategic ownership, or quantified efficiency gains."],
     styleHints: ["Operations bullets should sound structured, execution-focused, and process-aware."],
   },
 
   supply_chain: {
-    titles: [
-      "supply chain specialist",
-      "logistics specialist",
-      "logistics coordinator",
-      "warehouse coordinator",
-      "inventory specialist",
-    ],
-    keywords: [
-      "supply chain",
-      "logistics",
-      "inventory",
-      "shipment coordination",
-      "warehouse operations",
-      "order fulfillment",
-      "dispatch",
-      "delivery tracking",
-      "stock control",
-    ],
-    strongTerms: [
-      "inventory management",
-      "warehouse management",
-      "shipment tracking",
-      "logistics coordination",
-      "stock control",
-      "order fulfillment",
-      "vendor coordination",
-      "transport planning",
-      "sap",
-      "erp",
-    ],
+    titles: ["supply chain specialist", "logistics specialist", "logistics coordinator", "warehouse coordinator", "inventory specialist"],
+    keywords: ["supply chain", "logistics", "inventory", "shipment coordination", "warehouse operations", "order fulfillment", "dispatch", "delivery tracking", "stock control"],
+    strongTerms: ["inventory management", "warehouse management", "shipment tracking", "logistics coordination", "stock control", "order fulfillment", "vendor coordination", "transport planning", "sap", "erp"],
     toolTerms: ["sap", "erp", "excel", "warehouse management"],
-    methodologyTerms: [
-      "inventory control",
-      "shipment tracking",
-      "warehouse operations",
-      "logistics planning",
-    ],
-    responsibilityTerms: [
-      "delivery tracking",
-      "inventory reconciliation",
-      "order coordination",
-      "stock monitoring",
-      "vendor follow-up",
-    ],
-    businessContextTerms: [
-      "inventory",
-      "warehouse",
-      "shipment",
-      "logistics",
-      "delivery",
-      "order",
-      "stock",
-      "vendor",
-      "dispatch",
-      "transport",
-    ],
-    suggestedKeywords: [
-      "inventory management",
-      "shipment tracking",
-      "warehouse operations",
-      "logistics coordination",
-      "stock control",
-      "order fulfillment",
-      "vendor coordination",
-      "ERP systems",
-      "delivery planning",
-      "inventory reconciliation",
-    ],
-    preferredVerbs: [
-      "coordinated",
-      "tracked",
-      "monitored",
-      "processed",
-      "maintained",
-      "scheduled",
-      "verified",
-    ],
-    safeSupportVerbs: [
-      "coordinated",
-      "tracked",
-      "monitored",
-      "processed",
-      "maintained",
-      "verified",
-    ],
+    methodologyTerms: ["inventory control", "shipment tracking", "warehouse operations", "logistics planning"],
+    responsibilityTerms: ["delivery tracking", "inventory reconciliation", "order coordination", "stock monitoring", "vendor follow-up"],
+    businessContextTerms: ["inventory", "warehouse", "shipment", "logistics", "delivery", "order", "stock", "vendor", "dispatch", "transport"],
+    suggestedKeywords: ["inventory management", "shipment tracking", "warehouse operations", "logistics coordination", "stock control", "order fulfillment", "vendor coordination", "ERP systems", "delivery planning", "inventory reconciliation"],
+    preferredVerbs: ["coordinated", "tracked", "monitored", "processed", "maintained", "scheduled", "verified"],
+    safeSupportVerbs: ["coordinated", "tracked", "monitored", "processed", "maintained", "verified"],
     keepRules: ["Preserve inventory, shipment, warehouse, order, and vendor context."],
-    avoidRules: [
-      "Do not invent cost savings, route optimization results, or supply chain ownership.",
-    ],
+    avoidRules: ["Do not invent cost savings, route optimization results, or supply chain ownership."],
     styleHints: ["Supply chain bullets should be operational, factual, and process-specific."],
   },
 
   procurement: {
-    titles: [
-      "procurement specialist",
-      "purchasing specialist",
-      "buyer",
-      "sourcing specialist",
-      "procurement coordinator",
-    ],
-    keywords: [
-      "procurement",
-      "purchasing",
-      "sourcing",
-      "vendor management",
-      "rfq",
-      "purchase orders",
-      "supplier communication",
-      "cost comparison",
-    ],
-    strongTerms: [
-      "procurement",
-      "sourcing",
-      "vendor management",
-      "supplier communication",
-      "purchase orders",
-      "rfq",
-      "price comparison",
-      "contract support",
-      "sap",
-      "erp",
-    ],
+    titles: ["procurement specialist", "purchasing specialist", "buyer", "sourcing specialist", "procurement coordinator"],
+    keywords: ["procurement", "purchasing", "sourcing", "vendor management", "rfq", "purchase orders", "supplier communication", "cost comparison"],
+    strongTerms: ["procurement", "sourcing", "vendor management", "supplier communication", "purchase orders", "rfq", "price comparison", "contract support", "sap", "erp"],
     toolTerms: ["sap", "erp", "excel"],
-    methodologyTerms: [
-      "vendor evaluation",
-      "sourcing",
-      "purchase order processing",
-      "rfq handling",
-    ],
-    responsibilityTerms: [
-      "supplier follow-up",
-      "purchase order processing",
-      "vendor communication",
-      "price comparison",
-      "documentation",
-    ],
-    businessContextTerms: [
-      "procurement",
-      "purchasing",
-      "sourcing",
-      "vendor",
-      "supplier",
-      "purchase order",
-      "rfq",
-      "contract",
-    ],
-    suggestedKeywords: [
-      "vendor management",
-      "sourcing",
-      "purchase orders",
-      "supplier communication",
-      "RFQ",
-      "price comparison",
-      "ERP systems",
-      "procurement documentation",
-      "vendor evaluation",
-      "contract support",
-    ],
-    preferredVerbs: [
-      "sourced",
-      "processed",
-      "coordinated",
-      "reviewed",
-      "tracked",
-      "documented",
-      "communicated",
-    ],
-    safeSupportVerbs: [
-      "processed",
-      "coordinated",
-      "reviewed",
-      "tracked",
-      "documented",
-      "communicated with",
-    ],
+    methodologyTerms: ["vendor evaluation", "sourcing", "purchase order processing", "rfq handling"],
+    responsibilityTerms: ["supplier follow-up", "purchase order processing", "vendor communication", "price comparison", "documentation"],
+    businessContextTerms: ["procurement", "purchasing", "sourcing", "vendor", "supplier", "purchase order", "rfq", "contract"],
+    suggestedKeywords: ["vendor management", "sourcing", "purchase orders", "supplier communication", "RFQ", "price comparison", "ERP systems", "procurement documentation", "vendor evaluation", "contract support"],
+    preferredVerbs: ["sourced", "processed", "coordinated", "reviewed", "tracked", "documented", "communicated"],
+    safeSupportVerbs: ["processed", "coordinated", "reviewed", "tracked", "documented", "communicated with"],
     keepRules: ["Preserve sourcing, vendor, PO, RFQ, and procurement administration context."],
     avoidRules: ["Do not invent negotiated savings, contract wins, or spend ownership."],
     styleHints: ["Procurement bullets should stay commercially aware but strictly factual."],
   },
 
   sales: {
-    titles: [
-      "sales specialist",
-      "sales executive",
-      "account executive",
-      "sales coordinator",
-      "business development executive",
-    ],
-    keywords: [
-      "sales",
-      "lead management",
-      "pipeline",
-      "crm",
-      "sales reporting",
-      "proposal",
-      "client communication",
-      "deal tracking",
-      "order processing",
-    ],
-    strongTerms: [
-      "pipeline",
-      "crm",
-      "lead follow-up",
-      "account support",
-      "sales reporting",
-      "proposal",
-      "deal tracking",
-      "order processing",
-      "salesforce",
-      "hubspot",
-    ],
+    titles: ["sales specialist", "sales executive", "account executive", "sales coordinator", "business development executive"],
+    keywords: ["sales", "lead management", "pipeline", "crm", "sales reporting", "proposal", "client communication", "deal tracking", "order processing"],
+    strongTerms: ["pipeline", "crm", "lead follow-up", "account support", "sales reporting", "proposal", "deal tracking", "order processing", "salesforce", "hubspot"],
     toolTerms: ["salesforce", "hubspot", "crm", "excel"],
     methodologyTerms: ["pipeline management", "lead follow-up", "account coordination"],
-    responsibilityTerms: [
-      "client communication",
-      "proposal preparation",
-      "deal tracking",
-      "order processing",
-      "follow-up management",
-    ],
-    businessContextTerms: [
-      "sales",
-      "lead",
-      "pipeline",
-      "crm",
-      "proposal",
-      "quote",
-      "client",
-      "deal",
-      "orders",
-      "account",
-    ],
-    suggestedKeywords: [
-      "sales pipeline",
-      "lead management",
-      "CRM",
-      "proposal preparation",
-      "deal tracking",
-      "account coordination",
-      "client follow-up",
-      "Salesforce",
-      "HubSpot",
-      "sales reporting",
-    ],
-    preferredVerbs: [
-      "managed",
-      "followed up",
-      "coordinated",
-      "prepared",
-      "updated",
-      "processed",
-      "documented",
-      "communicated",
-    ],
-    safeSupportVerbs: [
-      "followed up on",
-      "coordinated",
-      "prepared",
-      "updated",
-      "processed",
-      "documented",
-    ],
+    responsibilityTerms: ["client communication", "proposal preparation", "deal tracking", "order processing", "follow-up management"],
+    businessContextTerms: ["sales", "lead", "pipeline", "crm", "proposal", "quote", "client", "deal", "orders", "account"],
+    suggestedKeywords: ["sales pipeline", "lead management", "CRM", "proposal preparation", "deal tracking", "account coordination", "client follow-up", "Salesforce", "HubSpot", "sales reporting"],
+    preferredVerbs: ["managed", "followed up", "coordinated", "prepared", "updated", "processed", "documented", "communicated"],
+    safeSupportVerbs: ["followed up on", "coordinated", "prepared", "updated", "processed", "documented"],
     keepRules: ["Preserve pipeline, proposal, deal, CRM, and client follow-up context."],
     avoidRules: ["Do not invent revenue, quota, close rate, or conversion performance."],
     styleHints: ["Sales bullets should sound commercially relevant but never overclaim results."],
   },
 
   customer_support: {
-    titles: [
-      "customer support specialist",
-      "customer service representative",
-      "support specialist",
-      "technical support specialist",
-      "help desk specialist",
-    ],
-    keywords: [
-      "customer support",
-      "ticket handling",
-      "issue resolution",
-      "live chat",
-      "email support",
-      "complaint handling",
-      "service quality",
-      "crm",
-      "zendesk",
-      "freshdesk",
-      "sla",
-      "escalation",
-    ],
-    strongTerms: [
-      "customer support",
-      "ticket",
-      "issue resolution",
-      "issue escalation",
-      "email support",
-      "live chat",
-      "complaint handling",
-      "response time",
-      "resolution time",
-      "help desk",
-    ],
+    titles: ["customer support specialist", "customer service representative", "support specialist", "technical support specialist", "help desk specialist"],
+    keywords: ["customer support", "ticket handling", "issue resolution", "live chat", "email support", "complaint handling", "service quality", "crm", "zendesk", "freshdesk", "sla", "escalation"],
+    strongTerms: ["customer support", "ticket", "issue resolution", "issue escalation", "email support", "live chat", "complaint handling", "response time", "resolution time", "help desk"],
     toolTerms: ["zendesk", "freshdesk", "crm", "help desk"],
     methodologyTerms: ["ticket management", "issue escalation", "sla", "case follow-up"],
-    responsibilityTerms: [
-      "customer communication",
-      "case follow-up",
-      "support documentation",
-      "issue escalation",
-      "service records",
-    ],
-    businessContextTerms: [
-      "customer",
-      "ticket",
-      "case",
-      "issue",
-      "service",
-      "support",
-      "follow-up",
-      "requests",
-      "feedback",
-      "complaints",
-      "response",
-    ],
-    suggestedKeywords: [
-      "ticket management",
-      "issue resolution",
-      "service quality",
-      "SLA",
-      "escalation handling",
-      "support documentation",
-      "customer communication",
-      "Zendesk",
-      "CRM",
-      "case follow-up",
-    ],
-    preferredVerbs: [
-      "responded",
-      "resolved",
-      "escalated",
-      "documented",
-      "maintained",
-      "communicated",
-      "processed",
-      "tracked",
-    ],
-    safeSupportVerbs: [
-      "responded to",
-      "followed up on",
-      "documented",
-      "maintained",
-      "updated",
-      "processed",
-      "communicated with",
-    ],
-    keepRules: [
-      "Preserve issue handling, escalation, response, documentation, and support-channel context.",
-    ],
-    avoidRules: [
-      "Do not turn support work into customer success strategy or add fake service outcomes.",
-    ],
+    responsibilityTerms: ["customer communication", "case follow-up", "support documentation", "issue escalation", "service records"],
+    businessContextTerms: ["customer", "ticket", "case", "issue", "service", "support", "follow-up", "requests", "feedback", "complaints", "response"],
+    suggestedKeywords: ["ticket management", "issue resolution", "service quality", "SLA", "escalation handling", "support documentation", "customer communication", "Zendesk", "CRM", "case follow-up"],
+    preferredVerbs: ["responded", "resolved", "escalated", "documented", "maintained", "communicated", "processed", "tracked"],
+    safeSupportVerbs: ["responded to", "followed up on", "documented", "maintained", "updated", "processed", "communicated with"],
+    keepRules: ["Preserve issue handling, escalation, response, documentation, and support-channel context."],
+    avoidRules: ["Do not turn support work into customer success strategy or add fake service outcomes."],
     styleHints: ["Support bullets should be service-oriented, concise, and evidence-based."],
   },
 
   customer_success: {
-    titles: [
-      "customer success specialist",
-      "customer success manager",
-      "client success specialist",
-      "account manager",
-    ],
-    keywords: [
-      "customer success",
-      "onboarding",
-      "renewal",
-      "retention",
-      "account management",
-      "customer communication",
-      "relationship management",
-      "customer feedback",
-      "nps",
-      "csat",
-      "qbr",
-    ],
-    strongTerms: [
-      "customer success",
-      "onboarding",
-      "account management",
-      "renewal",
-      "retention",
-      "customer feedback",
-      "relationship management",
-      "nps",
-      "csat",
-      "qbr",
-    ],
+    titles: ["customer success specialist", "customer success manager", "client success specialist", "account manager"],
+    keywords: ["customer success", "onboarding", "renewal", "retention", "account management", "customer communication", "relationship management", "customer feedback", "nps", "csat", "qbr"],
+    strongTerms: ["customer success", "onboarding", "account management", "renewal", "retention", "customer feedback", "relationship management", "nps", "csat", "qbr"],
     toolTerms: ["crm", "salesforce", "hubspot"],
     methodologyTerms: ["customer onboarding", "renewal support", "account management", "qbr"],
-    responsibilityTerms: [
-      "client communication",
-      "renewal follow-up",
-      "onboarding coordination",
-      "relationship management",
-    ],
-    businessContextTerms: [
-      "client",
-      "account",
-      "onboarding",
-      "renewal",
-      "retention",
-      "feedback",
-      "engagement",
-      "relationship",
-      "customer journey",
-    ],
-    suggestedKeywords: [
-      "customer onboarding",
-      "account management",
-      "renewal support",
-      "customer retention",
-      "relationship management",
-      "CSAT",
-      "NPS",
-      "QBR",
-      "client engagement",
-      "cross-functional collaboration",
-    ],
-    preferredVerbs: [
-      "managed",
-      "guided",
-      "coordinated",
-      "maintained",
-      "followed up",
-      "documented",
-      "communicated",
-    ],
-    safeSupportVerbs: [
-      "supported",
-      "coordinated",
-      "followed up on",
-      "maintained",
-      "documented",
-      "communicated with",
-    ],
-    keepRules: [
-      "Preserve onboarding, renewal, retention support, and account-context language.",
-    ],
+    responsibilityTerms: ["client communication", "renewal follow-up", "onboarding coordination", "relationship management"],
+    businessContextTerms: ["client", "account", "onboarding", "renewal", "retention", "feedback", "engagement", "relationship", "customer journey"],
+    suggestedKeywords: ["customer onboarding", "account management", "renewal support", "customer retention", "relationship management", "CSAT", "NPS", "QBR", "client engagement", "cross-functional collaboration"],
+    preferredVerbs: ["managed", "guided", "coordinated", "maintained", "followed up", "documented", "communicated"],
+    safeSupportVerbs: ["coordinated", "followed up on", "maintained", "documented", "communicated with"],
+    keepRules: ["Preserve onboarding, renewal, retention support, and account-context language."],
     avoidRules: ["Do not invent renewals closed, churn reduction, or account growth."],
     styleHints: ["Customer success bullets should sound relationship-aware but fully factual."],
   },
 
   executive_assistant: {
-    titles: [
-      "executive assistant",
-      "personal assistant",
-      "administrative assistant",
-      "office assistant",
-    ],
-    keywords: [
-      "calendar management",
-      "travel coordination",
-      "meeting coordination",
-      "document preparation",
-      "executive support",
-      "scheduling",
-      "record keeping",
-      "office administration",
-    ],
-    strongTerms: [
-      "calendar management",
-      "travel coordination",
-      "meeting coordination",
-      "document preparation",
-      "record keeping",
-      "scheduling",
-      "executive support",
-    ],
+    titles: ["executive assistant", "personal assistant", "administrative assistant", "office assistant"],
+    keywords: ["calendar management", "travel coordination", "meeting coordination", "document preparation", "executive support", "scheduling", "record keeping", "office administration"],
+    strongTerms: ["calendar management", "travel coordination", "meeting coordination", "document preparation", "record keeping", "scheduling", "executive support"],
     toolTerms: ["excel", "powerpoint", "office", "google sheets"],
     methodologyTerms: ["calendar coordination", "meeting scheduling", "document management"],
-    responsibilityTerms: [
-      "appointment scheduling",
-      "travel arrangements",
-      "meeting preparation",
-      "document management",
-      "record maintenance",
-    ],
-    businessContextTerms: [
-      "calendar",
-      "appointments",
-      "schedules",
-      "documents",
-      "records",
-      "meeting materials",
-      "administrative",
-      "executive",
-    ],
-    suggestedKeywords: [
-      "calendar management",
-      "meeting coordination",
-      "travel coordination",
-      "document management",
-      "record maintenance",
-      "executive support",
-      "office administration",
-      "task prioritization",
-      "time management",
-      "stakeholder communication",
-    ],
-    preferredVerbs: [
-      "managed",
-      "organized",
-      "scheduled",
-      "prepared",
-      "maintained",
-      "coordinated",
-      "documented",
-    ],
-    safeSupportVerbs: [
-      "organized",
-      "scheduled",
-      "prepared",
-      "maintained",
-      "coordinated",
-      "documented",
-    ],
-    keepRules: [
-      "Preserve scheduling, executive support, meeting, travel, and document-management context.",
-    ],
+    responsibilityTerms: ["appointment scheduling", "travel arrangements", "meeting preparation", "document management", "record maintenance"],
+    businessContextTerms: ["calendar", "appointments", "schedules", "documents", "records", "meeting materials", "administrative", "executive"],
+    suggestedKeywords: ["calendar management", "meeting coordination", "travel coordination", "document management", "record maintenance", "executive support", "office administration", "task prioritization", "time management", "stakeholder communication"],
+    preferredVerbs: ["managed", "organized", "scheduled", "prepared", "maintained", "coordinated", "documented"],
+    safeSupportVerbs: ["organized", "scheduled", "prepared", "maintained", "coordinated", "documented"],
+    keepRules: ["Preserve scheduling, executive support, meeting, travel, and document-management context."],
     avoidRules: ["Do not rewrite admin support into project leadership or strategic ownership."],
     styleHints: ["Executive assistant bullets should be sharp, organized, and logistics-aware."],
   },
 
   project: {
-    titles: [
-      "project manager",
-      "project coordinator",
-      "program coordinator",
-      "program manager",
-      "pm",
-    ],
-    keywords: [
-      "project coordination",
-      "project management",
-      "timelines",
-      "deliverables",
-      "status tracking",
-      "stakeholder updates",
-      "milestones",
-      "project documentation",
-      "risk tracking",
-    ],
-    strongTerms: [
-      "project coordination",
-      "project management",
-      "timelines",
-      "deliverables",
-      "milestones",
-      "status tracking",
-      "risk tracking",
-      "jira",
-      "confluence",
-      "agile",
-    ],
+    titles: ["project manager", "project coordinator", "program coordinator", "program manager", "pm"],
+    keywords: ["project coordination", "project management", "timelines", "deliverables", "status tracking", "stakeholder updates", "milestones", "project documentation", "risk tracking"],
+    strongTerms: ["project coordination", "project management", "timelines", "deliverables", "milestones", "status tracking", "risk tracking", "jira", "confluence", "agile"],
     toolTerms: ["jira", "confluence", "excel", "primavera p6", "ms project"],
-    methodologyTerms: [
-      "agile",
-      "scrum",
-      "waterfall",
-      "risk tracking",
-      "timeline management",
-      "deliverable coordination",
-    ],
-    responsibilityTerms: [
-      "stakeholder updates",
-      "status reporting",
-      "meeting facilitation",
-      "project documentation",
-      "timeline tracking",
-    ],
-    businessContextTerms: [
-      "project",
-      "timeline",
-      "deliverable",
-      "milestone",
-      "status update",
-      "stakeholder",
-      "coordination",
-      "risk",
-    ],
-    suggestedKeywords: [
-      "timeline management",
-      "deliverable coordination",
-      "status reporting",
-      "stakeholder communication",
-      "risk tracking",
-      "project documentation",
-      "resource coordination",
-      "Agile",
-      "Jira",
-      "milestone tracking",
-    ],
-    preferredVerbs: [
-      "coordinated",
-      "tracked",
-      "scheduled",
-      "updated",
-      "documented",
-      "monitored",
-      "facilitated",
-    ],
-    safeSupportVerbs: [
-      "coordinated",
-      "tracked",
-      "scheduled",
-      "updated",
-      "documented",
-      "supported",
-    ],
-    keepRules: [
-      "Preserve timeline, milestone, deliverable, risk, and stakeholder-update context.",
-    ],
-    avoidRules: [
-      "Do not invent delivery ownership, budget control, or transformation leadership.",
-    ],
-    styleHints: [
-      "Project bullets should stay coordination-heavy unless clear ownership is supported.",
-    ],
+    methodologyTerms: ["agile", "scrum", "waterfall", "risk tracking", "timeline management", "deliverable coordination"],
+    responsibilityTerms: ["stakeholder updates", "status reporting", "meeting facilitation", "project documentation", "timeline tracking"],
+    businessContextTerms: ["project", "timeline", "deliverable", "milestone", "status update", "stakeholder", "coordination", "risk"],
+    suggestedKeywords: ["timeline management", "deliverable coordination", "status reporting", "stakeholder communication", "risk tracking", "project documentation", "resource coordination", "Agile", "Jira", "milestone tracking"],
+    preferredVerbs: ["coordinated", "tracked", "scheduled", "updated", "documented", "monitored", "facilitated"],
+    safeSupportVerbs: ["coordinated", "tracked", "scheduled", "updated", "documented"],
+    keepRules: ["Preserve timeline, milestone, deliverable, risk, and stakeholder-update context."],
+    avoidRules: ["Do not invent delivery ownership, budget control, or transformation leadership."],
+    styleHints: ["Project bullets should stay coordination-heavy unless clear ownership is supported."],
   },
 
   marketing: {
-    titles: [
-      "digital marketing specialist",
-      "marketing specialist",
-      "performance marketing specialist",
-      "marketing executive",
-      "content specialist",
-      "growth marketer",
-    ],
-    keywords: [
-      "google ads",
-      "meta ads",
-      "google analytics",
-      "ga4",
-      "google tag manager",
-      "seo",
-      "sem",
-      "ppc",
-      "campaign reporting",
-      "content marketing",
-      "email marketing",
-      "social media",
-      "lead generation",
-    ],
-    strongTerms: [
-      "google ads",
-      "meta ads",
-      "google analytics",
-      "ga4",
-      "google tag manager",
-      "seo",
-      "sem",
-      "ppc",
-      "cpc",
-      "ctr",
-      "cpa",
-      "roas",
-      "roi",
-      "a/b test",
-      "lead generation",
-      "campaign optimization",
-    ],
-    toolTerms: [
-      "google ads",
-      "meta ads",
-      "google analytics",
-      "ga4",
-      "google tag manager",
-      "search console",
-      "hubspot",
-    ],
-    methodologyTerms: [
-      "a/b test",
-      "remarketing",
-      "retargeting",
-      "audience segmentation",
-      "campaign optimization",
-    ],
-    responsibilityTerms: [
-      "campaign reporting",
-      "content planning",
-      "lead generation",
-      "channel performance",
-      "landing page updates",
-    ],
-    businessContextTerms: [
-      "campaign",
-      "performance",
-      "audience",
-      "targeting",
-      "brand awareness",
-      "social media",
-      "email",
-      "landing page",
-      "content",
-      "reporting",
-      "optimization",
-    ],
-    suggestedKeywords: [
-      "PPC",
-      "SEO",
-      "SEM",
-      "GA4",
-      "Google Tag Manager",
-      "audience segmentation",
-      "A/B testing",
-      "lead generation",
-      "campaign optimization",
-      "analytics reporting",
-    ],
-    preferredVerbs: [
-      "managed",
-      "optimized",
-      "analyzed",
-      "tracked",
-      "reported",
-      "executed",
-      "launched",
-      "monitored",
-      "coordinated",
-    ],
-    safeSupportVerbs: [
-      "coordinated",
-      "prepared",
-      "tracked",
-      "updated",
-      "monitored",
-      "collaborated with",
-    ],
-    keepRules: [
-      "Preserve tools, channels, metrics, platform names, and campaign context.",
-    ],
+    titles: ["digital marketing specialist", "marketing specialist", "performance marketing specialist", "marketing executive", "content specialist", "growth marketer"],
+    keywords: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "campaign reporting", "content marketing", "email marketing", "social media", "lead generation"],
+    strongTerms: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "cpc", "ctr", "cpa", "roas", "roi", "a/b test", "lead generation", "campaign optimization"],
+    toolTerms: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "search console", "hubspot"],
+    methodologyTerms: ["a/b test", "remarketing", "retargeting", "audience segmentation", "campaign optimization"],
+    responsibilityTerms: ["campaign reporting", "content planning", "lead generation", "channel performance", "landing page updates"],
+    businessContextTerms: ["campaign", "performance", "audience", "targeting", "brand awareness", "social media", "email", "landing page", "content", "reporting", "optimization"],
+    suggestedKeywords: ["PPC", "SEO", "SEM", "GA4", "Google Tag Manager", "audience segmentation", "A/B testing", "lead generation", "campaign optimization", "analytics reporting"],
+    preferredVerbs: ["managed", "optimized", "analyzed", "tracked", "reported", "executed", "launched", "monitored", "coordinated"],
+    safeSupportVerbs: ["coordinated", "prepared", "tracked", "updated", "monitored", "collaborated with"],
+    keepRules: ["Preserve tools, channels, metrics, platform names, and campaign context."],
     avoidRules: ["Do not invent performance lift, lead volume, revenue, or ROI improvements."],
     styleHints: ["Marketing bullets should stay channel-specific, tool-aware, and factual."],
   },
 
   design: {
-    titles: [
-      "designer",
-      "graphic designer",
-      "ui designer",
-      "ux designer",
-      "product designer",
-      "visual designer",
-    ],
-    keywords: [
-      "design",
-      "wireframes",
-      "prototypes",
-      "user interface",
-      "user experience",
-      "visual design",
-      "brand assets",
-      "design systems",
-    ],
-    strongTerms: [
-      "figma",
-      "adobe creative suite",
-      "photoshop",
-      "illustrator",
-      "wireframes",
-      "prototypes",
-      "ui",
-      "ux",
-      "design system",
-      "mockups",
-    ],
-    toolTerms: [
-      "figma",
-      "adobe creative suite",
-      "photoshop",
-      "illustrator",
-      "after effects",
-    ],
-    methodologyTerms: [
-      "wireframing",
-      "prototyping",
-      "design systems",
-      "user flows",
-      "usability testing",
-    ],
-    responsibilityTerms: [
-      "asset creation",
-      "interface design",
-      "visual design",
-      "brand consistency",
-      "prototype creation",
-    ],
-    businessContextTerms: [
-      "design",
-      "wireframe",
-      "prototype",
-      "interface",
-      "visual",
-      "brand",
-      "layout",
-      "assets",
-      "user flow",
-    ],
-    suggestedKeywords: [
-      "Figma",
-      "wireframing",
-      "prototyping",
-      "design systems",
-      "UI design",
-      "UX design",
-      "user flows",
-      "visual design",
-      "Adobe Creative Suite",
-      "mockups",
-    ],
-    preferredVerbs: [
-      "designed",
-      "created",
-      "developed",
-      "prepared",
-      "produced",
-      "refined",
-      "updated",
-    ],
-    safeSupportVerbs: ["prepared", "produced", "updated", "collaborated with", "supported"],
+    titles: ["designer", "graphic designer", "ui designer", "ux designer", "product designer", "visual designer"],
+    keywords: ["design", "wireframes", "prototypes", "user interface", "user experience", "visual design", "brand assets", "design systems"],
+    strongTerms: ["figma", "adobe creative suite", "photoshop", "illustrator", "wireframes", "prototypes", "ui", "ux", "design system", "mockups"],
+    toolTerms: ["figma", "adobe creative suite", "photoshop", "illustrator", "after effects"],
+    methodologyTerms: ["wireframing", "prototyping", "design systems", "user flows", "usability testing"],
+    responsibilityTerms: ["asset creation", "interface design", "visual design", "brand consistency", "prototype creation"],
+    businessContextTerms: ["design", "wireframe", "prototype", "interface", "visual", "brand", "layout", "assets", "user flow"],
+    suggestedKeywords: ["Figma", "wireframing", "prototyping", "design systems", "UI design", "UX design", "user flows", "visual design", "Adobe Creative Suite", "mockups"],
+    preferredVerbs: ["designed", "created", "developed", "prepared", "produced", "refined", "updated"],
+    safeSupportVerbs: ["prepared", "produced", "updated", "collaborated with"],
     keepRules: ["Preserve design tools, deliverables, and interface/visual terminology."],
     avoidRules: ["Do not invent user research depth, conversion gains, or brand strategy ownership."],
     styleHints: ["Design bullets should stay artifact-focused, tool-aware, and portfolio-relevant."],
   },
 
   education: {
-    titles: [
-      "teacher",
-      "english teacher",
-      "math teacher",
-      "subject teacher",
-      "instructor",
-      "lecturer",
-      "teaching assistant",
-    ],
-    keywords: [
-      "lesson planning",
-      "classroom management",
-      "student assessment",
-      "curriculum",
-      "instruction",
-      "student support",
-      "teaching materials",
-    ],
-    strongTerms: [
-      "lesson planning",
-      "classroom management",
-      "student assessment",
-      "curriculum development",
-      "instruction",
-      "learning materials",
-      "student progress",
-    ],
+    titles: ["teacher", "english teacher", "math teacher", "subject teacher", "instructor", "lecturer", "teaching assistant"],
+    keywords: ["lesson planning", "classroom management", "student assessment", "curriculum", "instruction", "student support", "teaching materials"],
+    strongTerms: ["lesson planning", "classroom management", "student assessment", "curriculum development", "instruction", "learning materials", "student progress"],
     toolTerms: ["excel", "powerpoint", "google classroom", "office"],
-    methodologyTerms: [
-      "lesson planning",
-      "curriculum development",
-      "classroom management",
-      "student assessment",
-    ],
-    responsibilityTerms: [
-      "lesson delivery",
-      "assessment preparation",
-      "student progress tracking",
-      "classroom support",
-    ],
-    businessContextTerms: [
-      "classroom",
-      "student",
-      "curriculum",
-      "lesson",
-      "assessment",
-      "instruction",
-      "learning",
-    ],
-    suggestedKeywords: [
-      "lesson planning",
-      "classroom management",
-      "student assessment",
-      "curriculum development",
-      "learning materials",
-      "student progress tracking",
-      "instruction",
-      "parent communication",
-      "education support",
-      "academic planning",
-    ],
-    preferredVerbs: [
-      "planned",
-      "delivered",
-      "prepared",
-      "assessed",
-      "supported",
-      "tracked",
-      "organized",
-    ],
-    safeSupportVerbs: ["prepared", "supported", "tracked", "organized", "communicated with"],
+    methodologyTerms: ["lesson planning", "curriculum development", "classroom management", "student assessment"],
+    responsibilityTerms: ["lesson delivery", "assessment preparation", "student progress tracking", "classroom support"],
+    businessContextTerms: ["classroom", "student", "curriculum", "lesson", "assessment", "instruction", "learning"],
+    suggestedKeywords: ["lesson planning", "classroom management", "student assessment", "curriculum development", "learning materials", "student progress tracking", "instruction", "parent communication", "education support", "academic planning"],
+    preferredVerbs: ["planned", "delivered", "prepared", "assessed", "supported", "tracked", "organized"],
+    safeSupportVerbs: ["prepared", "tracked", "organized", "communicated with"],
     keepRules: ["Preserve lesson planning, instruction, curriculum, and assessment context."],
     avoidRules: ["Do not invent achievement gains, curriculum ownership, or student outcome data."],
     styleHints: ["Education bullets should sound instructional, structured, and student-aware."],
   },
 
   healthcare_admin: {
-    titles: [
-      "healthcare administrator",
-      "medical secretary",
-      "medical office assistant",
-      "patient coordinator",
-      "clinic coordinator",
-    ],
-    keywords: [
-      "patient scheduling",
-      "medical records",
-      "insurance verification",
-      "ehr",
-      "emr",
-      "clinic operations",
-      "appointment coordination",
-      "hipaa",
-    ],
-    strongTerms: [
-      "patient scheduling",
-      "medical records",
-      "insurance verification",
-      "ehr",
-      "emr",
-      "hipaa",
-      "appointment coordination",
-      "patient communication",
-    ],
+    titles: ["healthcare administrator", "medical secretary", "medical office assistant", "patient coordinator", "clinic coordinator"],
+    keywords: ["patient scheduling", "medical records", "insurance verification", "ehr", "emr", "clinic operations", "appointment coordination", "hipaa"],
+    strongTerms: ["patient scheduling", "medical records", "insurance verification", "ehr", "emr", "hipaa", "appointment coordination", "patient communication"],
     toolTerms: ["ehr", "emr", "excel", "office"],
-    methodologyTerms: [
-      "patient intake",
-      "insurance verification",
-      "record maintenance",
-      "appointment scheduling",
-    ],
-    responsibilityTerms: [
-      "patient communication",
-      "appointment scheduling",
-      "medical record updates",
-      "insurance follow-up",
-    ],
-    businessContextTerms: [
-      "patient",
-      "appointment",
-      "clinic",
-      "medical records",
-      "insurance",
-      "scheduling",
-      "ehr",
-      "emr",
-    ],
-    suggestedKeywords: [
-      "patient scheduling",
-      "medical records",
-      "insurance verification",
-      "EHR/EMR",
-      "appointment coordination",
-      "HIPAA",
-      "patient communication",
-      "clinic administration",
-      "record maintenance",
-      "front-desk coordination",
-    ],
-    preferredVerbs: [
-      "scheduled",
-      "coordinated",
-      "updated",
-      "maintained",
-      "verified",
-      "documented",
-      "communicated",
-    ],
-    safeSupportVerbs: [
-      "scheduled",
-      "updated",
-      "maintained",
-      "verified",
-      "documented",
-      "communicated with",
-    ],
+    methodologyTerms: ["patient intake", "insurance verification", "record maintenance", "appointment scheduling"],
+    responsibilityTerms: ["patient communication", "appointment scheduling", "medical record updates", "insurance follow-up"],
+    businessContextTerms: ["patient", "appointment", "clinic", "medical records", "insurance", "scheduling", "ehr", "emr"],
+    suggestedKeywords: ["patient scheduling", "medical records", "insurance verification", "EHR/EMR", "appointment coordination", "HIPAA", "patient communication", "clinic administration", "record maintenance", "front-desk coordination"],
+    preferredVerbs: ["scheduled", "coordinated", "updated", "maintained", "verified", "documented", "communicated"],
+    safeSupportVerbs: ["scheduled", "updated", "maintained", "verified", "documented", "communicated with"],
     keepRules: ["Preserve patient, scheduling, records, insurance, and compliance context."],
     avoidRules: ["Do not invent clinical work, patient outcomes, or operational leadership."],
     styleHints: ["Healthcare admin bullets should remain accurate, compliant, and records-aware."],
@@ -2134,152 +884,31 @@ const ROLE_PACKS = {
 
   civil_engineering: {
     titles: ["civil engineer", "site engineer", "construction engineer", "project site engineer"],
-    keywords: [
-      "civil engineering",
-      "site supervision",
-      "construction",
-      "project drawings",
-      "quantity takeoff",
-      "boq",
-      "technical documentation",
-      "autocad",
-      "revit",
-      "primavera p6",
-    ],
-    strongTerms: [
-      "autocad",
-      "revit",
-      "primavera p6",
-      "site supervision",
-      "technical drawings",
-      "quantity takeoff",
-      "boq",
-      "construction documentation",
-      "inspection",
-    ],
+    keywords: ["civil engineering", "site supervision", "construction", "project drawings", "quantity takeoff", "boq", "technical documentation", "autocad", "revit", "primavera p6"],
+    strongTerms: ["autocad", "revit", "primavera p6", "site supervision", "technical drawings", "quantity takeoff", "boq", "construction documentation", "inspection"],
     toolTerms: ["autocad", "revit", "primavera p6", "excel"],
-    methodologyTerms: [
-      "site inspection",
-      "quantity takeoff",
-      "project documentation",
-      "schedule tracking",
-    ],
-    responsibilityTerms: [
-      "drawing review",
-      "site coordination",
-      "technical documentation",
-      "progress tracking",
-      "contractor coordination",
-    ],
-    businessContextTerms: [
-      "construction",
-      "site",
-      "drawing",
-      "inspection",
-      "boq",
-      "quantity",
-      "schedule",
-      "technical",
-    ],
-    suggestedKeywords: [
-      "AutoCAD",
-      "Revit",
-      "Primavera P6",
-      "site supervision",
-      "quantity takeoff",
-      "BOQ",
-      "technical documentation",
-      "drawing review",
-      "progress tracking",
-      "construction coordination",
-    ],
-    preferredVerbs: [
-      "reviewed",
-      "prepared",
-      "coordinated",
-      "tracked",
-      "inspected",
-      "documented",
-      "supported",
-    ],
-    safeSupportVerbs: ["reviewed", "prepared", "coordinated", "tracked", "documented", "supported"],
-    keepRules: [
-      "Preserve engineering tools, drawings, site, inspection, and project-documentation context.",
-    ],
-    avoidRules: [
-      "Do not invent design authority, PE-level ownership, or quantified project outcomes.",
-    ],
+    methodologyTerms: ["site inspection", "quantity takeoff", "project documentation", "schedule tracking"],
+    responsibilityTerms: ["drawing review", "site coordination", "technical documentation", "progress tracking", "contractor coordination"],
+    businessContextTerms: ["construction", "site", "drawing", "inspection", "boq", "quantity", "schedule", "technical"],
+    suggestedKeywords: ["AutoCAD", "Revit", "Primavera P6", "site supervision", "quantity takeoff", "BOQ", "technical documentation", "drawing review", "progress tracking", "construction coordination"],
+    preferredVerbs: ["reviewed", "prepared", "coordinated", "tracked", "inspected", "documented", "supported"],
+    safeSupportVerbs: ["reviewed", "prepared", "coordinated", "tracked", "documented"],
+    keepRules: ["Preserve engineering tools, drawings, site, inspection, and project-documentation context."],
+    avoidRules: ["Do not invent design authority, PE-level ownership, or quantified project outcomes."],
     styleHints: ["Civil engineering bullets should stay technical, site-aware, and documentation-based."],
   },
 
   mechanical_engineering: {
     titles: ["mechanical engineer", "design engineer", "maintenance engineer", "production engineer"],
-    keywords: [
-      "mechanical design",
-      "technical drawings",
-      "solidworks",
-      "autocad",
-      "equipment maintenance",
-      "production support",
-      "technical documentation",
-      "quality checks",
-    ],
-    strongTerms: [
-      "solidworks",
-      "autocad",
-      "technical drawings",
-      "equipment maintenance",
-      "preventive maintenance",
-      "production support",
-      "quality checks",
-      "root cause analysis",
-    ],
+    keywords: ["mechanical design", "technical drawings", "solidworks", "autocad", "equipment maintenance", "production support", "technical documentation", "quality checks"],
+    strongTerms: ["solidworks", "autocad", "technical drawings", "equipment maintenance", "preventive maintenance", "production support", "quality checks", "root cause analysis"],
     toolTerms: ["solidworks", "autocad", "excel", "erp"],
-    methodologyTerms: [
-      "preventive maintenance",
-      "quality checks",
-      "technical documentation",
-      "root cause analysis",
-    ],
-    responsibilityTerms: [
-      "drawing preparation",
-      "equipment inspection",
-      "maintenance planning",
-      "technical support",
-      "production coordination",
-    ],
-    businessContextTerms: [
-      "mechanical",
-      "equipment",
-      "maintenance",
-      "drawing",
-      "production",
-      "quality",
-      "inspection",
-      "technical",
-    ],
-    suggestedKeywords: [
-      "SolidWorks",
-      "AutoCAD",
-      "technical drawings",
-      "preventive maintenance",
-      "equipment inspection",
-      "production support",
-      "quality checks",
-      "technical documentation",
-      "root cause analysis",
-      "maintenance planning",
-    ],
-    preferredVerbs: [
-      "designed",
-      "prepared",
-      "inspected",
-      "tracked",
-      "maintained",
-      "documented",
-      "supported",
-    ],
-    safeSupportVerbs: ["prepared", "inspected", "tracked", "maintained", "documented", "supported"],
+    methodologyTerms: ["preventive maintenance", "quality checks", "technical documentation", "root cause analysis"],
+    responsibilityTerms: ["drawing preparation", "equipment inspection", "maintenance planning", "technical support", "production coordination"],
+    businessContextTerms: ["mechanical", "equipment", "maintenance", "drawing", "production", "quality", "inspection", "technical"],
+    suggestedKeywords: ["SolidWorks", "AutoCAD", "technical drawings", "preventive maintenance", "equipment inspection", "production support", "quality checks", "technical documentation", "root cause analysis", "maintenance planning"],
+    preferredVerbs: ["designed", "prepared", "inspected", "tracked", "maintained", "documented", "supported"],
+    safeSupportVerbs: ["prepared", "inspected", "tracked", "maintained", "documented"],
     keepRules: ["Preserve mechanical tools, equipment, drawings, maintenance, and quality context."],
     avoidRules: ["Do not invent design authority, production improvements, or technical leadership."],
     styleHints: ["Mechanical engineering bullets should stay technical, equipment-focused, and factual."],
@@ -2287,81 +916,15 @@ const ROLE_PACKS = {
 
   administrative: {
     titles: ["administrative assistant", "office assistant", "admin assistant"],
-    keywords: [
-      "administrative support",
-      "calendar management",
-      "scheduling",
-      "meeting coordination",
-      "document preparation",
-      "filing",
-      "data entry",
-      "record keeping",
-      "office support",
-    ],
-    strongTerms: [
-      "calendar management",
-      "scheduling",
-      "meeting coordination",
-      "document preparation",
-      "filing",
-      "data entry",
-      "record keeping",
-      "office operations",
-    ],
+    keywords: ["administrative support", "calendar management", "scheduling", "meeting coordination", "document preparation", "filing", "data entry", "record keeping", "office support"],
+    strongTerms: ["calendar management", "scheduling", "meeting coordination", "document preparation", "filing", "data entry", "record keeping", "office operations"],
     toolTerms: ["office", "excel", "powerpoint", "google sheets"],
-    methodologyTerms: [
-      "document management",
-      "calendar coordination",
-      "meeting scheduling",
-      "record maintenance",
-    ],
-    responsibilityTerms: [
-      "document preparation",
-      "record maintenance",
-      "appointment scheduling",
-      "office support",
-    ],
-    businessContextTerms: [
-      "calendar",
-      "appointments",
-      "documents",
-      "records",
-      "filing",
-      "data entry",
-      "administrative",
-      "office support",
-    ],
-    suggestedKeywords: [
-      "document management",
-      "calendar coordination",
-      "meeting scheduling",
-      "record maintenance",
-      "office administration",
-      "internal communication",
-      "task coordination",
-      "data entry accuracy",
-      "time management",
-      "administrative reporting",
-    ],
-    preferredVerbs: [
-      "organized",
-      "prepared",
-      "scheduled",
-      "maintained",
-      "updated",
-      "documented",
-      "coordinated",
-      "tracked",
-    ],
-    safeSupportVerbs: [
-      "organized",
-      "prepared",
-      "scheduled",
-      "maintained",
-      "updated",
-      "documented",
-      "coordinated",
-    ],
+    methodologyTerms: ["document management", "calendar coordination", "meeting scheduling", "record maintenance"],
+    responsibilityTerms: ["document preparation", "record maintenance", "appointment scheduling", "office support"],
+    businessContextTerms: ["calendar", "appointments", "documents", "records", "filing", "data entry", "administrative", "office support"],
+    suggestedKeywords: ["document management", "calendar coordination", "meeting scheduling", "record maintenance", "office administration", "internal communication", "task coordination", "data entry accuracy", "time management", "administrative reporting"],
+    preferredVerbs: ["organized", "prepared", "scheduled", "maintained", "updated", "documented", "coordinated", "tracked"],
+    safeSupportVerbs: ["organized", "prepared", "scheduled", "maintained", "updated", "documented", "coordinated"],
     keepRules: ["Preserve administrative, scheduling, document, and records context."],
     avoidRules: ["Do not turn admin work into project leadership or strategic planning."],
     styleHints: ["Administrative bullets should sound organized, reliable, and execution-focused."],
@@ -2370,52 +933,13 @@ const ROLE_PACKS = {
   generic: {
     titles: [],
     keywords: [],
-    strongTerms: [
-      "reporting",
-      "documentation",
-      "coordination",
-      "analysis",
-      "communication",
-      "scheduling",
-      "records",
-      "tracking",
-      "support",
-    ],
+    strongTerms: ["reporting", "documentation", "coordination", "analysis", "communication", "scheduling", "records", "tracking", "support"],
     toolTerms: ["excel", "office", "google sheets", "powerpoint"],
     methodologyTerms: ["documentation", "tracking", "coordination", "reporting"],
     responsibilityTerms: ["task coordination", "record maintenance", "follow-up", "reporting support"],
-    businessContextTerms: [
-      "reporting",
-      "documentation",
-      "coordination",
-      "analysis",
-      "communication",
-      "scheduling",
-      "records",
-      "tracking",
-      "support",
-    ],
-    suggestedKeywords: [
-      "documentation",
-      "cross-functional collaboration",
-      "process tracking",
-      "stakeholder communication",
-      "task coordination",
-      "problem-solving",
-      "time management",
-      "reporting",
-      "data tracking",
-      "record maintenance",
-    ],
-    preferredVerbs: [
-      "coordinated",
-      "prepared",
-      "tracked",
-      "maintained",
-      "documented",
-      "updated",
-      "organized",
-    ],
+    businessContextTerms: ["reporting", "documentation", "coordination", "analysis", "communication", "scheduling", "records", "tracking", "support"],
+    suggestedKeywords: ["documentation", "cross-functional collaboration", "process tracking", "stakeholder communication", "task coordination", "problem-solving", "time management", "reporting", "data tracking", "record maintenance"],
+    preferredVerbs: ["coordinated", "prepared", "tracked", "maintained", "documented", "updated", "organized"],
     safeSupportVerbs: ["coordinated", "prepared", "tracked", "maintained", "documented", "updated"],
     keepRules: ["Keep bullets concise, truthful, and role-grounded."],
     avoidRules: ["Do not force jargon or inflate scope when the source text is simple."],
@@ -2614,6 +1138,7 @@ const WEAK_PHRASE_RE =
 
 const STRONG_ACTION_RE =
   /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|denetledim|doğruladım|uzlaştırdım|işledim|eğitim verdim|değerlendirdim|engineered|built|developed|designed|implemented|integrated|tested|debugged|validated|automated|configured|deployed|maintained|optimized|planned|executed|created|responded|resolved|documented|scheduled|reviewed|updated|monitored|processed|reconciled|screened|analyzed|reported|tracked|managed|delivered|verified|produced|prepared|mapped|facilitated|taught|assessed|inspected|coordinated|collaborated|communicated|organized|compiled|addressed|guided)\b/i;
+
 const EN_WEAK_REWRITE_START_RE =
   /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided)\b/i;
 
@@ -2642,7 +1167,7 @@ const SOFT_EXECUTION_START_RE =
   /^(prepared|maintained|coordinated|tracked|updated|processed|documented|communicated|organized|compiled|addressed|responded|resolved|reviewed|monitored)\b/i;
 
 const GENERIC_EXECUTION_RE =
-  /\b(daily tasks?|routine communication|customer requests?|service updates?|issue status|support summaries?|team support|internal follow-?up|internal review|ongoing cases?|service tracking|customer service tasks?|team review|open issues?|open tickets?)\b/i;
+  /\b(daily tasks?|routine communication|customer requests?|service updates?|issue status|support summaries?|team support|internal service updates|internal review|ongoing cases?|service tracking|customer service tasks?|team review|open issues?|open tickets?)\b/i;
 
 const CV_ONLY_SAFE_GENERIC_RE =
   /\b(ticket management|issue resolution|escalation handling|support documentation|case follow-up|customer communication|service quality|stakeholder communication|process improvement|workflow coordination|status reporting|project documentation|deliverable coordination|risk tracking|requirements gathering|process mapping|data visualization|dashboard reporting|trend analysis|kpi tracking|financial reporting|account reconciliation|month-end close|audit support|candidate screening|interview coordination|employee onboarding|policy compliance|record management|inventory management|shipment tracking|warehouse operations|vendor coordination|purchase orders|supplier communication|quality validation|release testing|automation testing|test documentation|lesson planning|classroom management|student assessment|curriculum development|patient scheduling|medical records|insurance verification|appointment coordination|site supervision|quantity takeoff|technical documentation|preventive maintenance|equipment inspection|production support|calendar management|meeting coordination|document management|record maintenance|cross-functional collaboration|task coordination|process tracking|report automation|version control|unit testing|integration testing|system design|debugging|performance tuning|agile development|database optimization|api integration|rest apis?|microservices|cloud services|service records|operational tracking|process documentation|resource coordination)\b/i;
@@ -2758,101 +1283,14 @@ function inferSeniority(text = "") {
 function inferFunctionalFocus(text = "", roleGroups = []) {
   const norm = canonicalizeTerm(text);
   const candidates = [
-    {
-      key: "technical_execution",
-      score: countTermHits(norm, [
-        "software",
-        "api",
-        "database",
-        "testing",
-        "deployment",
-        "debugging",
-        "engineering",
-      ]),
-    },
-    {
-      key: "analysis_reporting",
-      score: countTermHits(norm, [
-        "analysis",
-        "analytics",
-        "dashboard",
-        "reporting",
-        "kpi",
-        "forecasting",
-        "reconciliation",
-      ]),
-    },
-    {
-      key: "process_operations",
-      score: countTermHits(norm, [
-        "operations",
-        "workflow",
-        "process",
-        "coordination",
-        "tracking",
-        "logistics",
-        "inventory",
-      ]),
-    },
-    {
-      key: "client_customer",
-      score: countTermHits(norm, [
-        "customer",
-        "client",
-        "support",
-        "onboarding",
-        "renewal",
-        "service",
-        "ticket",
-      ]),
-    },
-    {
-      key: "product_project",
-      score: countTermHits(norm, [
-        "product",
-        "roadmap",
-        "backlog",
-        "project",
-        "timeline",
-        "deliverable",
-        "stakeholder",
-      ]),
-    },
-    {
-      key: "people_admin",
-      score: countTermHits(norm, [
-        "candidate",
-        "employee",
-        "interview",
-        "onboarding",
-        "calendar",
-        "meeting",
-        "documentation",
-      ]),
-    },
-    {
-      key: "design_creative",
-      score: countTermHits(norm, [
-        "design",
-        "wireframe",
-        "prototype",
-        "visual",
-        "ui",
-        "ux",
-        "figma",
-      ]),
-    },
-    {
-      key: "regulated_records",
-      score: countTermHits(norm, [
-        "audit",
-        "compliance",
-        "hipaa",
-        "medical records",
-        "ifrs",
-        "gaap",
-      ]),
-    },
+    { key: "technical_execution", score: countTermHits(norm, ["software", "api", "database", "testing", "deployment", "debugging", "engineering"]) },
+    { key: "analysis_reporting", score: countTermHits(norm, ["analysis", "analytics", "dashboard", "reporting", "kpi", "forecasting", "reconciliation"]) },
+    { key: "process_operations", score: countTermHits(norm, ["operations", "workflow", "process", "coordination", "tracking", "logistics", "inventory"]) },
+    { key: "client_customer", score: countTermHits(norm, ["customer", "client", "support", "onboarding", "renewal", "service", "ticket"]) },
+    { key: "product_project", score: countTermHits(norm, ["product", "roadmap", "backlog", "project", "timeline", "deliverable", "stakeholder"]) },
+    { key: "people_admin", score: countTermHits(norm, ["candidate", "employee", "interview", "onboarding", "calendar", "meeting", "documentation"]) },
+    { key: "design_creative", score: countTermHits(norm, ["design", "wireframe", "prototype", "visual", "ui", "ux", "figma"]) },
+    { key: "regulated_records", score: countTermHits(norm, ["audit", "compliance", "hipaa", "medical records", "ifrs", "gaap"]) },
   ];
 
   const top = candidates
@@ -2868,150 +1306,24 @@ function inferFunctionalFocus(text = "", roleGroups = []) {
   return [primary];
 }
 
-function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|CORE SUMMARY|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|EDUCATION|LANGUAGES|CERTIFICATIONS|LICENSES|PROJECTS|ADDITIONAL INFORMATION|AWARDS|ACHIEVEMENTS|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
-    String(line).trim()
-  );
-}
-
-function extractSummaryLines(cv = "") {
+function getSkillsLines(cv = "") {
   const lines = getNonEmptyLines(cv);
   const out = [];
-  let inSummary = false;
+  let inSkills = false;
 
   for (const line of lines) {
-    if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) {
-      inSummary = true;
+    if (/(SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
+      inSkills = true;
       continue;
     }
-    if (inSummary && isSectionHeader(line)) break;
-    if (inSummary) {
-      out.push(
-        ...line
-          .split(/(?<=[.?!])\s+/)
-          .map((x) => x.trim())
-          .filter(Boolean)
-      );
+
+    if (inSkills && isSectionHeader(line)) break;
+    if (inSkills) {
+      out.push(line.replace(/^[-•·‣▪▫◦]\s+/, "").trim());
     }
   }
 
-  return out;
-}
-
-function extractHeaderBlock(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const header = [];
-
-  for (const line of lines) {
-    if (isSectionHeader(line)) break;
-    header.push(line);
-  }
-
-  return header.slice(0, 6);
-}
-
-function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
-  const originalHeader = extractHeaderBlock(originalCv);
-  if (!originalHeader.length) return String(optimizedCv || "").trim();
-
-  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
-  const sectionIdx = lines.findIndex((x) => isSectionHeader(String(x).trim()));
-
-  if (sectionIdx === -1) return String(optimizedCv || "").trim();
-
-  const body = lines.slice(sectionIdx).join("\n").trim();
-  return `${originalHeader.join("\n")}\n\n${body}`.trim();
-}
-
-function extractExperienceTitles(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const titles = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (
-      /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
-      /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
-    ) {
-      const prev = lines[i - 1];
-      if (
-        prev &&
-        !isSectionHeader(prev) &&
-        !prev.includes("@") &&
-        !/^\d/.test(prev)
-      ) {
-        titles.push(prev);
-      }
-    }
-  }
-
-  return titles;
-}
-
-function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
-  const origTitles = extractExperienceTitles(originalCv);
-  if (!origTitles.length) return String(optimizedCv || "").trim();
-
-  const lines = String(optimizedCv || "").replace(/\r/g, "").split("\n");
-  let titleIdx = 0;
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = String(lines[i]).trim();
-    if (
-      /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
-      /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
-    ) {
-      let j = i - 1;
-      while (j >= 0 && !String(lines[j]).trim()) j--;
-      if (j >= 0 && titleIdx < origTitles.length) {
-        lines[j] = origTitles[titleIdx];
-        titleIdx += 1;
-      }
-    }
-  }
-
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-function normalizeOptimizedHeadings(text = "") {
-  return String(text || "")
-    .replace(/\r/g, "")
-    .replace(/^PROFILE$/gim, "PROFESSIONAL SUMMARY")
-    .replace(/^CORE SUMMARY$/gim, "PROFESSIONAL SUMMARY")
-    .replace(/^WORK EXPERIENCE$/gim, "EXPERIENCE")
-    .replace(/^PROFESSIONAL EXPERIENCE$/gim, "EXPERIENCE")
-    .replace(/^(CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES)$/gim, "SKILLS")
-    .replace(/^LICENSES$/gim, "CERTIFICATIONS")
-    .replace(/^BİLDİĞİ DİLLER$/gim, "DİLLER")
-    .replace(/^YETENEKLER$/gim, "YETKİNLİKLER")
-    .replace(/^BECERİLER$/gim, "YETKİNLİKLER")
-    .replace(/^PROFİL$/gim, "PROFESYONEL ÖZET")
-    .replace(/^İŞ DENEYİMİ$/gim, "DENEYİM")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function forceSafeResume(originalCv = "", optimizedCv = "") {
-  let out = String(optimizedCv || "").trim();
-  out = normalizeOptimizedHeadings(out);
-  out = replaceHeaderBlock(originalCv, out);
-  out = restoreExperienceTitles(originalCv, out);
-  out = normalizeOptimizedHeadings(out);
-  return out.trim();
-}
-
-function countUnchangedBullets(originalCv = "", optimizedCv = "") {
-  const orig = getBulletLines(originalCv).map(canonicalizeTerm).filter(Boolean);
-  const optSet = new Set(
-    getBulletLines(optimizedCv).map(canonicalizeTerm).filter(Boolean)
-  );
-
-  let same = 0;
-  for (const line of orig) {
-    if (optSet.has(line)) same++;
-  }
-
-  return { same, total: orig.length };
+  return out.filter(Boolean);
 }
 
 function inferRoleProfile(cv = "", jd = "") {
@@ -3033,17 +1345,14 @@ function inferRoleProfile(cv = "", jd = "") {
       const methodologyHits = countTermHits(combinedNorm, pack.methodologyTerms || []);
       const responsibilityHits = countTermHits(combinedNorm, pack.responsibilityTerms || []);
       const businessHits = countTermHits(combinedNorm, pack.businessContextTerms || []);
-
       const summaryHits =
         countTermHits(summaryText, pack.titles || []) +
         countTermHits(summaryText, pack.keywords || []) +
         countTermHits(summaryText, pack.strongTerms || []);
-
       const skillsHits =
         countTermHits(skillsText, pack.toolTerms || []) +
         countTermHits(skillsText, pack.strongTerms || []) +
         countTermHits(skillsText, pack.methodologyTerms || []);
-
       const bulletHits =
         countTermHits(bulletsText, pack.responsibilityTerms || []) +
         countTermHits(bulletsText, pack.businessContextTerms || []) +
@@ -3214,11 +1523,7 @@ function isLowValueKeyword(term = "") {
 
   if (wc === 1 && norm.length < 4 && !looksLikeAcronym(cleaned)) return true;
   if (LOW_VALUE_KEYWORD_RE.test(cleaned) && wc <= 3) return true;
-  if (
-    /^(experience|knowledge|skills|skill|management|analysis|support|reporting|communication|documentation|tecrube|deneyim|beceri|yetenek|analiz|destek|raporlama)$/i.test(
-      norm
-    )
-  ) {
+  if (/^(experience|knowledge|skills|skill|management|analysis|support|reporting|communication|documentation|tecrube|deneyim|beceri|yetenek|analiz|destek|raporlama)$/i.test(norm)) {
     return true;
   }
 
@@ -3253,19 +1558,15 @@ function getExplicitFactTerms(text = "") {
 }
 
 function buildAllowedTermsText(cv = "", jd = "") {
-  const terms = uniqueTrimmedStrings([
-    ...getExplicitFactTerms(cv),
-    ...getExplicitFactTerms(jd),
-  ]);
+  const terms = uniqueTrimmedStrings([...getExplicitFactTerms(cv), ...getExplicitFactTerms(jd)]);
   return terms.length ? terms.join(", ") : "(none explicitly supported)";
 }
 
 function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
   const allowed = new Set(
-    uniqueTrimmedStrings([
-      ...getExplicitFactTerms(originalCv),
-      ...getExplicitFactTerms(jd),
-    ]).map(canonicalizeTerm)
+    uniqueTrimmedStrings([...getExplicitFactTerms(originalCv), ...getExplicitFactTerms(jd)]).map(
+      canonicalizeTerm
+    )
   );
 
   return uniqueTrimmedStrings(getExplicitFactTerms(optimizedCv)).filter(
@@ -3365,8 +1666,8 @@ function getCvOnlyKeywordPool(roleInput = [], cv = "") {
     .slice(0, 28);
 }
 
-function buildRoleContextText(roleInput = [], cv = "") {
-  const profile = ensureRoleProfile(roleInput, cv, "");
+function buildRoleContextText(roleInput = [], cv = "", jd = "") {
+  const profile = ensureRoleProfile(roleInput, cv, jd);
   const packs = getRolePacks(profile);
 
   const roleSignals = uniqueTrimmedStrings([
@@ -3399,17 +1700,9 @@ function buildRoleWritingBlock(roleInput = []) {
     packs.flatMap((p) => [...(p.preferredVerbs || []), ...(p.safeSupportVerbs || [])])
   ).slice(0, 20);
 
-  const keepRules = uniqueTrimmedStrings(
-    packs.flatMap((p) => p.keepRules || [])
-  ).slice(0, 8);
-
-  const avoidRules = uniqueTrimmedStrings(
-    packs.flatMap((p) => p.avoidRules || [])
-  ).slice(0, 8);
-
-  const styleHints = uniqueTrimmedStrings(
-    packs.flatMap((p) => p.styleHints || [])
-  ).slice(0, 8);
+  const keepRules = uniqueTrimmedStrings(packs.flatMap((p) => p.keepRules || [])).slice(0, 8);
+  const avoidRules = uniqueTrimmedStrings(packs.flatMap((p) => p.avoidRules || [])).slice(0, 8);
+  const styleHints = uniqueTrimmedStrings(packs.flatMap((p) => p.styleHints || [])).slice(0, 8);
 
   return `
 ROLE WRITING RULES:
@@ -3436,123 +1729,6 @@ function buildLikelyKeywordThemeText(roleInput = [], cv = "") {
     `- likely_seniority: ${profile.seniority}`,
     `- likely_keyword_themes: ${themes.join(", ") || "(none)"}`,
   ].join("\n");
-}
-
-function getClientIp(req) {
-  const xf = req.headers["x-forwarded-for"];
-  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
-  return req.socket?.remoteAddress || "unknown";
-}
-
-function verifySession(req) {
-  const appSecret = process.env.APP_SECRET;
-  if (!appSecret) return false;
-
-  const cookie = req.headers.cookie || "";
-  const m = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
-  if (!m) return false;
-
-  const token = decodeURIComponent(m[1]);
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-
-  const [data, sig] = parts;
-  const expected = crypto
-    .createHmac("sha256", appSecret)
-    .update(data)
-    .digest("base64url");
-
-  if (sig !== expected) return false;
-
-  let payload;
-  try {
-    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return false;
-  }
-
-  if (!payload?.exp || Date.now() > payload.exp) return false;
-  return true;
-}
-
-async function ensureMinDelay(startedAt, minMs) {
-  const elapsed = Date.now() - startedAt;
-  const remain = minMs - elapsed;
-  if (remain > 0) {
-    await new Promise((resolve) => setTimeout(resolve, remain));
-  }
-}
-
-function clampScore(n) {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return 0;
-  return Math.max(0, Math.min(100, Math.round(x)));
-}
-
-function isGpt5Model(model = "") {
-  return /^gpt-5/i.test(String(model).trim());
-}
-
-function buildOpenAIPayload({
-  model,
-  messages,
-  reasoningEffort = null,
-  temperature = null,
-  maxCompletionTokens = 1800,
-}) {
-  const body = {
-    model,
-    response_format: { type: "json_object" },
-    messages,
-  };
-
-  if (isGpt5Model(model)) {
-    body.max_completion_tokens = maxCompletionTokens;
-    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
-    if (reasoningEffort === "none" && typeof temperature === "number") {
-      body.temperature = temperature;
-    }
-  } else {
-    body.max_tokens = maxCompletionTokens;
-    if (typeof temperature === "number") body.temperature = temperature;
-  }
-
-  return body;
-}
-
-function extractAssistantText(parsed) {
-  const content = parsed?.choices?.[0]?.message?.content;
-
-  if (typeof content === "string") return content;
-
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (typeof part?.text === "string") return part.text;
-        if (typeof part?.content === "string") return part.content;
-        return "";
-      })
-      .join("")
-      .trim();
-  }
-
-  return "";
-}
-
-function safeJsonParse(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const s = String(text || "");
-    const start = s.indexOf("{");
-    const end = s.lastIndexOf("}");
-    if (start !== -1 && end !== -1 && end > start) {
-      return JSON.parse(s.slice(start, end + 1));
-    }
-    throw new Error("Model did not return valid JSON");
-  }
 }
 
 function getSentenceSignalProfile(sentence = "", roleInput = []) {
@@ -3587,9 +1763,7 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
   const roleSpecificHits = countTermHits(s, packSpecificTerms);
   const businessHits = countTermHits(
     s,
-    uniqueTrimmedStrings(
-      packs.flatMap((p) => p.businessContextTerms || [])
-    )
+    uniqueTrimmedStrings(packs.flatMap((p) => p.businessContextTerms || []))
   );
 
   const hasNumber = /\b\d+(?:[.,]\d+)?%?\b/.test(s);
@@ -3757,27 +1931,22 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
     })
     .filter((x) => {
       if (outLang !== "English") return true;
-
       if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
       if (hasUnsupportedImpactClaims(x.sentence, x.rewrite)) return false;
-
       if (
         ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) &&
         !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)
       ) {
         return false;
       }
-
       if (EN_SOFT_FILLER_RE.test(x.rewrite) && !EN_SOFT_FILLER_RE.test(x.sentence)) {
         return false;
       }
-
       return true;
     })
     .sort((a, b) => {
       const aDelta = a.sourceProfile.weakScore - a.rewriteProfile.weakScore;
       const bDelta = b.sourceProfile.weakScore - b.rewriteProfile.weakScore;
-
       return (
         b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
         bDelta - aDelta ||
@@ -3798,12 +1967,10 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     const reason = String(item?.reason || "").trim();
 
     if (!source || !rewrite) continue;
-    if (!(isClearlyWeakSentence(source, roleInput) || getSentenceSignalProfile(source, roleInput).weakScore >= 4)) {
-      continue;
-    }
+    const sourceProfile = getSentenceSignalProfile(source, roleInput);
+    if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4)) continue;
     if (isShallowRewrite(source, rewrite)) continue;
 
-    const sourceProfile = getSentenceSignalProfile(source, roleInput);
     const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput);
 
     const stronger =
@@ -3831,7 +1998,6 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-
     out.push({ source, rewrite, reason, sourceProfile, rewriteProfile });
   }
 
@@ -3877,7 +2043,6 @@ function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
   for (let i = 0; i < total; i++) {
     const orig = String(origBullets[i] || "").trim();
     const opt = String(optBullets[i] || "").trim();
-
     if (!orig || !opt) continue;
 
     const origHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(orig);
@@ -3947,8 +2112,12 @@ function classifyTermCategory(term = "", roleInput = []) {
   const profile = ensureRoleProfile(roleInput);
   const packs = getRolePacks(profile);
   const packToolTerms = uniqueTrimmedStrings(packs.flatMap((p) => p.toolTerms || []));
-  const packMethodologyTerms = uniqueTrimmedStrings(packs.flatMap((p) => p.methodologyTerms || []));
-  const packResponsibilityTerms = uniqueTrimmedStrings(packs.flatMap((p) => p.responsibilityTerms || []));
+  const packMethodologyTerms = uniqueTrimmedStrings(
+    packs.flatMap((p) => p.methodologyTerms || [])
+  );
+  const packResponsibilityTerms = uniqueTrimmedStrings(
+    packs.flatMap((p) => p.responsibilityTerms || [])
+  );
 
   if (looksLikeCertification(term)) return "certification";
   if (
@@ -3989,9 +2158,7 @@ function scoreExtractedTerm(term = "", text = "", roleInput = []) {
 
   if (looksLikeCertification(cleaned)) score += 5;
 
-  const packSpecificTerms = uniqueTrimmedStrings(
-    packs.flatMap((p) => getRolePackAllTerms(p))
-  );
+  const packSpecificTerms = uniqueTrimmedStrings(packs.flatMap((p) => getRolePackAllTerms(p)));
 
   if (packSpecificTerms.some((x) => canonicalizeTerm(x) === norm)) score += 5;
   if (HARD_FACT_TERMS.some((x) => canonicalizeTerm(x) === norm)) score += 6;
@@ -4059,26 +2226,11 @@ function extractJdSignalProfile(jd = "", roleInput = []) {
   return {
     ranked,
     tools: ranked.filter((x) => x.category === "tool").slice(0, 10).map((x) => x.term),
-    methodologies: ranked
-      .filter((x) => x.category === "methodology")
-      .slice(0, 10)
-      .map((x) => x.term),
-    certifications: ranked
-      .filter((x) => x.category === "certification")
-      .slice(0, 8)
-      .map((x) => x.term),
-    responsibilities: ranked
-      .filter((x) => x.category === "responsibility")
-      .slice(0, 10)
-      .map((x) => x.term),
-    domains: ranked
-      .filter((x) => x.category === "domain")
-      .slice(0, 10)
-      .map((x) => x.term),
-    senioritySignals: ranked
-      .filter((x) => x.category === "seniority")
-      .slice(0, 6)
-      .map((x) => x.term),
+    methodologies: ranked.filter((x) => x.category === "methodology").slice(0, 10).map((x) => x.term),
+    certifications: ranked.filter((x) => x.category === "certification").slice(0, 8).map((x) => x.term),
+    responsibilities: ranked.filter((x) => x.category === "responsibility").slice(0, 10).map((x) => x.term),
+    domains: ranked.filter((x) => x.category === "domain").slice(0, 10).map((x) => x.term),
+    senioritySignals: ranked.filter((x) => x.category === "seniority").slice(0, 6).map((x) => x.term),
   };
 }
 
@@ -4092,10 +2244,6 @@ function buildJdSignalText(jd = "", roleInput = []) {
     `- domain_terms: ${sig.domains.join(", ") || "(none)"}`,
     `- seniority_signals: ${sig.senioritySignals.join(", ") || "(none)"}`,
   ].join("\n");
-}
-
-function extractTopJdTerms(jd = "", roleInput = []) {
-  return extractJdSignalProfile(jd, roleInput).ranked.map((x) => x.term).slice(0, 40);
 }
 
 function finalizeMissingKeywords(
@@ -4177,6 +2325,10 @@ function finalizeMissingKeywords(
   return scored.map((x) => x.term).slice(0, limit);
 }
 
+function extractTopJdTerms(jd = "", roleInput = []) {
+  return extractJdSignalProfile(jd, roleInput).ranked.map((x) => x.term).slice(0, 40);
+}
+
 function getSectionPresenceScore(cv = "") {
   const text = getNonEmptyLines(cv).join("\n");
   let score = 0;
@@ -4190,26 +2342,6 @@ function getSectionPresenceScore(cv = "") {
   if (/(PROJECTS|PROJELER)/i.test(text)) score += 1;
 
   return Math.min(25, score);
-}
-
-function getSkillsLines(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const out = [];
-  let inSkills = false;
-
-  for (const line of lines) {
-    if (/(SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
-      inSkills = true;
-      continue;
-    }
-
-    if (inSkills && isSectionHeader(line)) break;
-    if (inSkills) {
-      out.push(line.replace(/^[-•·‣▪▫◦]\s+/, "").trim());
-    }
-  }
-
-  return out.filter(Boolean);
 }
 
 function getKeywordBreadthScore(cv = "", jd = "", roleInput = []) {
@@ -4378,12 +2510,7 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
   );
 }
 
-function computeFinalOptimizedScore(
-  originalCv = "",
-  optimizedCv = "",
-  originalScore = 0,
-  jd = ""
-) {
+function computeFinalOptimizedScore(originalCv = "", optimizedCv = "", originalScore = 0, jd = "") {
   const base = clampScore(originalScore);
   if (!originalCv || !optimizedCv) return base;
 
@@ -4405,7 +2532,7 @@ function computeFinalOptimizedScore(
 
   let lift = 0;
   lift += rawLift * 0.48;
-  lift += Math.min(4, weakGain) * 0.9;
+  lift += Math.min(5, weakGain) * 1.0;
 
   if (rewriteRatio >= 0.7) lift += 3;
   else if (rewriteRatio >= 0.5) lift += 2;
@@ -4486,6 +2613,448 @@ function shouldRepairOptimizedCv(
   if (origSpecific > 0 && optSpecific + 1 < origSpecific) return true;
 
   return false;
+}
+
+function pickRoleAwareRewriteVerb(sentence = "", roleInput = []) {
+  const profile = ensureRoleProfile(roleInput);
+  const packs = getRolePacks(profile);
+
+  if (/(email|live chat|inquir|customer emails?|chat channels?)/i.test(sentence)) {
+    return "Responded to";
+  }
+  if (/(ticket|case|issue|escalat|follow-?up|status)/i.test(sentence)) {
+    return "Coordinated";
+  }
+  if (/(records?|documentation|logs?|notes?)/i.test(sentence)) {
+    return "Maintained";
+  }
+  if (/(reports?|summary|summaries|dashboard)/i.test(sentence)) {
+    return "Prepared";
+  }
+  if (/(schedule|calendar|meeting|travel|communication)/i.test(sentence)) {
+    return "Coordinated";
+  }
+  if (/(invoice|order|request|processing|account updates?)/i.test(sentence)) {
+    return "Processed";
+  }
+  if (/(analysis|reconciliation|audit|review|validation)/i.test(sentence)) {
+    return "Reviewed";
+  }
+
+  const preferred = uniqueTrimmedStrings(
+    packs.flatMap((p) => [...(p.safeSupportVerbs || []), ...(p.preferredVerbs || [])])
+  ).filter(
+    (v) =>
+      !EN_WEAK_REWRITE_START_RE.test(v) &&
+      !/^(supported|assisted|helped|contributed|participated|aided)$/i.test(v)
+  );
+
+  return preferred[0] || "Coordinated";
+}
+
+function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English") {
+  if (outLang !== "English") return "";
+
+  const source = String(sentence || "").trim();
+  if (!source) return "";
+
+  const { body, ending } = splitSentenceEnding(source);
+
+  if (/^supports?\s+.+?\s+by\s+.+/i.test(body)) {
+    const m = body.match(/^supports?\s+(.+?)\s+by\s+(.+)$/i);
+    if (m) {
+      const subject = String(m[1] || "").trim();
+      const action = String(m[2] || "").trim();
+      const rewrite = `${capitalizeFirst(action)} to support ${lowerFirst(subject)}`;
+      if (
+        rewrite &&
+        canonicalizeTerm(rewrite) !== canonicalizeTerm(source) &&
+        !EN_WEAK_REWRITE_START_RE.test(rewrite)
+      ) {
+        return `${rewrite}${ending}`;
+      }
+    }
+  }
+
+  const specials = [
+    {
+      re: /^supported daily communication with customers regarding (.+)$/i,
+      fn: (m) => `Coordinated daily customer communication regarding ${m[1]}`,
+    },
+    {
+      re: /^supported routine communication between (.+)$/i,
+      fn: (m) => `Coordinated routine communication between ${m[1]}`,
+    },
+    {
+      re: /^supported daily customer service tasks with the team$/i,
+      fn: () => `Coordinated daily customer service tasks with team members`,
+    },
+    {
+      re: /^assisted with customer requests and internal service updates$/i,
+      fn: () => `Coordinated customer requests and internal service updates`,
+    },
+    {
+      re: /^prepared weekly support summaries for the team$/i,
+      fn: () => `Prepared weekly support summaries for internal team review`,
+    },
+  ];
+
+  for (const item of specials) {
+    const m = body.match(item.re);
+    if (m) {
+      const rewrite = item.fn(m);
+      if (
+        rewrite &&
+        canonicalizeTerm(rewrite) !== canonicalizeTerm(source) &&
+        !EN_WEAK_REWRITE_START_RE.test(rewrite)
+      ) {
+        return `${rewrite}${ending}`;
+      }
+    }
+  }
+
+  const genericStarts = [
+    /^supported\s+/i,
+    /^supports\s+/i,
+    /^assisted with\s+/i,
+    /^assisted\s+/i,
+    /^helped with\s+/i,
+    /^helped\s+/i,
+    /^worked on\s+/i,
+    /^responsible for\s+/i,
+    /^participated in\s+/i,
+    /^contributed to\s+/i,
+    /^provided support for\s+/i,
+    /^handled\s+/i,
+  ];
+
+  let remainder = body;
+  let matched = false;
+
+  for (const re of genericStarts) {
+    if (re.test(remainder)) {
+      remainder = remainder.replace(re, "").trim();
+      matched = true;
+      break;
+    }
+  }
+
+  if (!matched) {
+    return "";
+  }
+
+  remainder = remainder
+    .replace(/\bwith the team\b/i, "with team members")
+    .replace(/\bfor the team\b/i, "for internal team review")
+    .replace(/\brelated to\b/i, "regarding")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!remainder) return "";
+
+  const lead = pickRoleAwareRewriteVerb(source, roleInput);
+  const rewrite = `${lead} ${lowerFirst(remainder)}`.replace(/\s+/g, " ").trim();
+
+  if (!rewrite) return "";
+  if (canonicalizeTerm(rewrite) === canonicalizeTerm(source)) return "";
+  if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return "";
+
+  return `${rewrite}${ending}`;
+}
+
+function buildLocalWeakSentenceSet(
+  candidates = [],
+  roleInput = [],
+  outLang = "English",
+  maxCount = 12
+) {
+  const raw = [];
+
+  for (const sentence of Array.isArray(candidates) ? candidates : []) {
+    const rewrite = buildLocalWeakRewrite(sentence, roleInput, outLang);
+    if (!rewrite) continue;
+    raw.push({ sentence, rewrite });
+    if (raw.length >= maxCount) break;
+  }
+
+  return filterWeakSentences(raw, { outLang, roleInput }).slice(0, maxCount);
+}
+
+function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 8, maxCount = 12) {
+  const bullets = getBulletLines(cv).map((sentence) => ({
+    sentence,
+    sourceType: "bullet",
+  }));
+
+  const summaries = extractSummaryLines(cv).map((sentence) => ({
+    sentence,
+    sourceType: "summary",
+  }));
+
+  const all = [...bullets, ...summaries]
+    .map((item) => {
+      const profile = getSentenceSignalProfile(item.sentence, roleInput);
+      let rank =
+        profile.weakScore * 3 -
+        profile.strongScore +
+        (profile.startsWeak ? 4 : 0) +
+        (profile.hasWeakPhrase ? 3 : 0) +
+        (!profile.hasSpecific ? 2 : 0) +
+        (item.sourceType === "bullet" ? 2 : 0);
+
+      if (/^(supported|supports|assisted|assists|helped|worked on|responsible for|handled)\b/i.test(item.sentence)) {
+        rank += 4;
+      }
+
+      if (/\b(team|support staff|internal service updates|daily tasks|routine communication)\b/i.test(item.sentence)) {
+        rank += 2;
+      }
+
+      return { ...item, profile, rank };
+    })
+    .filter((x) => x.profile.isWeakCandidate || x.profile.weakScore >= (x.sourceType === "bullet" ? 3 : 2))
+    .sort((a, b) => {
+      return (
+        b.rank - a.rank ||
+        b.profile.weakScore - a.profile.weakScore ||
+        a.profile.strongScore - b.profile.strongScore ||
+        (a.sourceType === "bullet" ? -1 : 1)
+      );
+    });
+
+  const out = [];
+  const seen = new Set();
+
+  for (const item of all) {
+    const key = canonicalizeTerm(item.sentence);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item.sentence);
+    if (out.length >= maxCount) break;
+  }
+
+  if (out.length >= minCount) return out;
+  return out.slice(0, maxCount);
+}
+
+function mergeWeakSentenceSets(
+  primary = [],
+  secondary = [],
+  roleInput = {},
+  outLang = "English",
+  maxCount = 12
+) {
+  const combined = [
+    ...(Array.isArray(primary) ? primary : []),
+    ...(Array.isArray(secondary) ? secondary : []),
+  ];
+
+  const seen = new Set();
+  const out = [];
+
+  for (const item of combined) {
+    const sentence = String(item?.sentence || "").trim();
+    const rewrite = String(item?.rewrite || "").trim();
+    if (!sentence || !rewrite) continue;
+
+    const key = canonicalizeTerm(sentence);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+
+    const filtered = filterWeakSentences([{ sentence, rewrite }], {
+      outLang,
+      roleInput,
+    });
+
+    if (filtered.length) {
+      out.push(filtered[0]);
+    }
+
+    if (out.length >= maxCount) break;
+  }
+
+  return out;
+}
+
+function buildLocalBulletUpgradeFallback(weakSentences = []) {
+  return (Array.isArray(weakSentences) ? weakSentences : [])
+    .map((item) => ({
+      source: String(item?.sentence || "").trim(),
+      rewrite: String(item?.rewrite || "").trim(),
+      reason: "Stronger action, clearer scope, and sharper ATS phrasing.",
+    }))
+    .filter((x) => x.source && x.rewrite)
+    .slice(0, 8);
+}
+
+function applyBulletUpgradesToText(text = "", bulletUpgrades = []) {
+  const sourceMap = new Map();
+
+  for (const item of Array.isArray(bulletUpgrades) ? bulletUpgrades : []) {
+    const source = String(item?.source || "").trim();
+    const rewrite = String(item?.rewrite || "").trim();
+    if (!source || !rewrite) continue;
+    sourceMap.set(canonicalizeTerm(source), rewrite);
+  }
+
+  if (!sourceMap.size) return String(text || "").trim();
+
+  const lines = String(text || "").replace(/\r/g, "").split("\n");
+
+  const replaced = lines.map((line) => {
+    const bulletMatch = line.match(/^(\s*[-•·‣▪▫◦]\s+)(.*)$/);
+    if (bulletMatch) {
+      const prefix = bulletMatch[1];
+      const content = String(bulletMatch[2] || "").trim();
+      const rewrite = sourceMap.get(canonicalizeTerm(content));
+      if (rewrite) return `${prefix}${rewrite}`;
+      return line;
+    }
+
+    const trimmed = String(line || "").trim();
+    const rewrite = sourceMap.get(canonicalizeTerm(trimmed));
+    if (rewrite && trimmed) {
+      const idx = line.indexOf(trimmed);
+      if (idx >= 0) {
+        return `${line.slice(0, idx)}${rewrite}${line.slice(idx + trimmed.length)}`;
+      }
+      return rewrite;
+    }
+
+    return line;
+  });
+
+  return replaced.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function applyBulletUpgradesToCv(originalCv = "", optimizedCv = "", bulletUpgrades = []) {
+  const base = String(optimizedCv || originalCv || "").trim();
+  if (!base) return "";
+  if (!Array.isArray(bulletUpgrades) || !bulletUpgrades.length) return base;
+  return forceSafeResume(originalCv, applyBulletUpgradesToText(base, bulletUpgrades));
+}
+
+function getDesiredWeakCount(hasJD = false, candidateCount = 0) {
+  if (candidateCount <= 0) return 0;
+  if (hasJD) return Math.min(10, Math.max(5, Math.min(8, candidateCount)));
+  return Math.min(12, Math.max(6, Math.min(10, candidateCount)));
+}
+
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function verifySession(req) {
+  const appSecret = process.env.APP_SECRET;
+  if (!appSecret) return false;
+
+  const cookie = req.headers.cookie || "";
+  const m = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
+  if (!m) return false;
+
+  const token = decodeURIComponent(m[1]);
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+
+  const [data, sig] = parts;
+  const expected = crypto
+    .createHmac("sha256", appSecret)
+    .update(data)
+    .digest("base64url");
+
+  if (sig !== expected) return false;
+
+  let payload;
+  try {
+    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
+    payload = JSON.parse(payloadJson);
+  } catch {
+    return false;
+  }
+
+  if (!payload?.exp || Date.now() > payload.exp) return false;
+  return true;
+}
+
+async function ensureMinDelay(startedAt, minMs) {
+  const elapsed = Date.now() - startedAt;
+  const remain = minMs - elapsed;
+  if (remain > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remain));
+  }
+}
+
+function clampScore(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+function isGpt5Model(model = "") {
+  return /^gpt-5/i.test(String(model).trim());
+}
+
+function buildOpenAIPayload({
+  model,
+  messages,
+  reasoningEffort = null,
+  temperature = null,
+  maxCompletionTokens = 1800,
+}) {
+  const body = {
+    model,
+    response_format: { type: "json_object" },
+    messages,
+  };
+
+  if (isGpt5Model(model)) {
+    body.max_completion_tokens = maxCompletionTokens;
+    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    if (reasoningEffort === "none" && typeof temperature === "number") {
+      body.temperature = temperature;
+    }
+  } else {
+    body.max_tokens = maxCompletionTokens;
+    if (typeof temperature === "number") body.temperature = temperature;
+  }
+
+  return body;
+}
+
+function extractAssistantText(parsed) {
+  const content = parsed?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") return content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (typeof part?.text === "string") return part.text;
+        if (typeof part?.content === "string") return part.content;
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  return "";
+}
+
+function safeJsonParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const s = String(text || "");
+    const start = s.indexOf("{");
+    const end = s.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(s.slice(start, end + 1));
+    }
+    throw new Error("Model did not return valid JSON");
+  }
 }
 
 function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
@@ -4803,7 +3372,7 @@ ${roleWritingBlock}
 
 function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang, roleProfile }) {
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile) : "";
-  const roleContextText = buildRoleContextText(roleProfile, cv);
+  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
 
@@ -4914,7 +3483,7 @@ ${cv}
 
 function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile }) {
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile) : "";
-  const roleContextText = buildRoleContextText(roleProfile, cv);
+  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
 
@@ -5039,7 +3608,7 @@ function buildTargetedBulletUpgradePrompt({
   roleProfile,
 }) {
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile) : "";
-  const roleContextText = buildRoleContextText(roleProfile, cv);
+  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const weakText = (Array.isArray(weakSentences) ? weakSentences : [])
     .map((item, idx) => `${idx + 1}. ${String(item?.sentence || "").trim()}`)
     .filter(Boolean)
@@ -5140,7 +3709,7 @@ function buildOptimizeCvPrompt({
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile) : "";
-  const roleContextText = buildRoleContextText(roleProfile, cv);
+  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
@@ -5327,7 +3896,7 @@ function buildRepairPrompt({
     Array.isArray(unsupportedTerms) && unsupportedTerms.length
       ? unsupportedTerms.join(", ")
       : "(none)";
-  const roleContextText = buildRoleContextText(roleProfile, cv);
+  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
@@ -5499,7 +4068,7 @@ function buildWeakRewriteFallbackPrompt({
   roleProfile,
 }) {
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile) : "";
-  const roleContextText = buildRoleContextText(roleProfile, cv);
+  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
 
   const candidateText = (Array.isArray(candidates) ? candidates : [])
     .map((x, i) => `${i + 1}. ${x}`)
@@ -5575,90 +4144,6 @@ ${candidateText}
 RESUME:
 ${cv}
 `.trim();
-}
-
-function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 8, maxCount = 12) {
-  const bullets = getBulletLines(cv).map((sentence) => ({
-    sentence,
-    sourceType: "bullet",
-  }));
-
-  const summaries = extractSummaryLines(cv).map((sentence) => ({
-    sentence,
-    sourceType: "summary",
-  }));
-
-  const all = [...bullets, ...summaries]
-    .map((item) => {
-      const profile = getSentenceSignalProfile(item.sentence, roleInput);
-      return { ...item, profile };
-    })
-    .filter((x) => x.profile.isWeakCandidate || x.profile.weakScore >= (x.sourceType === "bullet" ? 4 : 3))
-    .sort((a, b) => {
-      return (
-        b.profile.weakScore - a.profile.weakScore ||
-        a.profile.strongScore - b.profile.strongScore ||
-        (a.sourceType === "bullet" ? -1 : 1)
-      );
-    });
-
-  const out = [];
-  const seen = new Set();
-
-  for (const item of all) {
-    const key = canonicalizeTerm(item.sentence);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(item.sentence);
-    if (out.length >= maxCount) break;
-  }
-
-  if (out.length >= minCount) return out;
-  return out.slice(0, maxCount);
-}
-
-function mergeWeakSentenceSets(primary = [], secondary = [], roleInput = {}, outLang = "English", maxCount = 12) {
-  const combined = [
-    ...(Array.isArray(primary) ? primary : []),
-    ...(Array.isArray(secondary) ? secondary : []),
-  ];
-
-  const seen = new Set();
-  const out = [];
-
-  for (const item of combined) {
-    const sentence = String(item?.sentence || "").trim();
-    const rewrite = String(item?.rewrite || "").trim();
-    if (!sentence || !rewrite) continue;
-
-    const key = canonicalizeTerm(sentence);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-
-    const filtered = filterWeakSentences([{ sentence, rewrite }], {
-      outLang,
-      roleInput,
-    });
-
-    if (filtered.length) {
-      out.push(filtered[0]);
-    }
-
-    if (out.length >= maxCount) break;
-  }
-
-  return out;
-}
-
-function buildLocalBulletUpgradeFallback(weakSentences = []) {
-  return (Array.isArray(weakSentences) ? weakSentences : [])
-    .map((item) => ({
-      source: String(item?.sentence || "").trim(),
-      rewrite: String(item?.rewrite || "").trim(),
-      reason: "Stronger action, clearer scope, and better ATS phrasing.",
-    }))
-    .filter((x) => x.source && x.rewrite)
-    .slice(0, 8);
 }
 
 function buildLinkedInPreviewPrompt({
@@ -5979,6 +4464,23 @@ export default async function handler(req, res) {
         }
       }
 
+      if (previewWeakSentences.length < Math.min(2, detectedPreviewWeakCandidates.length)) {
+        const localPreviewWeak = buildLocalWeakSentenceSet(
+          detectedPreviewWeakCandidates,
+          roleProfile,
+          outLang,
+          4
+        );
+
+        previewWeakSentences = mergeWeakSentenceSets(
+          previewWeakSentences,
+          localPreviewWeak,
+          roleProfile,
+          outLang,
+          4
+        );
+      }
+
       const normalized = {
         ats_score: mergedPreviewScore,
         component_scores: componentScores,
@@ -6039,8 +4541,9 @@ export default async function handler(req, res) {
     );
 
     const detectedWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, 8, 12);
+    const desiredWeakCount = getDesiredWeakCount(hasJD, detectedWeakCandidates.length);
 
-    if (modelWeakSentences.length < Math.min(6, detectedWeakCandidates.length)) {
+    if (modelWeakSentences.length < desiredWeakCount) {
       try {
         const fallbackWeakData = await callOpenAIJson({
           apiKey,
@@ -6073,6 +4576,23 @@ export default async function handler(req, res) {
       } catch {
         // keep model weak sentences
       }
+    }
+
+    if (modelWeakSentences.length < desiredWeakCount) {
+      const localWeakSentences = buildLocalWeakSentenceSet(
+        detectedWeakCandidates,
+        roleProfile,
+        outLang,
+        12
+      );
+
+      modelWeakSentences = mergeWeakSentenceSets(
+        modelWeakSentences,
+        localWeakSentences,
+        roleProfile,
+        outLang,
+        12
+      );
     }
 
     const componentScores =
@@ -6137,7 +4657,11 @@ export default async function handler(req, res) {
     }
 
     if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
-      bulletUpgrades = buildLocalBulletUpgradeFallback(normalized.weak_sentences);
+      bulletUpgrades = normalizeBulletUpgrades(
+        buildLocalBulletUpgradeFallback(normalized.weak_sentences),
+        outLang,
+        roleProfile
+      );
     }
 
     let currentOptimized = "";
@@ -6165,6 +4689,9 @@ export default async function handler(req, res) {
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
+        if (bulletUpgrades.length) {
+          currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+        }
         unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
     } catch {
@@ -6173,8 +4700,10 @@ export default async function handler(req, res) {
     }
 
     if (!currentOptimized) {
-      currentOptimized = forceSafeResume(cv, cv);
-      unsupportedTerms = [];
+      currentOptimized = bulletUpgrades.length
+        ? applyBulletUpgradesToCv(cv, cv, bulletUpgrades)
+        : forceSafeResume(cv, cv);
+      unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
     }
 
     if (
@@ -6212,6 +4741,9 @@ export default async function handler(req, res) {
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
           currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+          if (bulletUpgrades.length) {
+            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+          }
           unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
         }
       } catch {
@@ -6244,6 +4776,9 @@ export default async function handler(req, res) {
 
         if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
           currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
+          if (bulletUpgrades.length) {
+            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+          }
         }
       } catch {
         // keep current optimized version
