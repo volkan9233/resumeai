@@ -2248,7 +2248,7 @@ export default async function handler(req, res) {
           ? previewData.component_scores
           : {};
 
-      const deterministicScore = computeDeterministicAtsScore(cv, jd);
+      const deterministicScore = computeDeterministicAtsScore(cv, jd, roleFamily);
       const modelComponentScore = computeComponentScore(componentScores, hasJD);
       const mergedPreviewScore = clampScore(
         Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
@@ -2261,8 +2261,9 @@ export default async function handler(req, res) {
           ? previewData.missing_keywords
           : [],
         weak_sentences: filterWeakSentences(
-          Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : []
-        ),
+        Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : [],
+        roleFamily
+      ),
         summary: typeof previewData?.summary === "string" ? previewData.summary : "",
       };
 
@@ -2301,7 +2302,7 @@ export default async function handler(req, res) {
         ? analysisData.component_scores
         : {};
 
-    const deterministicScore = computeDeterministicAtsScore(cv, jd);
+    const deterministicScore = computeDeterministicAtsScore(cv, jd, roleFamily);
     const modelComponentScore = computeComponentScore(componentScores, hasJD);
     const mergedBaseScore = clampScore(
       Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
@@ -2314,8 +2315,9 @@ export default async function handler(req, res) {
         ? analysisData.missing_keywords
         : [],
       weak_sentences: filterWeakSentences(
-        Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : []
-      ),
+      Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : [],
+      roleFamily
+    ),
       summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
       optimized_cv: "",
       optimized_ats_score: mergedBaseScore,
