@@ -384,7 +384,10 @@ const ROLE_PACKS = {
       "cloud",
       "microservices",
       "version control",
-      "code review"
+      "code review",
+      "api development",
+      "backend services",
+      "frontend components"
     ],
     "strongTerms": [
       "rest api",
@@ -1041,6 +1044,9 @@ const ROLE_PACKS = {
       "forecasting",
       "variance analysis",
       "audit support",
+      "month-end close",
+      "general ledger",
+      "accruals",
       "ledger",
       "month-end"
     ],
@@ -1151,6 +1157,8 @@ const ROLE_PACKS = {
       "candidate screening",
       "interview scheduling",
       "employee records",
+      "employee relations",
+      "benefits administration",
       "onboarding",
       "offboarding",
       "training coordination",
@@ -1258,6 +1266,8 @@ const ROLE_PACKS = {
       "reporting",
       "process coordination",
       "process improvement",
+      "sop",
+      "process documentation",
       "scheduling",
       "cross-functional coordination",
       "vendor communication",
@@ -2187,6 +2197,8 @@ const ROLE_PACKS = {
       "adobe creative suite",
       "photoshop",
       "illustrator",
+      "design systems",
+      "usability testing",
       "wireframes",
       "prototypes",
       "ui",
@@ -3639,6 +3651,34 @@ const SKILL_NGRAM_HINTS = uniqueTrimmedStrings([
   "inspection"
 ]);
 
+const SUPPORT_FRIENDLY_ROLE_KEYS = new Set([
+  "customer_support",
+  "customer_success",
+  "executive_assistant",
+  "administrative",
+  "operations",
+  "project",
+  "hr",
+  "healthcare_admin",
+  "hospitality",
+  "it_support",
+  "legal_operations",
+  "supply_chain",
+  "procurement",
+]);
+
+const SUPPORT_NATIVE_VERB_RE =
+  /^(coordinated|prepared|maintained|tracked|scheduled|organized|responded|processed|updated|documented|reviewed|monitored|verified|communicated|followed up on|handled|supported)\b/i;
+
+const LEADERSHIP_ESCALATION_RE =
+  /\b(led|managed|owned|spearheaded|oversaw|directed|headed|architected|drove|orchestrated|supervised)\b/i;
+
+const INFLATED_REWRITE_VERB_RE =
+  /^(executed|managed|led|owned|drove|optimized|orchestrated|spearheaded|oversaw|directed|transformed|elevated)\b/i;
+
+const AI_FLUFF_ENDING_RE =
+  /\b(to (?:drive|improve|optimize|inform|streamline|enhance|maximize|strengthen)(?: [a-z-]+){0,3}|for efficiency|for improved outcomes|for better outcomes|to support decision-making)\b/i;
+
 function isBrandedOrVendorSpecific(term = "") {
   const norm = canonicalizeTerm(term);
   return BRAND_SPECIFIC_TERMS.some((x) => canonicalizeTerm(x) === norm);
@@ -4119,12 +4159,168 @@ function buildLikelyKeywordThemeText(roleInput = [], cv = "") {
   ].join("\n");
 }
 
+function stripCommonResumeLeadPhrase(str = "") {
+  let s = String(str || "").trim();
+  const patterns = [
+    /^helped with\s+/i,
+    /^helped\s+/i,
+    /^assisted with\s+/i,
+    /^assisted\s+/i,
+    /^supported with\s+/i,
+    /^supported\s+/i,
+    /^worked on\s+/i,
+    /^worked with\s+/i,
+    /^responsible for\s+/i,
+    /^participated in\s+/i,
+    /^contributed to\s+/i,
+    /^provided support for\s+/i,
+    /^handled\s+/i,
+    /^coordinated\s+/i,
+    /^prepared\s+/i,
+    /^maintained\s+/i,
+    /^tracked\s+/i,
+    /^documented\s+/i,
+    /^updated\s+/i,
+    /^managed\s+/i,
+    /^led\s+/i,
+    /^owned\s+/i,
+    /^executed\s+/i,
+  ];
+
+  for (const re of patterns) {
+    if (re.test(s)) return s.replace(re, "").trim();
+  }
+
+  return s.replace(/^[A-Za-z][A-Za-z/-]*(?:ed|ing|s)?\s+/i, "").trim();
+}
+
+function sentenceHasMeaningfulContext(sentence = "", roleInput = []) {
+  const s = String(sentence || "").trim();
+  if (!s) return false;
+
+  const profile = ensureRoleProfile(roleInput);
+  const packs = getRolePacks(profile);
+  const explicitFacts = getExplicitFactTerms(s);
+  const roleTerms = uniqueTrimmedStrings(
+    packs.flatMap((p) => [
+      ...(p.strongTerms || []),
+      ...(p.toolTerms || []),
+      ...(p.methodologyTerms || []),
+      ...(p.responsibilityTerms || []),
+      ...(p.businessContextTerms || []),
+    ])
+  );
+
+  const roleHits = countTermHits(s, roleTerms);
+  const scopeHits = countTermHits(
+    s,
+    [
+      "using",
+      "with",
+      "across",
+      "through",
+      "via",
+      "regarding",
+      "including",
+      "for",
+      "within",
+      "covering",
+      "supporting",
+      "customer",
+      "client",
+      "campaign",
+      "ticket",
+      "schedule",
+      "documentation",
+      "reporting",
+      "dashboard",
+      "analysis",
+      "records",
+      "requests",
+      "orders",
+      "invoices",
+      "reconciliation",
+      "testing",
+      "project",
+      "meeting",
+      "design",
+      "content",
+    ]
+  );
+
+  return (
+    explicitFacts.length > 0 ||
+    roleHits >= 2 ||
+    (roleHits >= 1 && scopeHits >= 1) ||
+    (countWords(s) >= 7 && scopeHits >= 2)
+  );
+}
+
+function roleUsesSupportLanguageNaturally(roleInput = []) {
+  const profile = ensureRoleProfile(roleInput);
+  return (profile.roleGroups || []).some((key) => SUPPORT_FRIENDLY_ROLE_KEYS.has(key));
+}
+
+function isSupportNativeExecutionLine(sentence = "", roleInput = []) {
+  const s = String(sentence || "").trim();
+  if (!s || !roleUsesSupportLanguageNaturally(roleInput)) return false;
+  if (!SUPPORT_NATIVE_VERB_RE.test(s)) return false;
+
+  const hasContext =
+    sentenceHasMeaningfulContext(s, roleInput) ||
+    /\b(email|live chat|ticket|case|calendar|meeting|travel|records?|documentation|report|dashboard|invoice|order|request|schedule|booking|guest|patient|candidate|interview|shipment|inventory|vendor|appointment)\b/i.test(
+      s
+    );
+
+  return hasContext && countWords(s) >= 6;
+}
+
+function hasUnsupportedSeniorityShift(originalText = "", candidateText = "", roleInput = []) {
+  const orig = String(originalText || "").trim();
+  const cand = String(candidateText || "").trim();
+  if (!cand) return false;
+
+  const originalHasLeadership =
+    LEADERSHIP_ESCALATION_RE.test(orig) ||
+    /\b(manager|lead|director|head|owner|supervisor)\b/i.test(orig);
+
+  const candidateHasLeadership =
+    LEADERSHIP_ESCALATION_RE.test(cand) ||
+    /\b(manager|lead|director|head|owner|supervisor)\b/i.test(cand);
+
+  if (!candidateHasLeadership || originalHasLeadership) return false;
+
+  const profile = ensureRoleProfile(roleInput);
+  if (profile.seniority === "manager_or_lead" || profile.seniority === "leadership") {
+    return WEAK_START_RE.test(orig) && candidateHasLeadership;
+  }
+
+  return true;
+}
+
+function hasLowValueVerbInflation(originalText = "", candidateText = "") {
+  const orig = String(originalText || "").trim();
+  const cand = String(candidateText || "").trim();
+  if (!orig || !cand) return false;
+
+  const strippedOrig = stripCommonResumeLeadPhrase(orig);
+  const strippedCand = stripCommonResumeLeadPhrase(cand);
+  const bodySim = jaccardSimilarity(strippedOrig, strippedCand);
+
+  return (
+    (WEAK_START_RE.test(orig) || ENGLISH_WEAK_SWAP_RE.test(orig)) &&
+    INFLATED_REWRITE_VERB_RE.test(cand) &&
+    bodySim >= 0.82
+  );
+}
+
 function getSentenceSignalProfile(sentence = "", roleInput = []) {
   const s = String(sentence || "").trim();
   const profile = ensureRoleProfile(roleInput);
   const roleSpecificRe = getRoleSpecificityRegex(profile);
   const roleBusinessRe = getRoleBusinessContextRegex(profile);
   const packs = getRolePacks(profile);
+  const supportFriendlyRole = roleUsesSupportLanguageNaturally(profile);
 
   if (!s) {
     return {
@@ -4134,6 +4330,9 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
       hasSpecific: false,
       startsWeak: false,
       hasWeakPhrase: false,
+      hasMeaningfulContext: false,
+      supportNativeExecution: false,
+      wordCount: 0,
     };
   }
 
@@ -4165,7 +4364,12 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
   const softExecutionStart = SOFT_EXECUTION_START_RE.test(s);
 
   const hasScopeSignal =
-    /\b(using|with|for|across|through|via|by|on|under|according to|per|kullanarak|ile|için|kapsamında|üzerinde|aracılığıyla)\b/i.test(
+    /\b(using|with|across|through|via|by|on|under|according to|per|regarding|including|within|covering|for|kullanarak|ile|için|kapsamında|üzerinde|aracılığıyla)\b/i.test(
+      s
+    );
+
+  const hasProcessSignal =
+    /\b(report|reporting|dashboard|analysis|campaign|ticket|case|issue|calendar|meeting|travel|invoice|order|request|records?|documentation|testing|deployment|reconciliation|audit|shipment|inventory|onboarding|screening|appointment|patient|guest|lesson|curriculum|drawing|maintenance|production)\b/i.test(
       s
     );
 
@@ -4174,10 +4378,16 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
     explicitFacts.length > 0 ||
     roleSpecificHits > 1 ||
     roleSpecificRe.test(s) ||
-    (businessHits >= 2 && strongAction) ||
-    (roleBusinessRe.test(s) && strongAction) ||
+    (businessHits >= 2 && (strongAction || hasScopeSignal)) ||
+    (roleBusinessRe.test(s) && (strongAction || hasScopeSignal)) ||
     GLOBAL_STRONG_SPECIFIC_RE.test(s) ||
     (hasAcronym && wc <= 18);
+
+  const hasMeaningfulContext =
+    sentenceHasMeaningfulContext(s, profile) ||
+    (hasSpecific && (hasScopeSignal || hasProcessSignal || wc >= 8));
+
+  const supportNativeExecution = isSupportNativeExecutionLine(s, profile);
 
   let strongScore = 0;
   let weakScore = 0;
@@ -4188,6 +4398,9 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
   if (roleSpecificHits > 0) strongScore += Math.min(4, roleSpecificHits);
   if (businessHits > 0) strongScore += Math.min(2, businessHits);
   if (hasScopeSignal) strongScore += 1;
+  if (hasProcessSignal) strongScore += 1;
+  if (hasMeaningfulContext) strongScore += 1;
+  if (supportNativeExecution) strongScore += 1;
   if (wc >= 6 && wc <= 22) strongScore += 1;
 
   if (startsWeak) weakScore += 4;
@@ -4196,30 +4409,55 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
   if (dutiesOnly) weakScore += 2;
   if (!hasSpecific) weakScore += 2;
   if (!strongAction) weakScore += 1;
-  if (wc <= 5) weakScore += 3;
-  else if (wc <= 8 && !hasSpecific) weakScore += 2;
+  if (wc <= 4) weakScore += 4;
+  else if (wc <= 6 && !hasSpecific) weakScore += 2;
   if (wc > 28) weakScore += 1;
 
-  if (genericExecution && !hasNumber && explicitFacts.length === 0) weakScore += 2;
+  if (genericExecution && !hasNumber && explicitFacts.length === 0 && !hasMeaningfulContext) {
+    weakScore += 2;
+  }
 
   if (
     softExecutionStart &&
     !hasNumber &&
     explicitFacts.length === 0 &&
     roleSpecificHits <= 1 &&
-    !hasScopeSignal
+    !hasMeaningfulContext
   ) {
     weakScore += 1;
   }
 
-  if (hasSpecific && strongAction) weakScore -= 3;
+  if (hasSpecific) weakScore -= 2;
+  if (hasMeaningfulContext) weakScore -= 2;
+  if (hasSpecific && strongAction) weakScore -= 2;
   if (hasNumber && explicitFacts.length > 0) weakScore -= 1;
 
+  if (startsWeak && hasMeaningfulContext) weakScore -= 3;
+  if (supportFriendlyRole && (softExecutionStart || startsWeak) && hasMeaningfulContext) {
+    weakScore -= 2;
+  }
+  if (supportNativeExecution) weakScore -= 3;
+
+  weakScore = Math.max(0, weakScore);
+
+  const clearlyWeakDutyLine =
+    startsWeak &&
+    !hasMeaningfulContext &&
+    !hasSpecific &&
+    (wc <= 10 || dutiesOnly || genericExecution);
+
+  const contextRichButMild =
+    hasMeaningfulContext &&
+    (hasSpecific || businessHits >= 2 || roleSpecificHits >= 1) &&
+    !genericSummary &&
+    !dutiesOnly;
+
   const isWeakCandidate =
-    (weakScore >= 5 && strongScore <= 6) ||
-    (weakScore >= 4 && strongScore <= 5) ||
-    (startsWeak && strongScore < 7) ||
-    (genericSummary && !hasSpecific);
+    (genericSummary && !hasSpecific) ||
+    clearlyWeakDutyLine ||
+    (weakScore >= 8 && strongScore <= 6 && !contextRichButMild) ||
+    (weakScore >= 7 && strongScore <= 4 && !hasMeaningfulContext) ||
+    (startsWeak && weakScore >= 7 && !hasMeaningfulContext);
 
   return {
     isWeakCandidate,
@@ -4229,6 +4467,10 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
     startsWeak,
     hasWeakPhrase,
     strongAction,
+    hasMeaningfulContext,
+    supportNativeExecution,
+    roleSpecificHits,
+    businessHits,
     wordCount: wc,
   };
 }
@@ -4269,24 +4511,30 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   if (!s || !r) return true;
 
   const sim = jaccardSimilarity(s, r);
+  const strippedSim = jaccardSimilarity(stripCommonResumeLeadPhrase(s), stripCommonResumeLeadPhrase(r));
+
   if (canonicalizeTerm(s) === canonicalizeTerm(r)) return true;
-  if (sim >= 0.9) return true;
+  if (sim >= 0.92) return true;
 
   const sWords = countWords(s);
   const rWords = countWords(r);
   const strongVerbDelta = Number(STRONG_ACTION_RE.test(r)) - Number(STRONG_ACTION_RE.test(s));
   const specificDelta = countTermHits(r, HARD_FACT_TERMS) - countTermHits(s, HARD_FACT_TERMS);
-  const scopeDelta = Number(/\b(for|with|using|across|through|via|regarding|including)\b/i.test(r)) - Number(/\b(for|with|using|across|through|via|regarding|including)\b/i.test(s));
+  const scopeDelta =
+    Number(/\b(for|with|using|across|through|via|regarding|including|within|covering)\b/i.test(r)) -
+    Number(/\b(for|with|using|across|through|via|regarding|including|within|covering)\b/i.test(s));
+
+  if (hasLowValueVerbInflation(s, r)) return true;
 
   if (ENGLISH_WEAK_SWAP_RE.test(s) && ENGLISH_WEAK_SWAP_RE.test(r) && sim >= 0.68 && strongVerbDelta <= 0 && specificDelta <= 0) {
     return true;
   }
 
-  if (sim >= 0.78 && strongVerbDelta <= 0 && specificDelta <= 0 && scopeDelta <= 0) {
+  if (strippedSim >= 0.9 && strongVerbDelta <= 0 && specificDelta <= 0 && scopeDelta <= 0) {
     return true;
   }
 
-  if (Math.abs(rWords - sWords) <= 2 && sim >= 0.74 && strongVerbDelta <= 0 && specificDelta <= 0) {
+  if (sim >= 0.8 && Math.abs(rWords - sWords) <= 2 && strongVerbDelta <= 0 && specificDelta <= 0 && scopeDelta <= 0) {
     return true;
   }
 
@@ -4307,20 +4555,49 @@ function isClearlyWeakSentence(sentence = "", roleInput = []) {
 function getRewriteQualityDelta(sentence = "", rewrite = "", roleInput = []) {
   const sourceProfile = getSentenceSignalProfile(sentence, roleInput);
   const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput);
+
   const beforeWords = countWords(sentence);
   const afterWords = countWords(rewrite);
   const beforeFacts = getExplicitFactTerms(sentence).length;
   const afterFacts = getExplicitFactTerms(rewrite).length;
-  const clarityGain = (sourceProfile.weakScore - rewriteProfile.weakScore) + (rewriteProfile.strongScore - sourceProfile.strongScore);
-  const scopeGain = Number(/\b(for|with|using|across|through|via|regarding|including|covering)\b/i.test(rewrite)) - Number(/\b(for|with|using|across|through|via|regarding|including|covering)\b/i.test(sentence));
+  const beforeBusiness = countTermHits(sentence, ALL_BUSINESS_CONTEXT_TERMS);
+  const afterBusiness = countTermHits(rewrite, ALL_BUSINESS_CONTEXT_TERMS);
+
+  const clarityGain =
+    (sourceProfile.weakScore - rewriteProfile.weakScore) +
+    Math.max(0, rewriteProfile.strongScore - sourceProfile.strongScore);
+
+  const scopeGain =
+    Number(/\b(for|with|using|across|through|via|regarding|including|within|covering)\b/i.test(rewrite)) -
+    Number(/\b(for|with|using|across|through|via|regarding|including|within|covering)\b/i.test(sentence));
+
   const specificityGain = afterFacts - beforeFacts;
-  const compressionOk = afterWords <= Math.max(beforeWords + 5, 22);
+  const businessContextGain = Math.max(0, afterBusiness - beforeBusiness);
+  const actionGain = Math.max(0, rewriteProfile.strongScore - sourceProfile.strongScore);
+  const readabilityGain =
+    Number(!WEAK_START_RE.test(rewrite) && WEAK_START_RE.test(sentence)) +
+    Number(afterWords >= 6 && afterWords <= 20) -
+    Number(beforeWords > 24 && afterWords > beforeWords);
+
+  const compressionOk = afterWords <= Math.max(beforeWords + 4, 22);
+
+  let improvementAreas = 0;
+  if (sourceProfile.weakScore - rewriteProfile.weakScore >= 2) improvementAreas += 1;
+  if (specificityGain > 0 || businessContextGain > 0) improvementAreas += 1;
+  if (scopeGain > 0) improvementAreas += 1;
+  if (actionGain > 0) improvementAreas += 1;
+  if (readabilityGain > 0) improvementAreas += 1;
+
   return {
     sourceProfile,
     rewriteProfile,
     clarityGain,
     scopeGain,
     specificityGain,
+    businessContextGain,
+    actionGain,
+    readabilityGain,
+    improvementAreas,
     compressionOk,
   };
 }
@@ -4337,23 +4614,26 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
       const quality = getRewriteQualityDelta(x.sentence, x.rewrite, roleInput);
       return { ...x, ...quality };
     })
-    .filter((x) => x.sourceProfile.isWeakCandidate || x.sourceProfile.weakScore >= 4)
+    .filter((x) => x.sourceProfile.isWeakCandidate || (x.sourceProfile.weakScore >= 6 && !x.sourceProfile.hasMeaningfulContext))
+    .filter((x) => !x.sourceProfile.supportNativeExecution || x.sourceProfile.weakScore >= 8)
     .filter((x) => !isShallowRewrite(x.sentence, x.rewrite))
+    .filter((x) => !hasUnsupportedSeniorityShift(x.sentence, x.rewrite, roleInput))
+    .filter((x) => !hasLowValueVerbInflation(x.sentence, x.rewrite))
     .filter((x) => {
       const materiallyStronger =
-        x.clarityGain >= 2 ||
-        (x.clarityGain >= 1 && (x.scopeGain > 0 || x.specificityGain > 0)) ||
-        (x.sourceProfile.weakScore >= 6 && x.rewriteProfile.weakScore <= x.sourceProfile.weakScore - 2);
+        x.improvementAreas >= 2 &&
+        x.clarityGain >= 2 &&
+        x.rewriteProfile.weakScore < x.sourceProfile.weakScore;
 
       if (!materiallyStronger) return false;
       if (!x.compressionOk) return false;
-      if (x.rewriteProfile.weakScore >= x.sourceProfile.weakScore) return false;
       return true;
     })
     .filter((x) => {
       if (outLang !== "English") return true;
       if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
       if (hasUnsupportedImpactClaims(x.sentence, x.rewrite)) return false;
+      if (AI_FLUFF_ENDING_RE.test(x.rewrite) && !AI_FLUFF_ENDING_RE.test(x.sentence)) return false;
       if (
         ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) &&
         !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)
@@ -4371,6 +4651,7 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
       return (
         b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
         bDelta - aDelta ||
+        b.improvementAreas - a.improvementAreas ||
         b.clarityGain - a.clarityGain ||
         a.sourceProfile.strongScore - b.sourceProfile.strongScore
       );
@@ -4392,19 +4673,23 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     const quality = getRewriteQualityDelta(source, rewrite, roleInput);
     const sourceProfile = quality.sourceProfile;
     const rewriteProfile = quality.rewriteProfile;
-    if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4)) continue;
+    if (!(sourceProfile.isWeakCandidate || (sourceProfile.weakScore >= 6 && !sourceProfile.hasMeaningfulContext))) continue;
     if (isShallowRewrite(source, rewrite)) continue;
+    if (hasUnsupportedSeniorityShift(source, rewrite, roleInput)) continue;
+    if (hasLowValueVerbInflation(source, rewrite)) continue;
 
     const stronger =
-      quality.clarityGain >= 2 ||
-      (quality.clarityGain >= 1 && (quality.scopeGain > 0 || quality.specificityGain > 0)) ||
-      (sourceProfile.weakScore >= 6 && rewriteProfile.weakScore <= sourceProfile.weakScore - 2);
+      quality.improvementAreas >= 2 &&
+      quality.clarityGain >= 2 &&
+      rewriteProfile.weakScore < sourceProfile.weakScore &&
+      quality.compressionOk;
 
-    if (!stronger || !quality.compressionOk) continue;
+    if (!stronger) continue;
 
     if (outLang === "English") {
       if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
       if (hasUnsupportedImpactClaims(source, rewrite)) continue;
+      if (AI_FLUFF_ENDING_RE.test(rewrite) && !AI_FLUFF_ENDING_RE.test(source)) continue;
       if (
         ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) &&
         !ENGLISH_CORPORATE_FLUFF_RE.test(source)
@@ -4429,6 +4714,7 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
       return (
         b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
         bDelta - aDelta ||
+        b.quality.improvementAreas - a.quality.improvementAreas ||
         b.quality.clarityGain - a.quality.clarityGain ||
         b.rewriteProfile.strongScore - a.rewriteProfile.strongScore
       );
@@ -4810,17 +5096,23 @@ function getReadabilityScore(cv = "") {
 
   let score = 0;
 
-  if (header.length >= 3) score += 3;
-  if (lines.length >= 12) score += 3;
+  if (header.length >= 3) score += 4;
+  else if (header.length >= 2) score += 2;
+
+  if (lines.length >= 12) score += 4;
+  else if (lines.length >= 8) score += 2;
+
   if (bullets.length >= 4) score += 6;
+  else if (bullets.length >= 2) score += 3;
 
   const avgBulletWords =
     bullets.length > 0
       ? bullets.reduce((sum, b) => sum + countWords(b), 0) / bullets.length
       : 0;
 
-  if (avgBulletWords >= 6 && avgBulletWords <= 20) score += 8;
-  else if (avgBulletWords >= 4) score += 4;
+  if (avgBulletWords >= 6 && avgBulletWords <= 20) score += 6;
+  else if (avgBulletWords >= 4 && avgBulletWords <= 24) score += 4;
+  else if (avgBulletWords > 0) score += 2;
 
   return Math.min(20, score);
 }
@@ -4833,11 +5125,14 @@ function getBulletStrengthScore(cv = "", roleInput = []) {
 
   for (const bullet of bullets) {
     const p = getSentenceSignalProfile(bullet, roleInput);
-    let value = 4;
-    value += p.strongScore * 1.5;
-    value -= p.weakScore * 1.3;
-    if (p.hasSpecific) value += 1;
-    sum += Math.max(0, Math.min(12, value));
+    let value = 6.2;
+    value += p.strongScore * 1.1;
+    value -= p.weakScore * 0.75;
+    if (p.hasSpecific) value += 1.4;
+    if (p.hasMeaningfulContext) value += 1.2;
+    if (p.supportNativeExecution) value += 0.8;
+    if (p.strongAction) value += 0.8;
+    sum += Math.max(2, Math.min(12, value));
   }
 
   const avg = sum / bullets.length;
@@ -4856,9 +5151,10 @@ function getJdAlignmentScore(cv = "", jd = "", roleInput = []) {
 
   for (const item of signals.slice(0, 24)) {
     let w = 1;
-    if (item.category === "tool" || item.category === "certification") w = 1.35;
-    else if (item.category === "methodology") w = 1.2;
-    else if (item.category === "seniority") w = 0.8;
+    if (item.category === "tool" || item.category === "certification") w = 1.4;
+    else if (item.category === "methodology") w = 1.25;
+    else if (item.category === "responsibility") w = 1.15;
+    else if (item.category === "seniority") w = 0.75;
 
     totalWeight += w;
     if (containsCanonicalTermInNormalizedText(cvText, item.term)) {
@@ -4867,7 +5163,7 @@ function getJdAlignmentScore(cv = "", jd = "", roleInput = []) {
   }
 
   const ratio = totalWeight > 0 ? hitWeight / totalWeight : 0;
-  return Math.max(0, Math.min(10, Math.round(ratio * 10)));
+  return Math.max(0, Math.min(18, Math.round(ratio * 18)));
 }
 
 function computeDeterministicAtsScore(cv = "", jd = "", roleInput = []) {
@@ -4885,16 +5181,22 @@ function computeDeterministicAtsScore(cv = "", jd = "", roleInput = []) {
   if (hasJD) {
     total =
       Math.round((sectionScore / 25) * 20) +
-      Math.round((bulletScore / 40) * 35) +
-      Math.round((readabilityScore / 20) * 20) +
-      Math.round((keywordScore / 15) * 15) +
+      Math.round((bulletScore / 40) * 32) +
+      Math.round((readabilityScore / 20) * 18) +
+      Math.round((keywordScore / 15) * 12) +
       jdScore;
+
+    if (sectionScore >= 17 && bulletScore >= 22 && readabilityScore >= 12) total += 5;
+    else if (sectionScore >= 14 && bulletScore >= 18 && readabilityScore >= 10) total += 3;
   } else {
     total =
       Math.round((sectionScore / 25) * 25) +
-      Math.round((bulletScore / 40) * 40) +
-      Math.round((readabilityScore / 20) * 20) +
-      Math.round((keywordScore / 15) * 15);
+      Math.round((bulletScore / 40) * 34) +
+      Math.round((readabilityScore / 20) * 22) +
+      Math.round((keywordScore / 15) * 19);
+
+    if (sectionScore >= 18 && bulletScore >= 22 && readabilityScore >= 12) total += 6;
+    else if (sectionScore >= 14 && bulletScore >= 18 && readabilityScore >= 10) total += 3;
   }
 
   return clampScore(total);
@@ -4909,10 +5211,10 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
     const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
 
     return clampScore(
-      role_alignment * 0.28 +
-        bullet_strength * 0.28 +
-        jd_keyword_match * 0.18 +
-        section_completeness * 0.16 +
+      role_alignment * 0.26 +
+        bullet_strength * 0.27 +
+        jd_keyword_match * 0.2 +
+        section_completeness * 0.17 +
         ats_safe_formatting * 0.1
     );
   }
@@ -4924,11 +5226,11 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
   const core_keyword_coverage = clampScore(componentScores?.core_keyword_coverage);
 
   return clampScore(
-    section_completeness * 0.22 +
-      clarity_readability * 0.24 +
-      bullet_strength * 0.32 +
-      ats_safe_formatting * 0.14 +
-      core_keyword_coverage * 0.08
+    section_completeness * 0.24 +
+      clarity_readability * 0.23 +
+      bullet_strength * 0.28 +
+      ats_safe_formatting * 0.13 +
+      core_keyword_coverage * 0.12
   );
 }
 
@@ -5085,28 +5387,14 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
   if (!source) return "";
 
   const sourceProfile = getSentenceSignalProfile(source, roleInput);
-  if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4)) return "";
+  if (!(sourceProfile.isWeakCandidate || (sourceProfile.weakScore >= 6 && !sourceProfile.hasMeaningfulContext))) {
+    return "";
+  }
 
   const { body, ending } = splitSentenceEnding(source);
   const sourceBody = body.trim();
   if (!sourceBody || countWords(sourceBody) < 3) return "";
-
-  if (/^supports?\s+.+?\s+by\s+.+/i.test(sourceBody)) {
-    const m = sourceBody.match(/^supports?\s+(.+?)\s+by\s+(.+)$/i);
-    if (m) {
-      const subject = String(m[1] || "").trim();
-      const action = String(m[2] || "").trim();
-      const rewrite = `${capitalizeFirst(action)} to support ${lowerFirst(subject)}`.trim();
-      if (
-        rewrite &&
-        canonicalizeTerm(rewrite) !== canonicalizeTerm(source) &&
-        !EN_WEAK_REWRITE_START_RE.test(rewrite) &&
-        !isShallowRewrite(source, rewrite)
-      ) {
-        return `${rewrite}${ending}`;
-      }
-    }
-  }
+  if (sourceProfile.hasMeaningfulContext && sourceProfile.weakScore < 8) return "";
 
   const specials = [
     {
@@ -5143,11 +5431,16 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
     const m = sourceBody.match(item.re);
     if (m) {
       const rewrite = item.fn(m);
+      const quality = getRewriteQualityDelta(source, rewrite, roleInput);
       if (
         rewrite &&
         canonicalizeTerm(rewrite) !== canonicalizeTerm(source) &&
         !EN_WEAK_REWRITE_START_RE.test(rewrite) &&
-        !isShallowRewrite(source, rewrite)
+        !isShallowRewrite(source, rewrite) &&
+        !hasUnsupportedSeniorityShift(source, rewrite, roleInput) &&
+        !hasLowValueVerbInflation(source, rewrite) &&
+        quality.improvementAreas >= 2 &&
+        quality.clarityGain >= 2
       ) {
         return `${rewrite}${ending}`;
       }
@@ -5191,7 +5484,7 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!remainder || countWords(remainder) < 3) return "";
+  if (!remainder || countWords(remainder) < 4) return "";
 
   const roleBusinessRe = getRoleBusinessContextRegex(roleInput);
   const roleSpecificRe = getRoleSpecificityRegex(roleInput);
@@ -5200,7 +5493,7 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
     roleBusinessRe.test(remainder) ||
     roleSpecificRe.test(remainder) ||
     explicitFacts.length > 0 ||
-    countWords(remainder) >= 5;
+    countWords(remainder) >= 6;
 
   if (!hasBusinessContext) return "";
 
@@ -5211,11 +5504,15 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
   if (canonicalizeTerm(rewrite) === canonicalizeTerm(source)) return "";
   if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return "";
   if (isShallowRewrite(source, rewrite)) return "";
+  if (hasUnsupportedSeniorityShift(source, rewrite, roleInput)) return "";
+  if (hasLowValueVerbInflation(source, rewrite)) return "";
+  if (AI_FLUFF_ENDING_RE.test(rewrite) && !AI_FLUFF_ENDING_RE.test(source)) return "";
 
   const quality = getRewriteQualityDelta(source, rewrite, roleInput);
   const meaningful =
-    quality.clarityGain >= 2 ||
-    (quality.clarityGain >= 1 && (quality.scopeGain > 0 || quality.specificityGain > 0));
+    quality.improvementAreas >= 2 &&
+    quality.clarityGain >= 2 &&
+    quality.rewriteProfile.weakScore < quality.sourceProfile.weakScore;
 
   if (!meaningful) return "";
 
@@ -5260,24 +5557,33 @@ function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 0, max
         (profile.startsWeak ? 4 : 0) +
         (profile.hasWeakPhrase ? 3 : 0) +
         (!profile.hasSpecific ? 2 : 0) +
+        (!profile.hasMeaningfulContext ? 3 : 0) +
         (item.sourceType === "bullet" ? 2 : 0);
 
       if (/^(supported|supports|assisted|assists|helped|worked on|responsible for|handled)\b/i.test(item.sentence)) {
         rank += 4;
       }
 
-      if (/\b(team|support staff|internal service updates|daily tasks|routine communication|general support|various tasks)\b/i.test(item.sentence)) {
+      if (/\b(team|support staff|internal service updates|daily tasks|routine communication|general support|various tasks|miscellaneous)\b/i.test(item.sentence)) {
         rank += 2;
       }
+
+      if (profile.hasMeaningfulContext) rank -= 4;
+      if (profile.supportNativeExecution) rank -= 5;
+      if (profile.hasSpecific && profile.strongScore >= 5) rank -= 4;
 
       return { ...item, profile, rank };
     })
     .filter((x) => {
-      if (x.profile.strongScore >= 7 && x.profile.hasSpecific) return false;
+      if (x.profile.supportNativeExecution && x.profile.weakScore < 9) return false;
+      if (x.profile.hasSpecific && x.profile.hasMeaningfulContext && x.profile.weakScore < 8) return false;
+      if (x.profile.strongScore >= 6 && x.profile.hasMeaningfulContext) return false;
+
       if (x.sourceType === "bullet") {
-        return x.profile.isWeakCandidate || x.profile.weakScore >= 4 || (x.profile.startsWeak && !x.profile.hasSpecific);
+        return x.profile.isWeakCandidate || (x.profile.weakScore >= 7 && !x.profile.hasMeaningfulContext);
       }
-      return x.profile.isWeakCandidate || x.profile.weakScore >= 3;
+
+      return x.profile.isWeakCandidate || (x.profile.weakScore >= 6 && !x.profile.hasSpecific);
     })
     .sort((a, b) => {
       return (
@@ -5402,9 +5708,10 @@ function applyBulletUpgradesToCv(originalCv = "", optimizedCv = "", bulletUpgrad
 function getDesiredWeakCount(hasJD = false, candidateCount = 0) {
   if (candidateCount <= 0) return 0;
   if (candidateCount <= 4) return candidateCount;
-  if (candidateCount <= 7) return Math.min(candidateCount, hasJD ? 7 : 8);
-  if (candidateCount <= 10) return Math.min(candidateCount, hasJD ? 8 : 10);
-  return hasJD ? 10 : 12;
+  if (candidateCount <= 6) return candidateCount;
+  if (candidateCount <= 8) return Math.min(candidateCount, hasJD ? 6 : 7);
+  if (candidateCount <= 10) return Math.min(candidateCount, hasJD ? 7 : 8);
+  return hasJD ? 8 : 10;
 }
 
 function getClientIp(req) {
@@ -5751,9 +6058,12 @@ CRITICAL RULES (must follow):
 - If a bullet has no measurable metric, improve it using scope + action + context + purpose wording WITHOUT inventing numbers.
 - If the original sentence is support-oriented, you may strengthen clarity, but do NOT upgrade it into leadership or full ownership unless clearly supported.
 - Weak sentence detection must prioritize genuinely weak, vague, generic, or support-heavy phrasing.
+- Do NOT flag mildly support-oriented bullets as weak when they already include real task, process, platform, or workflow context.
+- For support, coordinator, assistant, admin, operations, and customer-facing roles, coordination, reporting, scheduling, documentation, follow-up, and tracking can be valid strong-enough work when context is present.
 - Do NOT flag already-strong sentences as weak just because they can be polished slightly.
 - Sentences that already contain concrete tools, platforms, technical detail, process detail, domain terminology, or strong action verbs should usually NOT be selected as weak unless they are still clearly vague and can be improved without losing specificity.
 - Rewrites must be materially better than the original.
+- Reject rewrites that only swap the lead verb or change one or two words while keeping the sentence meaning nearly identical.
 - Do NOT make shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these:
   clarity, specificity, scope, action strength, business context, recruiter readability.
@@ -6101,6 +6411,7 @@ STRICT RULES:
 - If the original is support-level work, keep it support-level but make it sharper and more specific.
 - Keep the profession-native language of the source sentence. Technical bullets must stay technical, finance bullets must stay finance-oriented, teaching bullets must stay instructional, and so on.
 - Each rewrite must be materially stronger than the source, not a synonym swap.
+- Do NOT change only the lead verb or one small phrase.
 - For English output, target roughly 9-18 words when possible.
 - Prefer this structure when truthful:
   action + task scope + tool/channel/context + purpose
@@ -6142,6 +6453,7 @@ STRICT RULES:
 - If the original is support-level work, keep it support-level but make it sharper and more specific.
 - Keep the profession-native language of the source sentence. Technical bullets must stay technical, finance bullets must stay finance-oriented, teaching bullets must stay instructional, and so on.
 - Each rewrite must be materially stronger than the source, not a synonym swap.
+- Do NOT change only the lead verb or one small phrase.
 - For English output, target roughly 9-18 words when possible.
 - Prefer this structure when truthful:
   action + task scope + tool/channel/context + purpose
@@ -6561,6 +6873,7 @@ STRICT RULES:
 - Preserve profession-native wording.
 - Each rewrite must be clearly stronger than the original.
 - Avoid shallow synonym swaps.
+- Do NOT return a rewrite that only changes the first verb or one superficial phrase.
 - Output VALUES only in ${outLang}.
 - Return only high-quality rewrites. Fewer items are acceptable when fewer real opportunities exist.
 
@@ -6597,6 +6910,7 @@ STRICT RULES:
 - Preserve profession-native wording.
 - Each rewrite must be clearly stronger than the original.
 - Avoid shallow synonym swaps.
+- Do NOT return a rewrite that only changes the first verb or one superficial phrase.
 - Output VALUES only in ${outLang}.
 - Return only high-quality rewrites. Fewer items are acceptable when fewer real opportunities exist.
 
@@ -6886,7 +7200,7 @@ export default async function handler(req, res) {
       const deterministicScore = computeDeterministicAtsScore(cv, jd, roleProfile);
       const modelComponentScore = computeComponentScore(componentScores, hasJD);
       const mergedPreviewScore = clampScore(
-        Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+        Math.round(deterministicScore * 0.86 + modelComponentScore * 0.14)
       );
 
       let previewWeakSentences = filterWeakSentences(
@@ -7070,7 +7384,7 @@ export default async function handler(req, res) {
     const deterministicScore = computeDeterministicAtsScore(cv, jd, roleProfile);
     const modelComponentScore = computeComponentScore(componentScores, hasJD);
     const mergedBaseScore = clampScore(
-      Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+      Math.round(deterministicScore * 0.86 + modelComponentScore * 0.14)
     );
 
     const normalized = {
