@@ -33,11 +33,7 @@ function escapeRegex(str = "") {
 }
 
 function buildPhraseRegex(terms = []) {
-  const safe = uniqueTrimmedStrings(terms)
-    .map(escapeRegex)
-    .filter(Boolean)
-    .sort((a, b) => b.length - a.length);
-
+  const safe = uniqueTrimmedStrings(terms).map(escapeRegex).filter(Boolean);
   if (!safe.length) return /$a/;
   return new RegExp(`\\b(?:${safe.join("|")})\\b`, "i");
 }
@@ -46,103 +42,9 @@ function normalizeCompareText(str = "") {
   return String(str)
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}\s+%/#&.-]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s+%/-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function canonicalizeTerm(str = "") {
-  let s = normalizeCompareText(str)
-    .replace(/[\/_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const replacements = [
-    [/google analytics 4|ga 4/g, "ga4"],
-    [/google tag manager|gtm/g, "gtm"],
-    [/microsoft excel|ms excel/g, "excel"],
-    [/microsoft office|ms office/g, "office"],
-    [/looker data studio|google data studio|data studio/g, "looker studio"],
-    [/structured query language/g, "sql"],
-    [/react js/g, "react"],
-    [/node js/g, "node.js"],
-    [/amazon web services/g, "aws"],
-    [/google cloud platform/g, "gcp"],
-    [/quality assurance/g, "qa"],
-    [/user experience/g, "ux"],
-    [/user interface/g, "ui"],
-    [
-      /continuous integration continuous deployment|continuous integration continuous delivery|ci cd/g,
-      "ci/cd",
-    ],
-    [/restful api|rest apis/g, "rest api"],
-    [/electronic health record/g, "ehr"],
-    [/electronic medical record/g, "emr"],
-    [/customer service/g, "customer support"],
-    [/talent acquisition/g, "recruiting"],
-  ];
-
-  for (const [re, to] of replacements) {
-    s = s.replace(re, to);
-  }
-
-  return s.replace(/\s+/g, " ").trim();
-}
-
-function uniqueByNormalizedStrings(arr = []) {
-  const seen = new Set();
-  const out = [];
-
-  for (const item of Array.isArray(arr) ? arr : []) {
-    const value = String(item || "").trim();
-    const key = canonicalizeTerm(value);
-    if (!value || !key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(value);
-  }
-
-  return out;
-}
-
-function containsCanonicalTermInNormalizedText(normalizedText = "", term = "") {
-  const termNorm = canonicalizeTerm(term);
-  if (!termNorm) return false;
-
-  if (termNorm.includes(" ")) {
-    return normalizedText.includes(termNorm);
-  }
-
-  return new RegExp(`(?:^|\\s)${escapeRegex(termNorm)}(?:$|\\s)`, "i").test(normalizedText);
-}
-
-function countTermHits(text = "", terms = []) {
-  const norm = canonicalizeTerm(text);
-  let hits = 0;
-
-  for (const term of uniqueTrimmedStrings(terms)) {
-    if (containsCanonicalTermInNormalizedText(norm, term)) hits += 1;
-  }
-
-  return hits;
-}
-
-function countOccurrencesNormalized(text = "", term = "") {
-  const textNorm = canonicalizeTerm(text);
-  const termNorm = canonicalizeTerm(term);
-  if (!textNorm || !termNorm) return 0;
-
-  if (termNorm.includes(" ")) {
-    let idx = 0;
-    let count = 0;
-    while ((idx = textNorm.indexOf(termNorm, idx)) !== -1) {
-      count += 1;
-      idx += termNorm.length;
-    }
-    return count;
-  }
-
-  const m = textNorm.match(new RegExp(`(?:^|\\s)${escapeRegex(termNorm)}(?:$|\\s)`, "gi"));
-  return Array.isArray(m) ? m.length : 0;
 }
 
 function countWords(str = "") {
@@ -190,55 +92,583 @@ function jaccardSimilarity(a = "", b = "") {
   return union ? intersection / union : 0;
 }
 
-function capitalizeFirst(str = "") {
-  const s = String(str || "").trim();
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1);
+const ROLE_PROFILES = {
+  marketing: {
+    terms: [
+      "google ads",
+      "meta ads",
+      "meta ads manager",
+      "google analytics",
+      "google analytics 4",
+      "ga4",
+      "google tag manager",
+      "tag manager",
+      "seo",
+      "sem",
+      "ppc",
+      "ctr",
+      "cpc",
+      "cpa",
+      "roas",
+      "roi",
+      "cro",
+      "landing page",
+      "landing pages",
+      "a/b test",
+      "ab test",
+      "a/b testing",
+      "ab testing",
+      "search console",
+      "hubspot",
+      "remarketing",
+      "retargeting",
+      "audience segmentation",
+      "lead generation",
+      "email marketing",
+      "campaign reporting",
+      "content planning",
+      "content strategy",
+      "social media management",
+      "paid advertising",
+      "campaign optimization",
+      "market research",
+      "competitor analysis",
+      "brand awareness",
+      "campaign performance",
+      "performance marketing",
+      "audience targeting",
+      "conversion tracking",
+      "google sheets",
+      "excel",
+      "reporting",
+      "analytics",
+    ],
+    hints: [
+      "Keep bullets tool-aware and channel-aware.",
+      "Preserve platforms, metrics, campaign context, and reporting context.",
+      "Avoid vague marketing filler when real tools or channels already exist.",
+    ],
+  },
+  customer_support: {
+    terms: [
+      "customer support",
+      "customer service",
+      "ticket handling",
+      "ticket follow-up",
+      "support tickets",
+      "ticketing system",
+      "issue resolution",
+      "issue escalation",
+      "customer communication",
+      "live chat",
+      "email support",
+      "complaint handling",
+      "service support",
+      "service quality",
+      "customer requests",
+      "case follow-up",
+      "customer feedback",
+      "support records",
+      "help desk",
+      "crm",
+      "zendesk",
+      "freshdesk",
+      "sla",
+      "response time",
+      "resolution time",
+      "service operations",
+      "customer records",
+      "order-related issues",
+      "account updates",
+      "support summaries",
+      "issue logs",
+      "internal updates",
+    ],
+    hints: [
+      "Keep support bullets realistic, concise, and service-oriented.",
+      "Prefer response, resolution, escalation, follow-up, documentation, and coordination language.",
+      "Avoid inflated business-outcome endings unless clearly supported.",
+    ],
+  },
+  customer_success: {
+    terms: [
+      "customer success",
+      "client onboarding",
+      "customer onboarding",
+      "onboarding",
+      "account management",
+      "account support",
+      "customer communication",
+      "client communication",
+      "customer retention",
+      "retention",
+      "renewal",
+      "renewals",
+      "churn",
+      "customer satisfaction",
+      "client satisfaction",
+      "csat",
+      "nps",
+      "qbr",
+      "at-risk accounts",
+      "customer feedback",
+      "client engagement",
+      "customer experience",
+      "stakeholder updates",
+      "success plans",
+      "adoption",
+      "usage reviews",
+    ],
+    hints: [
+      "Keep customer success bullets relationship-focused and follow-up-focused.",
+      "Use onboarding, adoption, retention, account support, and feedback language when supported.",
+      "Do not invent renewal, churn, CSAT, or NPS results.",
+    ],
+  },
+  operations: {
+    terms: [
+      "operations",
+      "scheduling",
+      "reporting",
+      "documentation",
+      "calendar management",
+      "process follow-up",
+      "process improvement",
+      "process optimization",
+      "cross-team coordination",
+      "internal communication",
+      "vendor communication",
+      "tracking spreadsheet",
+      "meeting coordination",
+      "administrative support",
+      "status updates",
+      "workflow",
+      "workflow management",
+      "operations support",
+      "records",
+      "compliance",
+      "coordination",
+      "record keeping",
+      "document management",
+      "status tracking",
+      "task tracking",
+    ],
+    hints: [
+      "Keep operations bullets execution-focused and coordination-focused.",
+      "Use documentation, scheduling, reporting, tracking, workflow, and stakeholder language naturally.",
+      "Do not force strategic language when the work is clearly operational.",
+    ],
+  },
+  sales: {
+    terms: [
+      "sales support",
+      "lead follow-up",
+      "client communication",
+      "pipeline",
+      "crm",
+      "sales reporting",
+      "account support",
+      "prospect",
+      "quote",
+      "proposal",
+      "customer follow-up",
+      "sales coordination",
+      "order processing",
+      "client relationship",
+      "deal tracking",
+      "sales operations",
+      "lead management",
+      "prospect outreach",
+      "account coordination",
+      "pipeline updates",
+    ],
+    hints: [
+      "Keep sales bullets commercial but truthful.",
+      "Use lead, pipeline, proposal, follow-up, account, and coordination language when supported.",
+      "Do not invent revenue, quotas, close rates, or deal impact.",
+    ],
+  },
+  hr: {
+    terms: [
+      "recruitment",
+      "candidate screening",
+      "interview scheduling",
+      "hr support",
+      "employee records",
+      "onboarding",
+      "offboarding",
+      "payroll support",
+      "policy documentation",
+      "training coordination",
+      "hr administration",
+      "talent acquisition",
+      "candidate communication",
+      "compliance",
+      "employee documentation",
+      "recruitment coordination",
+      "candidate tracking",
+    ],
+    hints: [
+      "Keep HR bullets process-focused, documentation-focused, and coordination-focused.",
+      "Use candidate communication, interview scheduling, onboarding, records, and compliance language when supported.",
+      "Do not invent hiring volume, retention metrics, or policy outcomes.",
+    ],
+  },
+  finance: {
+    terms: [
+      "financial reporting",
+      "reconciliation",
+      "accounts payable",
+      "accounts receivable",
+      "invoice processing",
+      "budget tracking",
+      "expense reporting",
+      "forecasting",
+      "variance analysis",
+      "excel",
+      "financial analysis",
+      "ledger",
+      "audit support",
+      "invoice reconciliation",
+      "expense tracking",
+      "forecast support",
+      "financial accuracy",
+    ],
+    hints: [
+      "Keep finance bullets accuracy-focused and reporting-focused.",
+      "Use reconciliation, invoices, budgets, forecasts, audit support, and financial analysis language when supported.",
+      "Do not invent savings, margins, budgets owned, or financial outcomes.",
+    ],
+  },
+  admin: {
+    terms: [
+      "microsoft office",
+      "excel",
+      "google sheets",
+      "powerpoint",
+      "presentation",
+      "meeting materials",
+      "calendar management",
+      "scheduling tasks",
+      "administrative support",
+      "document preparation",
+      "record keeping",
+      "internal reporting",
+    ],
+    hints: [
+      "Keep admin bullets practical, organized, and support-focused.",
+      "Prefer scheduling, documentation, record keeping, and meeting-preparation language.",
+    ],
+  },
+  project: {
+    terms: [
+      "project coordination",
+      "project management",
+      "status tracking",
+      "timelines",
+      "deliverables",
+      "meeting coordination",
+      "stakeholder updates",
+      "project workflows",
+      "task coordination",
+      "project reporting",
+    ],
+    hints: [
+      "Keep project bullets coordination-focused and progress-focused.",
+      "Use timelines, deliverables, tracking, meetings, and stakeholder updates language when supported.",
+    ],
+  },
+  data: {
+    terms: [
+      "data analysis",
+      "analytics",
+      "dashboard",
+      "looker studio",
+      "data studio",
+      "kpi",
+      "performance metrics",
+      "reporting",
+      "trend analysis",
+      "data tracking",
+      "excel",
+      "google sheets",
+    ],
+    hints: [
+      "Keep data bullets analytical and reporting-oriented.",
+      "Preserve dashboards, KPIs, reporting, tracking, and analysis language when supported.",
+      "Do not invent quantified insights or business impact.",
+    ],
+  },
+};
+
+const ALL_ROLE_TERMS = uniqueTrimmedStrings(
+  Object.values(ROLE_PROFILES).flatMap((profile) => profile.terms || [])
+);
+
+const HARD_FACT_TERMS = uniqueTrimmedStrings([
+  "google ads",
+  "meta ads",
+  "meta ads manager",
+  "linkedin ads",
+  "linkedin campaign manager",
+  "google analytics",
+  "google analytics 4",
+  "ga4",
+  "google tag manager",
+  "tag manager",
+  "seo",
+  "sem",
+  "ctr",
+  "cpc",
+  "cpa",
+  "roas",
+  "roi",
+  "cro",
+  "conversion rate optimization",
+  "landing page",
+  "a/b test",
+  "ab test",
+  "search console",
+  "hubspot",
+  "salesforce",
+  "crm",
+  "zendesk",
+  "freshdesk",
+  "help desk",
+  "google sheets",
+  "excel",
+  "powerpoint",
+  "looker studio",
+  "data studio",
+  "dashboard",
+  "remarketing",
+  "retargeting",
+  "audience segmentation",
+  "lead generation",
+  "email marketing",
+  "kpi",
+  "marketing automation",
+  "automation",
+  "sla",
+  "response time",
+  "resolution time",
+  "ticketing system",
+  "support tickets",
+  "csat",
+  "nps",
+  "qbr",
+]);
+
+const STRONG_SPECIFIC_RE = buildPhraseRegex(ALL_ROLE_TERMS);
+const SPECIFICITY_RE = buildPhraseRegex(ALL_ROLE_TERMS);
+
+const WEAK_SENTENCE_RE =
+  /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|katkı sağladım|yardımcı oldum|sorumluydum|takip ettim|worked on|handled|supported|assisted|helped|was responsible for|contributed to|involved in|participated in)\b/i;
+
+const WEAK_PHRASE_RE =
+  /\b(helped|assisted|supported|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım)\b/i;
+
+const STRONG_ACTION_RE =
+  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|segmentasyonu yaptım|managed|developed|coordinated|prepared|analyzed|reported|organized|implemented|tracked|maintained|optimized|planned|executed|designed|launched|created|responded|resolved|guided|communicated|relayed|documented|collected|scheduled|updated|monitored|processed)\b/i;
+
+const BUSINESS_CONTEXT_RE =
+  /\b(campaign|campaigns|audience|performance|report|reports|reporting|landing page|content|email marketing|email|social media|client|clients|stakeholder|stakeholders|team|teams|segmentation|remarketing|analysis|strategy|strategies|operations|workflow|calendar|calendars|materials|assets|market research|competitor analysis|lead generation|brand awareness|conversion|conversions|targeting|dashboard|documentation|presentations|customer|customers|ticket|tickets|issue|issues|service|support|case|cases|complaint|complaints|feedback|records|requests|follow-up|coordination|scheduling|vendor|process|communication|tracking|administrative|onboarding|retention|renewal|pipeline|proposal|invoice|budget|forecast|reconciliation|candidate|interview|employee)\b/i;
+
+const EN_WEAK_REWRITE_START_RE =
+  /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided|facilitated)\b/i;
+
+const EN_SOFT_FILLER_RE =
+  /\b(aimed at|focused on|with a focus on|designed to|to improve|to enhance|to strengthen|to maximize|to optimize|to drive|to facilitate)\b/i;
+
+const EN_UNSUPPORTED_IMPACT_RE =
+  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty)\b/i;
+
+const ENGLISH_RISKY_RESULT_RE =
+  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering|aimed at|focused on|designed to)\b/i;
+
+const ENGLISH_WEAK_SWAP_RE =
+  /\b(assisted|contributed|participated|supported|helped)\b/i;
+
+const ENGLISH_CORPORATE_FLUFF_RE =
+  /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|strategic initiatives|in-depth data analysis|for consistency|for team accessibility|to ensure data accuracy|to ensure accuracy and relevance|to streamline communication efforts|to support informed decision-making|to support informed marketing strategies|to enhance engagement|to optimize user experience|to improve operational efficiency)\b/i;
+
+function countTermHits(text = "", terms = []) {
+  const norm = normalizeCompareText(text);
+  return uniqueTrimmedStrings(terms).filter((term) =>
+    norm.includes(normalizeCompareText(term))
+  ).length;
 }
 
-function lowerFirst(str = "") {
-  const s = String(str || "").trim();
-  if (!s) return s;
-  return s.charAt(0).toLowerCase() + s.slice(1);
+function inferRoleProfiles(cv = "", jd = "") {
+  const combined = `${cv || ""}\n${jd || ""}`;
+  const scored = Object.entries(ROLE_PROFILES)
+    .map(([key, profile]) => ({
+      key,
+      hits: countTermHits(combined, profile.terms || []),
+      terms: profile.terms || [],
+      hints: profile.hints || [],
+    }))
+    .filter((x) => x.hits > 0)
+    .sort((a, b) => b.hits - a.hits);
+
+  if (!scored.length) return [];
+
+  const top = scored[0]?.hits || 0;
+
+  return scored.filter((x, idx) => {
+    if (idx === 0) return true;
+    if (idx > 1) return false;
+    return x.hits >= 2 || x.hits >= Math.max(1, top - 1);
+  });
 }
 
-function splitSentenceEnding(str = "") {
-  const s = String(str || "").trim();
-  const m = s.match(/[.?!]+$/);
-  return {
-    body: s.replace(/[.?!]+$/, "").trim(),
-    ending: m ? m[0] : ".",
+function buildRoleContextText(cv = "", jd = "") {
+  const profiles = inferRoleProfiles(cv, jd);
+  if (!profiles.length) {
+    return [
+      "- primary role signal: generic",
+      "- guidance: keep bullets concise, truthful, execution-focused, and role-appropriate",
+    ].join("\n");
+  }
+
+  return profiles
+    .map((profile) => {
+      const topTerms = profile.terms.slice(0, 12).join(", ");
+      const hints = profile.hints.length
+        ? profile.hints.map((h) => `  - ${h}`).join("\n")
+        : "  - Keep the rewrite grounded and role-appropriate.";
+
+      return [
+        `- role family: ${profile.key}`,
+        `  key terms: ${topTerms || "(none)"}`,
+        "  writing hints:",
+        hints,
+      ].join("\n");
+    })
+    .join("\n");
+}
+
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function verifySession(req) {
+  const appSecret = process.env.APP_SECRET;
+  if (!appSecret) return false;
+
+  const cookie = req.headers.cookie || "";
+  const m = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
+  if (!m) return false;
+
+  const token = decodeURIComponent(m[1]);
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+
+  const [data, sig] = parts;
+  const expected = crypto
+    .createHmac("sha256", appSecret)
+    .update(data)
+    .digest("base64url");
+
+  if (sig !== expected) return false;
+
+  let payload;
+  try {
+    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
+    payload = JSON.parse(payloadJson);
+  } catch {
+    return false;
+  }
+
+  if (!payload?.exp || Date.now() > payload.exp) return false;
+  return true;
+}
+
+async function ensureMinDelay(startedAt, minMs) {
+  const elapsed = Date.now() - startedAt;
+  const remain = minMs - elapsed;
+  if (remain > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remain));
+  }
+}
+
+function clampScore(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+function isGpt5Model(model = "") {
+  return /^gpt-5/i.test(String(model).trim());
+}
+
+function buildOpenAIPayload({
+  model,
+  messages,
+  reasoningEffort = null,
+  temperature = null,
+  maxCompletionTokens = 1800,
+}) {
+  const body = {
+    model,
+    response_format: { type: "json_object" },
+    messages,
   };
+
+  if (isGpt5Model(model)) {
+    body.max_completion_tokens = maxCompletionTokens;
+    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    if (reasoningEffort === "none" && typeof temperature === "number") {
+      body.temperature = temperature;
+    }
+  } else {
+    body.max_tokens = maxCompletionTokens;
+    if (typeof temperature === "number") body.temperature = temperature;
+  }
+
+  return body;
+}
+
+function extractAssistantText(parsed) {
+  const content = parsed?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") return content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (typeof part?.text === "string") return part.text;
+        if (typeof part?.content === "string") return part.content;
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  return "";
+}
+
+function safeJsonParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const s = String(text || "");
+    const start = s.indexOf("{");
+    const end = s.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(s.slice(start, end + 1));
+    }
+    throw new Error("Model did not return valid JSON");
+  }
 }
 
 function isSectionHeader(line = "") {
-  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|CORE SUMMARY|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|EDUCATION|LANGUAGES|CERTIFICATIONS|LICENSES|PROJECTS|ADDITIONAL INFORMATION|AWARDS|ACHIEVEMENTS|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
+  return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|EXPERIENCE|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|CERTIFICATIONS|PROJECTS|ADDITIONAL INFORMATION|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
     String(line).trim()
   );
-}
-
-function extractSummaryLines(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const out = [];
-  let inSummary = false;
-
-  for (const line of lines) {
-    if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) {
-      inSummary = true;
-      continue;
-    }
-    if (inSummary && isSectionHeader(line)) break;
-    if (inSummary) {
-      out.push(
-        ...line
-          .split(/(?<=[.?!])\s+/)
-          .map((x) => x.trim())
-          .filter(Boolean)
-      );
-    }
-  }
-
-  return out;
 }
 
 function extractHeaderBlock(cv = "") {
@@ -277,7 +707,12 @@ function extractExperienceTitles(cv = "") {
       /(\d{4}).*(Present|Günümüz|Current|Devam)/i.test(line)
     ) {
       const prev = lines[i - 1];
-      if (prev && !isSectionHeader(prev) && !prev.includes("@") && !/^\d/.test(prev)) {
+      if (
+        prev &&
+        !isSectionHeader(prev) &&
+        !prev.includes("@") &&
+        !/^\d/.test(prev)
+      ) {
         titles.push(prev);
       }
     }
@@ -314,12 +749,6 @@ function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
 function normalizeOptimizedHeadings(text = "") {
   return String(text || "")
     .replace(/\r/g, "")
-    .replace(/^PROFILE$/gim, "PROFESSIONAL SUMMARY")
-    .replace(/^CORE SUMMARY$/gim, "PROFESSIONAL SUMMARY")
-    .replace(/^WORK EXPERIENCE$/gim, "EXPERIENCE")
-    .replace(/^PROFESSIONAL EXPERIENCE$/gim, "EXPERIENCE")
-    .replace(/^(CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES)$/gim, "SKILLS")
-    .replace(/^LICENSES$/gim, "CERTIFICATIONS")
     .replace(/^BİLDİĞİ DİLLER$/gim, "DİLLER")
     .replace(/^YETENEKLER$/gim, "YETKİNLİKLER")
     .replace(/^BECERİLER$/gim, "YETKİNLİKLER")
@@ -339,1023 +768,285 @@ function forceSafeResume(originalCv = "", optimizedCv = "") {
 }
 
 function countUnchangedBullets(originalCv = "", optimizedCv = "") {
-  const orig = getBulletLines(originalCv).map(canonicalizeTerm).filter(Boolean);
-  const optSet = new Set(getBulletLines(optimizedCv).map(canonicalizeTerm).filter(Boolean));
+  const orig = getBulletLines(originalCv).map(normalizeCompareText).filter(Boolean);
+  const optSet = new Set(
+    getBulletLines(optimizedCv).map(normalizeCompareText).filter(Boolean)
+  );
 
   let same = 0;
   for (const line of orig) {
-    if (optSet.has(line)) same += 1;
+    if (optSet.has(line)) same++;
   }
 
   return { same, total: orig.length };
 }
 
-const ROLE_PACKS = {
-  software_engineering: {
-    titles: [
-      "software engineer",
-      "software developer",
-      "backend engineer",
-      "backend developer",
-      "frontend engineer",
-      "frontend developer",
-      "full stack developer",
-      "full-stack developer",
-      "web developer",
-      "application developer",
-      "mobile developer",
-      "ios developer",
-      "android developer",
-      "devops engineer",
-      "systems engineer",
-    ],
-    keywords: [
-      "software development",
-      "application development",
-      "backend",
-      "frontend",
-      "full stack",
-      "api integration",
-      "database",
-      "system design",
-      "debugging",
-      "deployment",
-      "cloud",
-      "microservices",
-      "version control",
-      "code review",
-    ],
-    strongTerms: [
-      "rest api",
-      "microservices",
-      "sql",
-      "python",
-      "javascript",
-      "typescript",
-      "react",
-      "node.js",
-      "java",
-      "c sharp",
-      "aws",
-      "azure",
-      "gcp",
-      "docker",
-      "kubernetes",
-      "git",
-      "ci/cd",
-      "unit testing",
-    ],
-    toolTerms: [
-      "sql",
-      "python",
-      "javascript",
-      "typescript",
-      "react",
-      "node.js",
-      "java",
-      "c sharp",
-      "aws",
-      "azure",
-      "gcp",
-      "docker",
-      "kubernetes",
-      "git",
-      "postman",
-    ],
-    methodologyTerms: [
-      "agile",
-      "scrum",
-      "kanban",
-      "ci/cd",
-      "unit testing",
-      "integration testing",
-      "code review",
-      "version control",
-    ],
-    responsibilityTerms: [
-      "feature development",
-      "api integration",
-      "bug fixing",
-      "production support",
-      "performance optimization",
-      "database design",
-      "release deployment",
-      "system maintenance",
-    ],
-    businessContextTerms: [
-      "application",
-      "system",
-      "service",
-      "api",
-      "database",
-      "feature",
-      "release",
-      "production",
-      "codebase",
-      "integration",
-      "platform",
-    ],
-    suggestedKeywords: [
-      "REST APIs",
-      "microservices",
-      "system design",
-      "unit testing",
-      "integration testing",
-      "cloud services",
-      "database optimization",
-      "CI/CD",
-      "version control",
-      "debugging",
-      "performance tuning",
-      "agile development",
-    ],
-    preferredVerbs: [
-      "built",
-      "developed",
-      "implemented",
-      "designed",
-      "integrated",
-      "tested",
-      "debugged",
-      "maintained",
-      "deployed",
-      "optimized",
-      "automated",
-      "configured",
-    ],
-    safeSupportVerbs: [
-      "maintained",
-      "tested",
-      "debugged",
-      "documented",
-      "collaborated with",
-      "integrated with",
-    ],
-    keepRules: [
-      "Preserve languages, frameworks, APIs, cloud, database, testing, and deployment context when present.",
-      "Keep technical bullets technical; do not rewrite them into generic business coordination language.",
-    ],
-    avoidRules: [
-      "Do not invent architecture ownership, scale, performance gains, cloud migrations, or leadership impact.",
-      "Do not replace explicit technical detail with vague product or strategy wording.",
-    ],
-    styleHints: [
-      "Engineering bullets should emphasize implementation scope, technical context, and truthful execution.",
-    ],
-  },
+function countWeakVerbHits(cv = "") {
+  const bullets = getBulletLines(cv);
+  return bullets.filter((b) => WEAK_PHRASE_RE.test(b)).length;
+}
 
-  qa: {
-    titles: [
-      "qa engineer",
-      "quality assurance engineer",
-      "software tester",
-      "test engineer",
-      "qa analyst",
-      "manual tester",
-      "automation tester",
-      "test analyst",
-    ],
-    keywords: [
-      "quality assurance",
-      "test execution",
-      "test planning",
-      "bug tracking",
-      "defect reporting",
-      "regression testing",
-      "test documentation",
-      "test automation",
-    ],
-    strongTerms: [
-      "qa",
-      "test cases",
-      "test scenarios",
-      "regression testing",
-      "selenium",
-      "cypress",
-      "postman",
-      "jira",
-      "bug tracking",
-      "defect management",
-      "uat",
-    ],
-    toolTerms: ["selenium", "cypress", "postman", "jira", "api testing", "test automation"],
-    methodologyTerms: [
-      "regression testing",
-      "smoke testing",
-      "uat",
-      "test automation",
-      "manual testing",
-      "agile",
-      "scrum",
-    ],
-    responsibilityTerms: [
-      "test case creation",
-      "defect reporting",
-      "test execution",
-      "bug verification",
-      "quality validation",
-    ],
-    businessContextTerms: ["testing", "test case", "defect", "bug", "validation", "release", "quality", "uat"],
-    suggestedKeywords: [
-      "test cases",
-      "regression testing",
-      "defect tracking",
-      "test documentation",
-      "UAT",
-      "API testing",
-      "automation testing",
-      "quality validation",
-      "release testing",
-      "bug verification",
-    ],
-    preferredVerbs: ["tested", "validated", "documented", "reported", "tracked", "verified", "executed", "reviewed", "automated"],
-    safeSupportVerbs: ["documented", "tracked", "verified", "executed", "reviewed"],
-    keepRules: ["Preserve testing scope, defect handling, release context, and tools when present."],
-    avoidRules: ["Do not invent automation ownership, release quality improvement, or defect reduction results."],
-    styleHints: ["QA bullets should sound methodical, evidence-based, and release-aware."],
-  },
+function countCorporateFluffHits(cv = "") {
+  return getBulletLines(cv).filter((b) => ENGLISH_CORPORATE_FLUFF_RE.test(b)).length;
+}
 
-  data: {
-    titles: ["data analyst", "business intelligence analyst", "bi analyst", "reporting analyst", "analytics specialist", "data specialist"],
-    keywords: ["data analysis", "analytics", "dashboard", "reporting", "kpi", "trend analysis", "data validation", "performance metrics"],
-    strongTerms: ["sql", "python", "excel", "tableau", "power bi", "looker studio", "dashboard", "kpi", "data modeling", "etl", "reporting", "analysis"],
-    toolTerms: ["sql", "python", "excel", "tableau", "power bi", "looker studio", "google sheets"],
-    methodologyTerms: ["etl", "data modeling", "trend analysis", "kpi tracking", "report automation", "data validation"],
-    responsibilityTerms: ["dashboard creation", "report generation", "trend analysis", "performance reporting", "data validation"],
-    businessContextTerms: ["data", "analytics", "dashboard", "reporting", "metrics", "kpi", "insights", "trends", "performance"],
-    suggestedKeywords: [
-      "SQL",
-      "data visualization",
-      "dashboard reporting",
-      "trend analysis",
-      "KPI tracking",
-      "data validation",
-      "Power BI",
-      "Tableau",
-      "report automation",
-      "data modeling",
-      "ETL",
-      "Excel reporting",
-    ],
-    preferredVerbs: ["analyzed", "reported", "tracked", "validated", "prepared", "reviewed", "maintained", "documented", "modeled"],
-    safeSupportVerbs: ["reported", "tracked", "validated", "prepared", "maintained", "documented"],
-    keepRules: ["Preserve dashboards, reporting cadence, KPIs, tools, and dataset context."],
-    avoidRules: ["Do not invent business impact, forecast accuracy gains, or advanced modeling experience."],
-    styleHints: ["Data bullets should stay analytical, specific, and tool-aware."],
-  },
+function getOverlongBulletRatio(cv = "") {
+  const bullets = getBulletLines(cv);
+  if (!bullets.length) return 0;
+  const overlong = bullets.filter((b) => countWords(b) >= 23).length;
+  return overlong / bullets.length;
+}
 
-  product: {
-    titles: ["product manager", "product owner", "associate product manager", "technical product manager", "product specialist"],
-    keywords: ["product roadmap", "backlog", "requirements", "user stories", "feature planning", "stakeholder alignment", "product discovery", "release planning"],
-    strongTerms: ["roadmap", "backlog", "user stories", "requirements gathering", "acceptance criteria", "jira", "confluence", "agile", "scrum", "feature prioritization", "cross-functional collaboration"],
-    toolTerms: ["jira", "confluence", "figma", "analytics"],
-    methodologyTerms: ["agile", "scrum", "user stories", "backlog prioritization", "release planning", "product discovery"],
-    responsibilityTerms: ["requirements definition", "feature prioritization", "stakeholder communication", "roadmap planning", "release coordination"],
-    businessContextTerms: ["product", "feature", "roadmap", "backlog", "requirements", "stakeholders", "release", "user stories"],
-    suggestedKeywords: [
-      "product roadmap",
-      "backlog prioritization",
-      "requirements gathering",
-      "user stories",
-      "acceptance criteria",
-      "release planning",
-      "stakeholder communication",
-      "cross-functional collaboration",
-      "Agile",
-      "Jira",
-    ],
-    preferredVerbs: ["defined", "prioritized", "coordinated", "documented", "planned", "aligned", "reviewed", "tracked"],
-    safeSupportVerbs: ["coordinated", "documented", "tracked", "reviewed", "aligned with"],
-    keepRules: ["Preserve roadmap, backlog, requirements, stakeholder, and release language."],
-    avoidRules: ["Do not invent product strategy ownership, revenue outcomes, or market impact."],
-    styleHints: ["Product bullets should stay requirements- and delivery-oriented unless leadership is clearly supported."],
-  },
+function countPersistingWeakSources(optimizedCv = "", weakSentences = []) {
+  const lines = getNonEmptyLines(optimizedCv).map(normalizeCompareText);
+  if (!lines.length) return 0;
 
-  business_analysis: {
-    titles: ["business analyst", "systems analyst", "process analyst", "operations analyst"],
-    keywords: ["business requirements", "process analysis", "gap analysis", "workflow analysis", "stakeholder interviews", "documentation", "reporting"],
-    strongTerms: ["requirements gathering", "process mapping", "gap analysis", "documentation", "stakeholder management", "jira", "confluence", "reporting", "excel", "sql"],
-    toolTerms: ["jira", "confluence", "excel", "sql", "power bi", "visio"],
-    methodologyTerms: ["requirements gathering", "process mapping", "gap analysis", "workflow analysis", "uat", "agile", "scrum"],
-    responsibilityTerms: ["requirements documentation", "stakeholder communication", "process improvement", "workflow analysis", "test support"],
-    businessContextTerms: ["requirements", "process", "stakeholder", "workflow", "analysis", "documentation", "reporting", "uat"],
-    suggestedKeywords: [
-      "requirements gathering",
-      "process mapping",
-      "workflow analysis",
-      "gap analysis",
-      "stakeholder communication",
-      "documentation",
-      "UAT support",
-      "Jira",
-      "Confluence",
-      "process improvement",
-    ],
-    preferredVerbs: ["analyzed", "documented", "mapped", "coordinated", "reviewed", "tracked", "supported"],
-    safeSupportVerbs: ["documented", "coordinated", "tracked", "reviewed"],
-    keepRules: ["Preserve requirements, workflow, stakeholder, documentation, and analysis context."],
-    avoidRules: ["Do not invent transformation leadership or quantified efficiency gains."],
-    styleHints: ["Business analysis bullets should sound structured, evidence-based, and process-aware."],
-  },
+  let hits = 0;
+  for (const item of Array.isArray(weakSentences) ? weakSentences : []) {
+    const source = normalizeCompareText(String(item?.sentence || ""));
+    if (!source) continue;
+    if (lines.some((line) => line === source)) hits += 1;
+  }
 
-  finance: {
-    titles: ["accountant", "financial analyst", "finance specialist", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "finance assistant"],
-    keywords: ["financial reporting", "reconciliation", "accounts payable", "accounts receivable", "invoice processing", "budget tracking", "expense reporting", "forecasting", "variance analysis", "audit support", "ledger", "month-end"],
-    strongTerms: ["financial reporting", "reconciliation", "accounts payable", "accounts receivable", "invoice processing", "budgeting", "forecasting", "variance analysis", "audit", "ledger", "excel", "ifrs", "gaap"],
-    toolTerms: ["excel", "sap", "oracle", "quickbooks", "netsuite", "erp"],
-    methodologyTerms: ["month-end close", "reconciliation", "variance analysis", "budget tracking", "forecasting", "audit support"],
-    responsibilityTerms: ["invoice review", "ledger maintenance", "financial reporting", "expense tracking", "account reconciliation"],
-    businessContextTerms: ["invoice", "reconciliation", "budget", "expense", "forecast", "variance", "audit", "ledger", "payable", "receivable", "month-end"],
-    suggestedKeywords: ["financial reporting", "account reconciliation", "budget tracking", "variance analysis", "forecasting", "month-end close", "AP/AR", "audit support", "Excel", "ERP systems", "GAAP", "IFRS"],
-    preferredVerbs: ["prepared", "reconciled", "processed", "reviewed", "tracked", "reported", "maintained", "documented"],
-    safeSupportVerbs: ["prepared", "reconciled", "processed", "reviewed", "tracked", "maintained"],
-    keepRules: ["Preserve finance and accounting controls, reporting, reconciliation, and close-process context."],
-    avoidRules: ["Do not invent savings, margin impact, budget ownership, or financial leadership."],
-    styleHints: ["Finance bullets should sound controlled, accurate, and compliance-aware."],
-  },
+  return hits;
+}
 
-  hr: {
-    titles: ["hr specialist", "human resources specialist", "recruiter", "talent acquisition specialist", "hr coordinator", "people operations specialist"],
-    keywords: ["recruitment", "candidate screening", "interview scheduling", "employee records", "onboarding", "offboarding", "training coordination", "hr administration", "compliance", "payroll support"],
-    strongTerms: ["recruiting", "candidate screening", "interview scheduling", "onboarding", "offboarding", "employee records", "talent acquisition", "compliance", "payroll support", "workday", "greenhouse", "ats"],
-    toolTerms: ["workday", "greenhouse", "ats", "excel", "hris"],
-    methodologyTerms: ["candidate screening", "interview coordination", "onboarding", "offboarding", "policy compliance"],
-    responsibilityTerms: ["candidate communication", "interview scheduling", "employee documentation", "training coordination", "record maintenance"],
-    businessContextTerms: ["candidate", "interview", "employee", "onboarding", "policy", "training", "records", "compliance", "payroll", "hr"],
-    suggestedKeywords: ["talent acquisition", "candidate screening", "interview coordination", "employee onboarding", "HR administration", "policy compliance", "record management", "ATS", "Workday", "Greenhouse"],
-    preferredVerbs: ["screened", "scheduled", "coordinated", "maintained", "prepared", "documented", "updated"],
-    safeSupportVerbs: ["scheduled", "coordinated", "maintained", "documented", "updated"],
-    keepRules: ["Preserve recruiting, onboarding, records, scheduling, and compliance context."],
-    avoidRules: ["Do not invent hiring success rates, retention impact, or people leadership."],
-    styleHints: ["HR bullets should stay process-driven, accurate, and policy-aware."],
-  },
+function isShallowRewrite(sentence = "", rewrite = "") {
+  const s = String(sentence || "").trim();
+  const r = String(rewrite || "").trim();
+  if (!s || !r) return true;
 
-  operations: {
-    titles: ["operations manager", "operations specialist", "operations coordinator", "operations analyst", "office manager"],
-    keywords: ["operations", "workflow", "documentation", "reporting", "process coordination", "process improvement", "scheduling", "cross-functional coordination", "vendor communication", "record keeping"],
-    strongTerms: ["operations", "workflow", "process coordination", "documentation", "reporting", "scheduling", "status updates", "vendor communication", "process improvement"],
-    toolTerms: ["excel", "erp", "sap", "jira"],
-    methodologyTerms: ["process improvement", "workflow tracking", "status reporting"],
-    responsibilityTerms: ["process coordination", "record maintenance", "status tracking", "meeting coordination", "vendor communication"],
-    businessContextTerms: ["workflow", "operations", "process", "documentation", "records", "reporting", "coordination", "follow-up", "vendor", "status updates"],
-    suggestedKeywords: ["process improvement", "workflow coordination", "vendor communication", "cross-functional collaboration", "status reporting", "documentation", "task prioritization", "operational tracking", "process documentation", "resource coordination"],
-    preferredVerbs: ["coordinated", "tracked", "organized", "maintained", "documented", "scheduled", "reported", "monitored"],
-    safeSupportVerbs: ["coordinated", "tracked", "organized", "maintained", "documented", "scheduled", "monitored"],
-    keepRules: ["Preserve workflow, reporting, coordination, scheduling, and process language."],
-    avoidRules: ["Do not invent transformation leadership, strategic ownership, or quantified efficiency gains."],
-    styleHints: ["Operations bullets should sound structured, execution-focused, and process-aware."],
-  },
+  const sim = jaccardSimilarity(s, r);
+  if (normalizeCompareText(s) === normalizeCompareText(r)) return true;
+  if (sim >= 0.86) return true;
 
-  supply_chain: {
-    titles: ["supply chain specialist", "logistics specialist", "logistics coordinator", "warehouse coordinator", "inventory specialist"],
-    keywords: ["supply chain", "logistics", "inventory", "shipment coordination", "warehouse operations", "order fulfillment", "dispatch", "delivery tracking", "stock control"],
-    strongTerms: ["inventory management", "warehouse management", "shipment tracking", "logistics coordination", "stock control", "order fulfillment", "vendor coordination", "transport planning", "sap", "erp"],
-    toolTerms: ["sap", "erp", "excel", "warehouse management"],
-    methodologyTerms: ["inventory control", "shipment tracking", "warehouse operations", "logistics planning"],
-    responsibilityTerms: ["delivery tracking", "inventory reconciliation", "order coordination", "stock monitoring", "vendor follow-up"],
-    businessContextTerms: ["inventory", "warehouse", "shipment", "logistics", "delivery", "order", "stock", "vendor", "dispatch", "transport"],
-    suggestedKeywords: ["inventory management", "shipment tracking", "warehouse operations", "logistics coordination", "stock control", "order fulfillment", "vendor coordination", "ERP systems", "delivery planning", "inventory reconciliation"],
-    preferredVerbs: ["coordinated", "tracked", "monitored", "processed", "maintained", "scheduled", "verified"],
-    safeSupportVerbs: ["coordinated", "tracked", "monitored", "processed", "maintained", "verified"],
-    keepRules: ["Preserve inventory, shipment, warehouse, order, and vendor context."],
-    avoidRules: ["Do not invent cost savings, route optimization results, or supply chain ownership."],
-    styleHints: ["Supply chain bullets should be operational, factual, and process-specific."],
-  },
+  const sWords = countWords(s);
+  const rWords = countWords(r);
 
-  procurement: {
-    titles: ["procurement specialist", "purchasing specialist", "buyer", "sourcing specialist", "procurement coordinator"],
-    keywords: ["procurement", "purchasing", "sourcing", "vendor management", "rfq", "purchase orders", "supplier communication", "cost comparison"],
-    strongTerms: ["procurement", "sourcing", "vendor management", "supplier communication", "purchase orders", "rfq", "price comparison", "contract support", "sap", "erp"],
-    toolTerms: ["sap", "erp", "excel"],
-    methodologyTerms: ["vendor evaluation", "sourcing", "purchase order processing", "rfq handling"],
-    responsibilityTerms: ["supplier follow-up", "purchase order processing", "vendor communication", "price comparison", "documentation"],
-    businessContextTerms: ["procurement", "purchasing", "sourcing", "vendor", "supplier", "purchase order", "rfq", "contract"],
-    suggestedKeywords: ["vendor management", "sourcing", "purchase orders", "supplier communication", "RFQ", "price comparison", "ERP systems", "procurement documentation", "vendor evaluation", "contract support"],
-    preferredVerbs: ["sourced", "processed", "coordinated", "reviewed", "tracked", "documented", "communicated"],
-    safeSupportVerbs: ["processed", "coordinated", "reviewed", "tracked", "documented", "communicated with"],
-    keepRules: ["Preserve sourcing, vendor, PO, RFQ, and procurement administration context."],
-    avoidRules: ["Do not invent negotiated savings, contract wins, or spend ownership."],
-    styleHints: ["Procurement bullets should stay commercially aware but strictly factual."],
-  },
+  if (ENGLISH_WEAK_SWAP_RE.test(s) && ENGLISH_WEAK_SWAP_RE.test(r) && sim >= 0.55) {
+    return true;
+  }
 
-  sales: {
-    titles: ["sales specialist", "sales executive", "account executive", "sales coordinator", "business development executive"],
-    keywords: ["sales", "lead management", "pipeline", "crm", "sales reporting", "proposal", "client communication", "deal tracking", "order processing"],
-    strongTerms: ["pipeline", "crm", "lead follow-up", "account support", "sales reporting", "proposal", "deal tracking", "order processing", "salesforce", "hubspot"],
-    toolTerms: ["salesforce", "hubspot", "crm", "excel"],
-    methodologyTerms: ["pipeline management", "lead follow-up", "account coordination"],
-    responsibilityTerms: ["client communication", "proposal preparation", "deal tracking", "order processing", "follow-up management"],
-    businessContextTerms: ["sales", "lead", "pipeline", "crm", "proposal", "quote", "client", "deal", "orders", "account"],
-    suggestedKeywords: ["sales pipeline", "lead management", "CRM", "proposal preparation", "deal tracking", "account coordination", "client follow-up", "Salesforce", "HubSpot", "sales reporting"],
-    preferredVerbs: ["managed", "followed up", "coordinated", "prepared", "updated", "processed", "documented", "communicated"],
-    safeSupportVerbs: ["followed up on", "coordinated", "prepared", "updated", "processed", "documented"],
-    keepRules: ["Preserve pipeline, proposal, deal, CRM, and client follow-up context."],
-    avoidRules: ["Do not invent revenue, quota, close rate, or conversion performance."],
-    styleHints: ["Sales bullets should sound commercially relevant but never overclaim results."],
-  },
+  if (rWords >= sWords + 8 && sim >= 0.58) return true;
+  return false;
+}
 
-  customer_support: {
-    titles: ["customer support specialist", "customer service representative", "support specialist", "technical support specialist", "help desk specialist"],
-    keywords: ["customer support", "ticket handling", "issue resolution", "live chat", "email support", "complaint handling", "service quality", "crm", "zendesk", "freshdesk", "sla", "escalation"],
-    strongTerms: ["customer support", "ticket", "issue resolution", "issue escalation", "email support", "live chat", "complaint handling", "response time", "resolution time", "help desk"],
-    toolTerms: ["zendesk", "freshdesk", "crm", "help desk"],
-    methodologyTerms: ["ticket management", "issue escalation", "sla", "case follow-up"],
-    responsibilityTerms: ["customer communication", "case follow-up", "support documentation", "issue escalation", "service records"],
-    businessContextTerms: ["customer", "ticket", "case", "issue", "service", "support", "follow-up", "requests", "feedback", "complaints", "response"],
-    suggestedKeywords: ["ticket management", "issue resolution", "service quality", "SLA", "escalation handling", "support documentation", "customer communication", "Zendesk", "CRM", "case follow-up"],
-    preferredVerbs: ["responded", "resolved", "escalated", "documented", "maintained", "communicated", "processed", "tracked"],
-    safeSupportVerbs: ["responded to", "followed up on", "documented", "maintained", "updated", "processed", "communicated with"],
-    keepRules: ["Preserve issue handling, escalation, response, documentation, and support-channel context."],
-    avoidRules: ["Do not turn support work into customer success strategy or add fake service outcomes."],
-    styleHints: ["Support bullets should be service-oriented, concise, and evidence-based."],
-  },
+function isClearlyWeakSentence(sentence = "") {
+  const s = String(sentence || "").trim();
+  if (!s) return false;
 
-  customer_success: {
-    titles: ["customer success specialist", "customer success manager", "client success specialist", "account manager"],
-    keywords: ["customer success", "onboarding", "renewal", "retention", "account management", "customer communication", "relationship management", "customer feedback", "nps", "csat", "qbr"],
-    strongTerms: ["customer success", "onboarding", "account management", "renewal", "retention", "customer feedback", "relationship management", "nps", "csat", "qbr"],
-    toolTerms: ["crm", "salesforce", "hubspot"],
-    methodologyTerms: ["customer onboarding", "renewal support", "account management", "qbr"],
-    responsibilityTerms: ["client communication", "renewal follow-up", "onboarding coordination", "relationship management"],
-    businessContextTerms: ["client", "account", "onboarding", "renewal", "retention", "feedback", "engagement", "relationship", "customer journey"],
-    suggestedKeywords: ["customer onboarding", "account management", "renewal support", "customer retention", "relationship management", "CSAT", "NPS", "QBR", "client engagement", "cross-functional collaboration"],
-    preferredVerbs: ["managed", "guided", "coordinated", "maintained", "followed up", "documented", "communicated"],
-    safeSupportVerbs: ["coordinated", "followed up on", "maintained", "documented", "communicated with"],
-    keepRules: ["Preserve onboarding, renewal, retention support, and account-context language."],
-    avoidRules: ["Do not invent renewals closed, churn reduction, or account growth."],
-    styleHints: ["Customer success bullets should sound relationship-aware but fully factual."],
-  },
+  if (WEAK_SENTENCE_RE.test(s)) return true;
 
-  executive_assistant: {
-    titles: ["executive assistant", "personal assistant", "administrative assistant", "office assistant"],
-    keywords: ["calendar management", "travel coordination", "meeting coordination", "document preparation", "executive support", "scheduling", "record keeping", "office administration"],
-    strongTerms: ["calendar management", "travel coordination", "meeting coordination", "document preparation", "record keeping", "scheduling", "executive support"],
-    toolTerms: ["excel", "powerpoint", "office", "google sheets"],
-    methodologyTerms: ["calendar coordination", "meeting scheduling", "document management"],
-    responsibilityTerms: ["appointment scheduling", "travel arrangements", "meeting preparation", "document management", "record maintenance"],
-    businessContextTerms: ["calendar", "appointments", "schedules", "documents", "records", "meeting materials", "administrative", "executive"],
-    suggestedKeywords: ["calendar management", "meeting coordination", "travel coordination", "document management", "record maintenance", "executive support", "office administration", "task prioritization", "time management", "stakeholder communication"],
-    preferredVerbs: ["managed", "organized", "scheduled", "prepared", "maintained", "coordinated", "documented"],
-    safeSupportVerbs: ["organized", "scheduled", "prepared", "maintained", "coordinated", "documented"],
-    keepRules: ["Preserve scheduling, executive support, meeting, travel, and document-management context."],
-    avoidRules: ["Do not rewrite admin support into project leadership or strategic ownership."],
-    styleHints: ["Executive assistant bullets should be sharp, organized, and logistics-aware."],
-  },
+  const hasSpecific = STRONG_SPECIFIC_RE.test(s) || BUSINESS_CONTEXT_RE.test(s);
+  const wordCount = s.split(/\s+/).filter(Boolean).length;
 
-  project: {
-    titles: ["project manager", "project coordinator", "program coordinator", "program manager", "pm"],
-    keywords: ["project coordination", "project management", "timelines", "deliverables", "status tracking", "stakeholder updates", "milestones", "project documentation", "risk tracking"],
-    strongTerms: ["project coordination", "project management", "timelines", "deliverables", "milestones", "status tracking", "risk tracking", "jira", "confluence", "agile"],
-    toolTerms: ["jira", "confluence", "excel", "primavera p6", "ms project"],
-    methodologyTerms: ["agile", "scrum", "waterfall", "risk tracking", "timeline management", "deliverable coordination"],
-    responsibilityTerms: ["stakeholder updates", "status reporting", "meeting facilitation", "project documentation", "timeline tracking"],
-    businessContextTerms: ["project", "timeline", "deliverable", "milestone", "status update", "stakeholder", "coordination", "risk"],
-    suggestedKeywords: ["timeline management", "deliverable coordination", "status reporting", "stakeholder communication", "risk tracking", "project documentation", "resource coordination", "Agile", "Jira", "milestone tracking"],
-    preferredVerbs: ["coordinated", "tracked", "scheduled", "updated", "documented", "monitored", "facilitated"],
-    safeSupportVerbs: ["coordinated", "tracked", "scheduled", "updated", "documented"],
-    keepRules: ["Preserve timeline, milestone, deliverable, risk, and stakeholder-update context."],
-    avoidRules: ["Do not invent delivery ownership, budget control, or transformation leadership."],
-    styleHints: ["Project bullets should stay coordination-heavy unless clear ownership is supported."],
-  },
+  if (!hasSpecific && wordCount <= 8) return true;
+  if (
+    !hasSpecific &&
+    /\b(yaptım|ettim|hazırladım|bulundum|baktım|ilgilen(dim|di)|worked on|helped with|assisted in)\b/i.test(s)
+  ) {
+    return true;
+  }
 
-  marketing: {
-    titles: ["digital marketing specialist", "marketing specialist", "performance marketing specialist", "marketing executive", "content specialist", "growth marketer"],
-    keywords: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "campaign reporting", "content marketing", "email marketing", "social media", "lead generation"],
-    strongTerms: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "cpc", "ctr", "cpa", "roas", "roi", "a/b test", "lead generation", "campaign optimization"],
-    toolTerms: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "search console", "hubspot"],
-    methodologyTerms: ["a/b test", "remarketing", "retargeting", "audience segmentation", "campaign optimization"],
-    responsibilityTerms: ["campaign reporting", "content planning", "lead generation", "channel performance", "landing page updates"],
-    businessContextTerms: ["campaign", "performance", "audience", "targeting", "brand awareness", "social media", "email", "landing page", "content", "reporting", "optimization"],
-    suggestedKeywords: ["PPC", "SEO", "SEM", "GA4", "Google Tag Manager", "audience segmentation", "A/B testing", "lead generation", "campaign optimization", "analytics reporting"],
-    preferredVerbs: ["managed", "optimized", "analyzed", "tracked", "reported", "executed", "launched", "monitored", "coordinated"],
-    safeSupportVerbs: ["coordinated", "prepared", "tracked", "updated", "monitored", "collaborated with"],
-    keepRules: ["Preserve tools, channels, metrics, platform names, and campaign context."],
-    avoidRules: ["Do not invent performance lift, lead volume, revenue, or ROI improvements."],
-    styleHints: ["Marketing bullets should stay channel-specific, tool-aware, and factual."],
-  },
+  return false;
+}
 
-  design: {
-    titles: ["designer", "graphic designer", "ui designer", "ux designer", "product designer", "visual designer"],
-    keywords: ["design", "wireframes", "prototypes", "user interface", "user experience", "visual design", "brand assets", "design systems"],
-    strongTerms: ["figma", "adobe creative suite", "photoshop", "illustrator", "wireframes", "prototypes", "ui", "ux", "design system", "mockups"],
-    toolTerms: ["figma", "adobe creative suite", "photoshop", "illustrator", "after effects"],
-    methodologyTerms: ["wireframing", "prototyping", "design systems", "user flows", "usability testing"],
-    responsibilityTerms: ["asset creation", "interface design", "visual design", "brand consistency", "prototype creation"],
-    businessContextTerms: ["design", "wireframe", "prototype", "interface", "visual", "brand", "layout", "assets", "user flow"],
-    suggestedKeywords: ["Figma", "wireframing", "prototyping", "design systems", "UI design", "UX design", "user flows", "visual design", "Adobe Creative Suite", "mockups"],
-    preferredVerbs: ["designed", "created", "developed", "prepared", "produced", "refined", "updated"],
-    safeSupportVerbs: ["prepared", "produced", "updated", "collaborated with"],
-    keepRules: ["Preserve design tools, deliverables, and interface/visual terminology."],
-    avoidRules: ["Do not invent user research depth, conversion gains, or brand strategy ownership."],
-    styleHints: ["Design bullets should stay artifact-focused, tool-aware, and portfolio-relevant."],
-  },
+function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
+  const orig = String(originalText || "");
+  const opt = String(candidateText || "");
+  return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
+}
 
-  education: {
-    titles: ["teacher", "english teacher", "math teacher", "subject teacher", "instructor", "lecturer", "teaching assistant"],
-    keywords: ["lesson planning", "classroom management", "student assessment", "curriculum", "instruction", "student support", "teaching materials"],
-    strongTerms: ["lesson planning", "classroom management", "student assessment", "curriculum development", "instruction", "learning materials", "student progress"],
-    toolTerms: ["excel", "powerpoint", "google classroom", "office"],
-    methodologyTerms: ["lesson planning", "curriculum development", "classroom management", "student assessment"],
-    responsibilityTerms: ["lesson delivery", "assessment preparation", "student progress tracking", "classroom support"],
-    businessContextTerms: ["classroom", "student", "curriculum", "lesson", "assessment", "instruction", "learning"],
-    suggestedKeywords: ["lesson planning", "classroom management", "student assessment", "curriculum development", "learning materials", "student progress tracking", "instruction", "parent communication", "education support", "academic planning"],
-    preferredVerbs: ["planned", "delivered", "prepared", "assessed", "supported", "tracked", "organized"],
-    safeSupportVerbs: ["prepared", "tracked", "organized", "communicated with"],
-    keepRules: ["Preserve lesson planning, instruction, curriculum, and assessment context."],
-    avoidRules: ["Do not invent achievement gains, curriculum ownership, or student outcome data."],
-    styleHints: ["Education bullets should sound instructional, structured, and student-aware."],
-  },
+function filterWeakSentences(items = [], outLang = "") {
+  return (Array.isArray(items) ? items : [])
+    .map((x) => ({
+      sentence: String(x?.sentence || "").trim(),
+      rewrite: String(x?.rewrite || "").trim(),
+    }))
+    .filter((x) => x.sentence && x.rewrite)
+    .filter((x) => normalizeCompareText(x.sentence) !== normalizeCompareText(x.rewrite))
+    .filter((x) => isClearlyWeakSentence(x.sentence))
+    .filter((x) => !isShallowRewrite(x.sentence, x.rewrite))
+    .filter((x) => {
+      if (outLang !== "English") return true;
+      if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
+      if (ENGLISH_WEAK_SWAP_RE.test(x.rewrite)) return false;
+      if (EN_SOFT_FILLER_RE.test(x.rewrite) && !EN_SOFT_FILLER_RE.test(x.sentence)) {
+        return false;
+      }
+      if (hasUnsupportedImpactClaims(x.sentence, x.rewrite)) return false;
+      return true;
+    })
+    .slice(0, 12);
+}
 
-  healthcare_admin: {
-    titles: ["healthcare administrator", "medical secretary", "medical office assistant", "patient coordinator", "clinic coordinator"],
-    keywords: ["patient scheduling", "medical records", "insurance verification", "ehr", "emr", "clinic operations", "appointment coordination", "hipaa"],
-    strongTerms: ["patient scheduling", "medical records", "insurance verification", "ehr", "emr", "hipaa", "appointment coordination", "patient communication"],
-    toolTerms: ["ehr", "emr", "excel", "office"],
-    methodologyTerms: ["patient intake", "insurance verification", "record maintenance", "appointment scheduling"],
-    responsibilityTerms: ["patient communication", "appointment scheduling", "medical record updates", "insurance follow-up"],
-    businessContextTerms: ["patient", "appointment", "clinic", "medical records", "insurance", "scheduling", "ehr", "emr"],
-    suggestedKeywords: ["patient scheduling", "medical records", "insurance verification", "EHR/EMR", "appointment coordination", "HIPAA", "patient communication", "clinic administration", "record maintenance", "front-desk coordination"],
-    preferredVerbs: ["scheduled", "coordinated", "updated", "maintained", "verified", "documented", "communicated"],
-    safeSupportVerbs: ["scheduled", "updated", "maintained", "verified", "documented", "communicated with"],
-    keepRules: ["Preserve patient, scheduling, records, insurance, and compliance context."],
-    avoidRules: ["Do not invent clinical work, patient outcomes, or operational leadership."],
-    styleHints: ["Healthcare admin bullets should remain accurate, compliant, and records-aware."],
-  },
+function getExplicitFactTerms(text = "") {
+  const norm = normalizeCompareText(text);
+  return HARD_FACT_TERMS.filter((term, idx, arr) => {
+    return norm.includes(normalizeCompareText(term)) && arr.indexOf(term) === idx;
+  });
+}
 
-  civil_engineering: {
-    titles: ["civil engineer", "site engineer", "construction engineer", "project site engineer"],
-    keywords: ["civil engineering", "site supervision", "construction", "project drawings", "quantity takeoff", "boq", "technical documentation", "autocad", "revit", "primavera p6"],
-    strongTerms: ["autocad", "revit", "primavera p6", "site supervision", "technical drawings", "quantity takeoff", "boq", "construction documentation", "inspection"],
-    toolTerms: ["autocad", "revit", "primavera p6", "excel"],
-    methodologyTerms: ["site inspection", "quantity takeoff", "project documentation", "schedule tracking"],
-    responsibilityTerms: ["drawing review", "site coordination", "technical documentation", "progress tracking", "contractor coordination"],
-    businessContextTerms: ["construction", "site", "drawing", "inspection", "boq", "quantity", "schedule", "technical"],
-    suggestedKeywords: ["AutoCAD", "Revit", "Primavera P6", "site supervision", "quantity takeoff", "BOQ", "technical documentation", "drawing review", "progress tracking", "construction coordination"],
-    preferredVerbs: ["reviewed", "prepared", "coordinated", "tracked", "inspected", "documented", "supported"],
-    safeSupportVerbs: ["reviewed", "prepared", "coordinated", "tracked", "documented"],
-    keepRules: ["Preserve engineering tools, drawings, site, inspection, and project-documentation context."],
-    avoidRules: ["Do not invent design authority, PE-level ownership, or quantified project outcomes."],
-    styleHints: ["Civil engineering bullets should stay technical, site-aware, and documentation-based."],
-  },
-
-  mechanical_engineering: {
-    titles: ["mechanical engineer", "design engineer", "maintenance engineer", "production engineer"],
-    keywords: ["mechanical design", "technical drawings", "solidworks", "autocad", "equipment maintenance", "production support", "technical documentation", "quality checks"],
-    strongTerms: ["solidworks", "autocad", "technical drawings", "equipment maintenance", "preventive maintenance", "production support", "quality checks", "root cause analysis"],
-    toolTerms: ["solidworks", "autocad", "excel", "erp"],
-    methodologyTerms: ["preventive maintenance", "quality checks", "technical documentation", "root cause analysis"],
-    responsibilityTerms: ["drawing preparation", "equipment inspection", "maintenance planning", "technical support", "production coordination"],
-    businessContextTerms: ["mechanical", "equipment", "maintenance", "drawing", "production", "quality", "inspection", "technical"],
-    suggestedKeywords: ["SolidWorks", "AutoCAD", "technical drawings", "preventive maintenance", "equipment inspection", "production support", "quality checks", "technical documentation", "root cause analysis", "maintenance planning"],
-    preferredVerbs: ["designed", "prepared", "inspected", "tracked", "maintained", "documented", "supported"],
-    safeSupportVerbs: ["prepared", "inspected", "tracked", "maintained", "documented"],
-    keepRules: ["Preserve mechanical tools, equipment, drawings, maintenance, and quality context."],
-    avoidRules: ["Do not invent design authority, production improvements, or technical leadership."],
-    styleHints: ["Mechanical engineering bullets should stay technical, equipment-focused, and factual."],
-  },
-
-  administrative: {
-    titles: ["administrative assistant", "office assistant", "admin assistant"],
-    keywords: ["administrative support", "calendar management", "scheduling", "meeting coordination", "document preparation", "filing", "data entry", "record keeping", "office support"],
-    strongTerms: ["calendar management", "scheduling", "meeting coordination", "document preparation", "filing", "data entry", "record keeping", "office operations"],
-    toolTerms: ["office", "excel", "powerpoint", "google sheets"],
-    methodologyTerms: ["document management", "calendar coordination", "meeting scheduling", "record maintenance"],
-    responsibilityTerms: ["document preparation", "record maintenance", "appointment scheduling", "office support"],
-    businessContextTerms: ["calendar", "appointments", "documents", "records", "filing", "data entry", "administrative", "office support"],
-    suggestedKeywords: ["document management", "calendar coordination", "meeting scheduling", "record maintenance", "office administration", "internal communication", "task coordination", "data entry accuracy", "time management", "administrative reporting"],
-    preferredVerbs: ["organized", "prepared", "scheduled", "maintained", "updated", "documented", "coordinated", "tracked"],
-    safeSupportVerbs: ["organized", "prepared", "scheduled", "maintained", "updated", "documented", "coordinated"],
-    keepRules: ["Preserve administrative, scheduling, document, and records context."],
-    avoidRules: ["Do not turn admin work into project leadership or strategic planning."],
-    styleHints: ["Administrative bullets should sound organized, reliable, and execution-focused."],
-  },
-
-  generic: {
-    titles: [],
-    keywords: [],
-    strongTerms: ["reporting", "documentation", "coordination", "analysis", "communication", "scheduling", "records", "tracking", "support"],
-    toolTerms: ["excel", "office", "google sheets", "powerpoint"],
-    methodologyTerms: ["documentation", "tracking", "coordination", "reporting"],
-    responsibilityTerms: ["task coordination", "record maintenance", "follow-up", "reporting support"],
-    businessContextTerms: ["reporting", "documentation", "coordination", "analysis", "communication", "scheduling", "records", "tracking", "support"],
-    suggestedKeywords: ["documentation", "cross-functional collaboration", "process tracking", "stakeholder communication", "task coordination", "problem-solving", "time management", "reporting", "data tracking", "record maintenance"],
-    preferredVerbs: ["coordinated", "prepared", "tracked", "maintained", "documented", "updated", "organized"],
-    safeSupportVerbs: ["coordinated", "prepared", "tracked", "maintained", "documented", "updated"],
-    keepRules: ["Keep bullets concise, truthful, and role-grounded."],
-    avoidRules: ["Do not force jargon or inflate scope when the source text is simple."],
-    styleHints: ["Prefer grounded recruiter language over generic corporate fluff."],
-  },
-};
-
-function getRolePackAllTerms(pack = {}) {
-  return uniqueTrimmedStrings([
-    ...(pack.titles || []),
-    ...(pack.keywords || []),
-    ...(pack.strongTerms || []),
-    ...(pack.toolTerms || []),
-    ...(pack.methodologyTerms || []),
-    ...(pack.certificationTerms || []),
-    ...(pack.responsibilityTerms || []),
+function buildAllowedTermsText(cv = "", jd = "") {
+  const terms = uniqueTrimmedStrings([
+    ...getExplicitFactTerms(cv),
+    ...getExplicitFactTerms(jd),
   ]);
+  return terms.length ? terms.join(", ") : "(none explicitly supported)";
 }
 
-const ALL_ROLE_TERMS = uniqueTrimmedStrings(
-  Object.values(ROLE_PACKS).flatMap((p) => getRolePackAllTerms(p))
-);
+function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
+  const allowed = new Set(
+    uniqueTrimmedStrings([
+      ...getExplicitFactTerms(originalCv),
+      ...getExplicitFactTerms(jd),
+    ]).map(normalizeCompareText)
+  );
 
-const ALL_BUSINESS_CONTEXT_TERMS = uniqueTrimmedStrings(
-  Object.values(ROLE_PACKS).flatMap((p) => p.businessContextTerms || [])
-);
-
-const HARD_FACT_TERMS = uniqueTrimmedStrings([
-  "google ads",
-  "meta ads",
-  "google analytics",
-  "ga4",
-  "google tag manager",
-  "gtm",
-  "seo",
-  "sem",
-  "ppc",
-  "hubspot",
-  "salesforce",
-  "crm",
-  "zendesk",
-  "freshdesk",
-  "help desk",
-  "jira",
-  "confluence",
-  "tableau",
-  "power bi",
-  "looker studio",
-  "excel",
-  "google sheets",
-  "powerpoint",
-  "sql",
-  "python",
-  "javascript",
-  "typescript",
-  "react",
-  "node.js",
-  "java",
-  "c sharp",
-  "aws",
-  "azure",
-  "gcp",
-  "docker",
-  "kubernetes",
-  "git",
-  "ci/cd",
-  "rest api",
-  "microservices",
-  "unit testing",
-  "integration testing",
-  "selenium",
-  "cypress",
-  "postman",
-  "figma",
-  "adobe creative suite",
-  "photoshop",
-  "illustrator",
-  "autocad",
-  "solidworks",
-  "revit",
-  "primavera p6",
-  "sap",
-  "sap mm",
-  "sap fico",
-  "oracle",
-  "quickbooks",
-  "netsuite",
-  "erp",
-  "ifrs",
-  "gaap",
-  "accounts payable",
-  "accounts receivable",
-  "payroll",
-  "forecasting",
-  "variance analysis",
-  "budgeting",
-  "audit",
-  "reconciliation",
-  "workday",
-  "greenhouse",
-  "ats",
-  "agile",
-  "scrum",
-  "kanban",
-  "lean",
-  "six sigma",
-  "pmp",
-  "csm",
-  "psm",
-  "etl",
-  "data modeling",
-  "ehr",
-  "emr",
-  "hipaa",
-  "patient scheduling",
-  "insurance verification",
-  "inventory management",
-  "warehouse management",
-  "procurement",
-  "sourcing",
-  "vendor management",
-  "csat",
-  "nps",
-  "qbr",
-  "a/b test",
-  "remarketing",
-  "retargeting",
-  "lead generation",
-  "audience segmentation",
-  "boq",
-]);
-
-const BRAND_SPECIFIC_TERMS = uniqueTrimmedStrings([
-  "google ads",
-  "meta ads",
-  "google analytics",
-  "ga4",
-  "google tag manager",
-  "hubspot",
-  "salesforce",
-  "zendesk",
-  "freshdesk",
-  "jira",
-  "confluence",
-  "tableau",
-  "power bi",
-  "looker studio",
-  "react",
-  "node.js",
-  "aws",
-  "azure",
-  "gcp",
-  "docker",
-  "kubernetes",
-  "selenium",
-  "cypress",
-  "postman",
-  "figma",
-  "adobe creative suite",
-  "photoshop",
-  "illustrator",
-  "autocad",
-  "solidworks",
-  "revit",
-  "primavera p6",
-  "sap",
-  "oracle",
-  "quickbooks",
-  "netsuite",
-  "workday",
-  "greenhouse",
-]);
-
-const GLOBAL_STRONG_SPECIFIC_RE = buildPhraseRegex([...ALL_ROLE_TERMS, ...HARD_FACT_TERMS]);
-const GLOBAL_BUSINESS_CONTEXT_RE = buildPhraseRegex(ALL_BUSINESS_CONTEXT_TERMS);
-
-const CERTIFICATION_RE =
-  /\b(pmp|csm|psm|scrum master|cpa|cfa|acca|ifrs|gaap|lean six sigma|six sigma|itil|hipaa)\b/i;
-
-const ACRONYM_RE = /\b[A-Z]{2,}(?:\/[A-Z]{2,})?\b/;
-
-const GENERIC_SUMMARY_RE =
-  /^(experienced|results[- ]driven|motivated|detail[- ]oriented|hardworking|dedicated|dynamic|responsible|organized|versatile|experienced professional|deneyimli|sonuç odaklı|motivasyonu yüksek|detay odaklı|çalışkan|disiplinli|öğrenmeye açık|sorumluluk sahibi)\b/i;
-
-const DUTIES_ONLY_RE =
-  /\b(duties included|responsible for|tasked with|worked on|supported|assisted|helped|contributed to|participated in|involved in|görevlerim arasında|sorumlu olduğum|ilgili süreçlerde|görev aldım|destek oldum|yardımcı oldum|ilgilen(dim|di))\b/i;
-
-const WEAK_SENTENCE_RE =
-  /\b(ilgilendim|bulundum|görev aldım|destek oldum|destek verdim|yardımcı oldum|sorumluydum|takip ettim|katıldım|çalıştım|yaptım|worked on|handled|supported|supports|assisted|assists|helped|helps|was responsible for|responsible for|contributed to|involved in|participated in|tasked with|duties included|worked closely with|provided support)\b/i;
-
-const WEAK_START_RE =
-  /^(helped|helps|assisted|assists|supported|supports|worked on|contributed to|participated in|involved in|handled|tasked with|responsible for|duties included|yardımcı oldum|destek verdim|destek oldum|görev aldım|ilgilen(dim|di)|bulundum|çalıştım|yaptım)\b/i;
-
-const WEAK_PHRASE_RE =
-  /\b(helped|helps|assisted|assists|supported|supports|involved in|responsible for|contributed to|worked on|played a key role in|participated in|handled|supported the team|took part in|provided support|ilgilendim|bulundum|baktım|yardım ettim|yardımcı oldum|destek verdim|destek oldum|katkı sağladım|görev aldım|sorumlu oldum)\b/i;
-
-const STRONG_ACTION_RE =
-  /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|denetledim|doğruladım|uzlaştırdım|işledim|eğitim verdim|değerlendirdim|engineered|built|developed|designed|implemented|integrated|tested|debugged|validated|automated|configured|deployed|maintained|optimized|planned|executed|created|responded|resolved|documented|scheduled|reviewed|updated|monitored|processed|reconciled|screened|analyzed|reported|tracked|managed|delivered|verified|produced|prepared|mapped|facilitated|taught|assessed|inspected|coordinated|collaborated|communicated|organized|compiled|addressed|guided)\b/i;
-
-const EN_WEAK_REWRITE_START_RE =
-  /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided)\b/i;
-
-const EN_SOFT_FILLER_RE =
-  /\b(aimed at|focused on|with a focus on|designed to|to improve|to enhance|to strengthen|to maximize|to optimize|to drive|to facilitate|to promote|to ensure|to support decision-making|to improve service quality|to enhance engagement)\b/i;
-
-const EN_UNSUPPORTED_IMPACT_RE =
-  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty|enhance(?:d|s|ing)? service satisfaction|improve(?:d|s|ing)? operational efficiency|reduced costs|generated revenue|improved retention|optimized performance|accelerated delivery|inform(?:ed|s|ing)? marketing strategies|streamlin(?:e|ed|ing)? marketing operations|optimiz(?:e|ed|ing)? campaign effectiveness|for efficiency|for timely execution|for effective scheduling|for team access|to maintain current marketing materials)\b/i;
-
-const ENGLISH_RISKY_RESULT_RE =
-  /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering|aimed at|focused on|designed to)\b/i;
-
-const ENGLISH_WEAK_SWAP_RE =
-  /\b(assisted|contributed|participated|supported|helped)\b/i;
-
-const ENGLISH_CORPORATE_FLUFF_RE =
-  /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|strategic initiatives|in-depth data analysis|for consistency|for team accessibility|to ensure data accuracy|to ensure accuracy and relevance|to streamline communication efforts|to support informed marketing strategies|to enhance engagement|to optimize user experience|operational excellence|decision-making|stakeholder alignment|value-driven|best-in-class)\b/i;
-
-const LOW_VALUE_KEYWORD_RE =
-  /\b(communication|teamwork|hardworking|motivated|detail[- ]oriented|problem solving|leadership|microsoft office|ms office|computer skills|organizasyon|iletişim|takım çalışması|motivasyon|çözüm odaklı|detay odaklı|uyumlu|çalışkan|analiz|analysis|support|reporting|management|beceri|yetenek|deneyim)\b/i;
-
-const JD_CUE_RE =
-  /\b(required|requirements|must have|preferred|experience with|knowledge of|proficient in|responsible for|responsibilities|qualification|qualifications|nice to have|should have|aranan nitelikler|gerekli|tercihen|deneyim|sorumluluklar|yetkinlikler|beklentiler)\b/i;
-
-const SOFT_EXECUTION_START_RE =
-  /^(prepared|maintained|coordinated|tracked|updated|processed|documented|communicated|organized|compiled|addressed|responded|resolved|reviewed|monitored)\b/i;
-
-const GENERIC_EXECUTION_RE =
-  /\b(daily tasks?|routine communication|customer requests?|service updates?|issue status|support summaries?|team support|internal service updates|internal review|ongoing cases?|service tracking|customer service tasks?|team review|open issues?|open tickets?)\b/i;
-
-const CV_ONLY_SAFE_GENERIC_RE =
-  /\b(ticket management|issue resolution|escalation handling|support documentation|case follow-up|customer communication|service quality|stakeholder communication|process improvement|workflow coordination|status reporting|project documentation|deliverable coordination|risk tracking|requirements gathering|process mapping|data visualization|dashboard reporting|trend analysis|kpi tracking|financial reporting|account reconciliation|month-end close|audit support|candidate screening|interview coordination|employee onboarding|policy compliance|record management|inventory management|shipment tracking|warehouse operations|vendor coordination|purchase orders|supplier communication|quality validation|release testing|automation testing|test documentation|lesson planning|classroom management|student assessment|curriculum development|patient scheduling|medical records|insurance verification|appointment coordination|site supervision|quantity takeoff|technical documentation|preventive maintenance|equipment inspection|production support|calendar management|meeting coordination|document management|record maintenance|cross-functional collaboration|task coordination|process tracking|report automation|version control|unit testing|integration testing|system design|debugging|performance tuning|agile development|database optimization|api integration|rest apis?|microservices|cloud services|service records|operational tracking|process documentation|resource coordination)\b/i;
-
-const SKILL_NGRAM_HINTS = uniqueTrimmedStrings([
-  "analysis",
-  "analyst",
-  "analytics",
-  "dashboard",
-  "reporting",
-  "forecasting",
-  "budgeting",
-  "reconciliation",
-  "audit",
-  "payable",
-  "receivable",
-  "payroll",
-  "recruiting",
-  "screening",
-  "onboarding",
-  "offboarding",
-  "procurement",
-  "sourcing",
-  "vendor",
-  "inventory",
-  "warehouse",
-  "logistics",
-  "shipment",
-  "support",
-  "success",
-  "retention",
-  "renewal",
-  "curriculum",
-  "classroom",
-  "assessment",
-  "instruction",
-  "patient",
-  "insurance",
-  "ehr",
-  "emr",
-  "testing",
-  "automation",
-  "qa",
-  "quality",
-  "sql",
-  "python",
-  "javascript",
-  "typescript",
-  "react",
-  "node",
-  "api",
-  "microservices",
-  "cloud",
-  "docker",
-  "kubernetes",
-  "roadmap",
-  "backlog",
-  "stakeholder",
-  "scrum",
-  "agile",
-  "design",
-  "wireframe",
-  "prototype",
-  "figma",
-  "autocad",
-  "revit",
-  "solidworks",
-  "primavera",
-  "civil",
-  "mechanical",
-  "safety",
-  "compliance",
-  "risk",
-  "release",
-  "deployment",
-  "lesson",
-  "schedule",
-  "coordination",
-  "documentation",
-  "integration",
-  "data modeling",
-  "etl",
-  "boq",
-]);
-
-const FALLBACK_WEAK_TRIGGER_RE =
-  /\b(helped|assisted|supported|worked on|contributed to|participated in|responsible for|tasked with|routine|basic|simple|day-to-day|follow-up|support tasks|support activities|support work|assisted with)\b/i;
-
-const ROLE_REWRITE_RED_FLAGS = {
-  customer_support: [
-    /\bmanaged daily communication\b/i,
-    /\bfacilitated communication\b/i,
-    /\bstreamlin(?:e|ed|ing) issue resolution\b/i,
-    /\bensure(?:d|s|ing)? timely resolution\b/i,
-    /\bmaintain(?:ed|s|ing)? service quality\b/i,
-    /\bimprov(?:e|ed|ing)? customer satisfaction\b/i,
-    /\bexecut(?:e|ed|ing)? customer service operations\b/i,
-  ],
-
-  marketing: [
-    /\bboost(?:ed|ing)? audience engagement\b/i,
-    /\bprovide(?:d|s|ing)? actionable insights\b/i,
-    /\binform(?:ed|s|ing)? strategy\b/i,
-    /\benhance(?:d|s|ing)? online presence\b/i,
-    /\bimprov(?:e|ed|ing)? campaign effectiveness\b/i,
-    /\bsupport(?:ed|s|ing)? brand growth\b/i,
-    /\boptimiz(?:e|ed|ing)? campaign performance\b/i,
-    /\boptimiz(?:e|ed|ing)? campaign effectiveness\b/i,
- /\binform(?:ed|s|ing)? marketing strategies\b/i,
- /\bstreamlin(?:e|ed|ing)? marketing operations\b/i,
- /\bfor efficiency\b/i,
- /\bfor timely execution\b/i,
- /\bcommitted to continuous learning\b/i,
- /\bcontinuous learning and improvement\b/i,
- /\bstrong background in\b/i,
- /\bexecut(?:e|ed|ing)? social media posting\b/i,
- /\bmanage(?:d|s|ing)? reporting tasks\b/i,
- /\basset management\b/i,
- /\baudience engagement strategies\b/i,
-  ],
-
-  software_engineering: [
-    /\bmaintained application development tasks\b/i,
-    /\bcoordinated backend modules\b/i,
-    /\bmaintained rest api integrations\b/i,
-    /\bcoordinated internal development tasks\b/i,
-    /\bmaintained bug fixes\b/i,
-    /\bfacilitated technical follow[- ]up\b/i,
-  ],
-};
-
-const TECHNICAL_SOURCE_SIGNAL_RE =
-  /\b(api|backend|database|sql|debugging|deployment|testing|server-side|bug fixes|cloud|python|node\.js|rest api|microservices|application development)\b/i;
-
-const TECHNICAL_WEAK_REWRITE_START_RE =
-  /^(?:coordinated|facilitated|managed|maintained)\b/i;
-
-function isBrandedOrVendorSpecific(term = "") {
-  const norm = canonicalizeTerm(term);
-  return BRAND_SPECIFIC_TERMS.some((x) => canonicalizeTerm(x) === norm);
+  return uniqueTrimmedStrings(getExplicitFactTerms(optimizedCv)).filter(
+    (term) => !allowed.has(normalizeCompareText(term))
+  );
 }
 
-function inferSeniority(text = "") {
-  const s = normalizeCompareText(text);
-
-  if (/\b(chief|vp|vice president|director|head of|department head|general manager)\b/i.test(s)) {
-    return "leadership";
-  }
-
-  if (/\b(principal|staff engineer|lead|manager|team lead|supervisor)\b/i.test(s)) {
-    return "manager_or_lead";
-  }
-
-  if (/\b(senior|sr\.?|kidemli|uzman)\b/i.test(s)) {
-    return "senior";
-  }
-
-  if (/\b(intern|stajyer|junior|jr\.?|assistant|associate|trainee|entry level)\b/i.test(s)) {
-    return "junior";
-  }
-
-  return "mid";
+function countWeakEnglishRewriteStarts(cv = "") {
+  return getBulletLines(cv).filter((b) =>
+    EN_WEAK_REWRITE_START_RE.test(String(b || "").trim())
+  ).length;
 }
 
-function inferFunctionalFocus(text = "", roleGroups = []) {
-  const norm = canonicalizeTerm(text);
-  const candidates = [
-    { key: "technical_execution", score: countTermHits(norm, ["software", "api", "database", "testing", "deployment", "debugging", "engineering"]) },
-    { key: "analysis_reporting", score: countTermHits(norm, ["analysis", "analytics", "dashboard", "reporting", "kpi", "forecasting", "reconciliation"]) },
-    { key: "process_operations", score: countTermHits(norm, ["operations", "workflow", "process", "coordination", "tracking", "logistics", "inventory"]) },
-    { key: "client_customer", score: countTermHits(norm, ["customer", "client", "support", "onboarding", "renewal", "service", "ticket"]) },
-    { key: "product_project", score: countTermHits(norm, ["product", "roadmap", "backlog", "project", "timeline", "deliverable", "stakeholder"]) },
-    { key: "people_admin", score: countTermHits(norm, ["candidate", "employee", "interview", "onboarding", "calendar", "meeting", "documentation"]) },
-    { key: "design_creative", score: countTermHits(norm, ["design", "wireframe", "prototype", "visual", "ui", "ux", "figma"]) },
-    { key: "regulated_records", score: countTermHits(norm, ["audit", "compliance", "hipaa", "medical records", "ifrs", "gaap"]) },
-  ];
+function countEnglishStyleRiskHits(originalCv = "", optimizedCv = "") {
+  const origBullets = getBulletLines(originalCv);
+  const optBullets = getBulletLines(optimizedCv);
+  const total = Math.min(origBullets.length, optBullets.length);
 
-  const top = candidates
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map((x) => x.key);
+  let hits = 0;
 
-  if (top.length) return top;
+  for (let i = 0; i < total; i++) {
+    const orig = String(origBullets[i] || "").trim();
+    const opt = String(optBullets[i] || "").trim();
 
-  const primary = Array.isArray(roleGroups) && roleGroups[0] ? roleGroups[0] : "generic";
-  if (primary === "generic") return ["general_execution"];
-  return [primary];
+    if (!orig || !opt) continue;
+
+    const origHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(orig);
+    const optHasRiskyResult = ENGLISH_RISKY_RESULT_RE.test(opt);
+    if (!origHasRiskyResult && optHasRiskyResult) hits += 1;
+
+    const origWeak = ENGLISH_WEAK_SWAP_RE.test(orig);
+    const optWeak = ENGLISH_WEAK_SWAP_RE.test(opt);
+    if (origWeak && optWeak) hits += 1;
+
+    const origSoftFiller = EN_SOFT_FILLER_RE.test(orig);
+    const optSoftFiller = EN_SOFT_FILLER_RE.test(opt);
+    if (!origSoftFiller && optSoftFiller) hits += 1;
+  }
+
+  return hits;
+}
+
+function computeFinalOptimizedScore(
+  originalCv = "",
+  optimizedCv = "",
+  originalScore = 0,
+  jd = ""
+) {
+  const base = clampScore(originalScore);
+  if (!originalCv || !optimizedCv) return base;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm || origNorm === optNorm) return base;
+
+  const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd);
+  const rawLift = Math.max(0, rescoredOptimized - base);
+
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  const weakGain = Math.max(0, weakBefore - weakAfter);
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  const rewriteRatio = total > 0 ? 1 - same / total : 0;
+
+  let lift = 0;
+  lift += rawLift * 0.48;
+  lift += Math.min(3, weakGain) * 0.8;
+
+  if (rewriteRatio >= 0.7) lift += 3;
+  else if (rewriteRatio >= 0.5) lift += 2;
+  else if (rewriteRatio >= 0.3) lift += 1;
+
+  const meaningfulChange = rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+  if (!meaningfulChange) return base;
+
+  lift = Math.round(lift);
+
+  const cap =
+    base < 40 ? 19 :
+    base < 55 ? 16 :
+    base < 70 ? 14 :
+    base < 80 ? 10 : 6;
+
+  lift = Math.max(3, Math.min(cap, lift));
+
+  return clampScore(base + lift);
+}
+
+function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", outLang = "", weakSentences = []) {
+  if (!optimizedCv || !String(optimizedCv).trim()) return true;
+
+  const origNorm = normalizeCompareText(originalCv);
+  const optNorm = normalizeCompareText(optimizedCv);
+
+  if (!optNorm) return true;
+  if (origNorm === optNorm) return true;
+
+  const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
+  if (total > 0 && same / total >= 0.4) return true;
+
+  const optimizedBullets = getBulletLines(optimizedCv);
+  if (total > 0 && optimizedBullets.length < Math.max(2, Math.floor(total * 0.7))) {
+    return true;
+  }
+
+  const weakBefore = countWeakVerbHits(originalCv);
+  const weakAfter = countWeakVerbHits(optimizedCv);
+  if (weakBefore > 0 && weakAfter >= weakBefore) return true;
+
+  if (countPersistingWeakSources(optimizedCv, weakSentences) >= 2) return true;
+
+  if (outLang === "English" && countEnglishStyleRiskHits(originalCv, optimizedCv) >= 2) {
+    return true;
+  }
+
+  if (outLang === "English" && countCorporateFluffHits(optimizedCv) >= 2) {
+    return true;
+  }
+
+  if (outLang === "English" && getOverlongBulletRatio(optimizedCv) > 0.35) {
+    return true;
+  }
+
+  if (countWeakVerbHits(optimizedCv) >= 2) return true;
+  if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
+  if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
+  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) return true;
+
+  return false;
+}
+
+function getSectionPresenceScore(cv = "") {
+  const text = getNonEmptyLines(cv).join("\n");
+  let score = 0;
+
+  if (/(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)/i.test(text)) score += 5;
+  if (/(EXPERIENCE|WORK EXPERIENCE|DENEYİM|İŞ DENEYİMİ)/i.test(text)) score += 7;
+  if (/(SKILLS|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(text)) score += 4;
+  if (/(EDUCATION|EĞİTİM)/i.test(text)) score += 4;
+  if (/(LANGUAGES|DİLLER|BİLDİĞİ DİLLER)/i.test(text)) score += 2;
+  if (/(CERTIFICATIONS|SERTİFİKALAR)/i.test(text)) score += 2;
+  if (/(PROJECTS|PROJELER)/i.test(text)) score += 1;
+
+  return Math.min(25, score);
 }
 
 function getSkillsLines(cv = "") {
@@ -1364,7 +1055,7 @@ function getSkillsLines(cv = "") {
   let inSkills = false;
 
   for (const line of lines) {
-    if (/(SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
+    if (/(SKILLS|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
       inSkills = true;
       continue;
     }
@@ -1378,183 +1069,1414 @@ function getSkillsLines(cv = "") {
   return out.filter(Boolean);
 }
 
-function inferRoleProfile(cv = "", jd = "") {
-  const combined = `${cv || ""}\n${jd || ""}`;
-  const combinedNorm = canonicalizeTerm(combined);
-  const titleText = `${extractHeaderBlock(cv).join(" ")} ${extractExperienceTitles(cv).join(" ")}`.trim();
-  const summaryText = extractSummaryLines(cv).join(" ");
-  const skillsText = getSkillsLines(cv).join(" ");
-  const bulletsText = getBulletLines(cv).join(" ");
-  const isCvOnly = !String(jd || "").trim();
+function getKeywordBreadthScore(cv = "", jd = "") {
+  const text = normalizeCompareText(cv);
+  const skills = uniqueTrimmedStrings(getSkillsLines(cv));
+  const roleProfiles = inferRoleProfiles(cv, jd);
 
-  const scored = Object.entries(ROLE_PACKS)
-    .filter(([key]) => key !== "generic")
-    .map(([key, pack]) => {
-      const titleHits = countTermHits(titleText, pack.titles || []);
-      const keywordHits = countTermHits(combinedNorm, pack.keywords || []);
-      const strongHits = countTermHits(combinedNorm, pack.strongTerms || []);
-      const toolHits = countTermHits(combinedNorm, pack.toolTerms || []);
-      const methodologyHits = countTermHits(combinedNorm, pack.methodologyTerms || []);
-      const responsibilityHits = countTermHits(combinedNorm, pack.responsibilityTerms || []);
-      const businessHits = countTermHits(combinedNorm, pack.businessContextTerms || []);
-      const summaryHits =
-        countTermHits(summaryText, pack.titles || []) +
-        countTermHits(summaryText, pack.keywords || []) +
-        countTermHits(summaryText, pack.strongTerms || []);
-      const skillsHits =
-        countTermHits(skillsText, pack.toolTerms || []) +
-        countTermHits(skillsText, pack.strongTerms || []) +
-        countTermHits(skillsText, pack.methodologyTerms || []);
-      const bulletHits =
-        countTermHits(bulletsText, pack.responsibilityTerms || []) +
-        countTermHits(bulletsText, pack.businessContextTerms || []) +
-        countTermHits(bulletsText, pack.strongTerms || []);
+  let score = 0;
+  score += Math.min(8, skills.length);
 
-      const score =
-        titleHits * 8 +
-        skillsHits * 5 +
-        strongHits * 4 +
-        toolHits * 4 +
-        keywordHits * 3 +
-        methodologyHits * 3 +
-        summaryHits * 3 +
-        responsibilityHits * 2 +
-        bulletHits * 2 +
-        Math.min(6, businessHits);
+  const relevantTerms = roleProfiles.length
+    ? uniqueTrimmedStrings(roleProfiles.flatMap((profile) => profile.terms || []))
+    : ALL_ROLE_TERMS;
 
-      return {
-        key,
-        score,
-        titleHits,
-        keywordHits,
-        strongHits,
-        toolHits,
-        methodologyHits,
-        responsibilityHits,
-        businessHits,
-        summaryHits,
-        skillsHits,
-        bulletHits,
-      };
-    })
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score);
+  const relevantHits = relevantTerms.filter((term) =>
+    text.includes(normalizeCompareText(term))
+  ).length;
+  score += Math.min(4, relevantHits);
 
-  let roleGroups = ["generic"];
+  const topHits = roleProfiles[0]?.hits || 0;
+  const secondHits = roleProfiles[1]?.hits || 0;
 
-  if (scored.length) {
-    const top = scored[0].score;
-    roleGroups = [];
+  if (topHits >= 3) score += 1;
+  if (topHits >= 5) score += 1;
+  if (secondHits >= 2) score += 1;
 
-    for (const item of scored) {
-      if (!roleGroups.length) {
-        roleGroups.push(item.key);
+  const businessHits = [
+    "cross-functional collaboration",
+    "stakeholder communication",
+    "reporting",
+    "documentation",
+    "process improvement",
+    "process optimization",
+    "issue resolution",
+    "account management",
+    "customer feedback",
+    "client communication",
+  ].filter((term) => text.includes(normalizeCompareText(term))).length;
+
+  score += Math.min(3, businessHits);
+
+  return Math.min(15, score);
+}
+
+function getReadabilityScore(cv = "") {
+  const bullets = getBulletLines(cv);
+  const header = extractHeaderBlock(cv);
+  const lines = getNonEmptyLines(cv);
+
+  let score = 0;
+
+  if (header.length >= 3) score += 3;
+  if (lines.length >= 12) score += 3;
+  if (bullets.length >= 4) score += 6;
+
+  const avgBulletWords =
+    bullets.length > 0
+      ? bullets.reduce((sum, b) => sum + countWords(b), 0) / bullets.length
+      : 0;
+
+  if (avgBulletWords >= 6 && avgBulletWords <= 20) score += 8;
+  else if (avgBulletWords >= 4) score += 4;
+
+  return Math.min(20, score);
+}
+
+function getBulletStrengthScore(cv = "") {
+  const bullets = getBulletLines(cv);
+  if (!bullets.length) return 0;
+
+  let score = 8;
+  let weakCount = 0;
+  let strongCount = 0;
+  let specificityCount = 0;
+  let solidLengthCount = 0;
+
+  for (const bullet of bullets) {
+    const wc = countWords(bullet);
+    if (WEAK_PHRASE_RE.test(bullet)) weakCount += 1;
+    if (STRONG_ACTION_RE.test(bullet)) strongCount += 1;
+    if (SPECIFICITY_RE.test(bullet) || BUSINESS_CONTEXT_RE.test(bullet)) specificityCount += 1;
+    if (wc >= 5 && wc <= 24) solidLengthCount += 1;
+  }
+
+  const weakPenalty = Math.min(18, weakCount * 3);
+  const strongBonus = Math.min(12, strongCount * 2);
+  const specificityBonus = Math.min(10, specificityCount * 1.5);
+  const lengthBonus = Math.min(10, solidLengthCount * 1.2);
+
+  score = score + strongBonus + specificityBonus + lengthBonus - weakPenalty;
+
+  return Math.max(0, Math.min(40, Math.round(score)));
+}
+
+function extractTopJdTerms(jd = "") {
+  const stop = new Set([
+    "ve", "ile", "için", "olan", "olarak", "bir", "bu", "da", "de", "en",
+    "the", "and", "for", "with", "to", "of", "in", "on", "a", "an",
+    "veya", "ya", "gibi", "göre", "üzere", "alanında", "alaninda",
+  ]);
+
+  return Array.from(
+    new Set(
+      String(jd)
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s/-]/gu, " ")
+        .split(/\s+/)
+        .filter((x) => x && x.length >= 4 && !stop.has(x))
+    )
+  ).slice(0, 40);
+}
+
+function getJdAlignmentScore(cv = "", jd = "") {
+  if (!jd || !String(jd).trim()) return 0;
+
+  const cvText = normalizeCompareText(cv);
+  const terms = extractTopJdTerms(jd);
+  if (!terms.length) return 0;
+
+  let hits = 0;
+  for (const term of terms) {
+    if (cvText.includes(normalizeCompareText(term))) hits += 1;
+  }
+
+  const ratio = hits / terms.length;
+  return Math.max(0, Math.min(10, Math.round(ratio * 10)));
+}
+
+function computeDeterministicAtsScore(cv = "", jd = "") {
+  const hasJD = !!String(jd || "").trim();
+
+  const sectionScore = getSectionPresenceScore(cv);
+  const bulletScore = getBulletStrengthScore(cv);
+  const readabilityScore = getReadabilityScore(cv);
+  const keywordScore = getKeywordBreadthScore(cv, jd);
+  const jdScore = getJdAlignmentScore(cv, jd);
+
+  let total = 0;
+
+  if (hasJD) {
+    total =
+      Math.round((sectionScore / 25) * 20) +
+      Math.round((bulletScore / 40) * 35) +
+      Math.round((readabilityScore / 20) * 20) +
+      Math.round((keywordScore / 15) * 15) +
+      jdScore;
+  } else {
+    total =
+      Math.round((sectionScore / 25) * 25) +
+      Math.round((bulletScore / 40) * 40) +
+      Math.round((readabilityScore / 20) * 20) +
+      Math.round((keywordScore / 15) * 15);
+  }
+
+  return clampScore(total);
+}
+
+function computeComponentScore(componentScores = {}, hasJD = false) {
+  if (hasJD) {
+    const role_alignment = clampScore(componentScores?.role_alignment);
+    const bullet_strength = clampScore(componentScores?.bullet_strength);
+    const jd_keyword_match = clampScore(componentScores?.jd_keyword_match);
+    const section_completeness = clampScore(componentScores?.section_completeness);
+    const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
+
+    return clampScore(
+      role_alignment * 0.28 +
+      bullet_strength * 0.28 +
+      jd_keyword_match * 0.18 +
+      section_completeness * 0.16 +
+      ats_safe_formatting * 0.10
+    );
+  }
+
+  const section_completeness = clampScore(componentScores?.section_completeness);
+  const clarity_readability = clampScore(componentScores?.clarity_readability);
+  const bullet_strength = clampScore(componentScores?.bullet_strength);
+  const ats_safe_formatting = clampScore(componentScores?.ats_safe_formatting);
+  const core_keyword_coverage = clampScore(componentScores?.core_keyword_coverage);
+
+  return clampScore(
+    section_completeness * 0.22 +
+    clarity_readability * 0.24 +
+    bullet_strength * 0.32 +
+    ats_safe_formatting * 0.14 +
+    core_keyword_coverage * 0.08
+  );
+}
+
+function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
+  if (!isGpt5Model(model)) {
+    return [
+      {
+        reasoningEffort: null,
+        temperature: isPreview ? 0.2 : 0.25,
+        maxCompletionTokens,
+      },
+    ];
+  }
+
+  if (passType === "optimize") {
+    return [
+      {
+        reasoningEffort: "medium",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+      },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 4200),
+      },
+    ];
+  }
+
+  if (passType === "repair") {
+    return [
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3600),
+      },
+    ];
+  }
+
+  if (isPreview) {
+    return [
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1100),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1500),
+      },
+    ];
+  }
+
+  return [
+    {
+      reasoningEffort: "low",
+      temperature: null,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
+    },
+    {
+      reasoningEffort: "none",
+      temperature: 0.2,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+    },
+  ];
+}
+
+async function fetchWithTimeout(url, options, timeoutMs = 65000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callOpenAIJson({
+  apiKey,
+  model,
+  system,
+  userPrompt,
+  isPreview = false,
+  passType = "main",
+  maxCompletionTokens = 1800,
+}) {
+  const attempts = buildAttempts({
+    model,
+    isPreview,
+    passType,
+    maxCompletionTokens,
+  });
+
+  let lastError = null;
+
+  for (const attempt of attempts) {
+    try {
+      const openaiRes = await fetchWithTimeout(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(
+            buildOpenAIPayload({
+              model,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: userPrompt },
+              ],
+              reasoningEffort: attempt.reasoningEffort,
+              temperature: attempt.temperature,
+              maxCompletionTokens: attempt.maxCompletionTokens,
+            })
+          ),
+        },
+        passType === "optimize" || passType === "repair" ? 70000 : 60000
+      );
+
+      const raw = await openaiRes.text();
+
+      if (!openaiRes.ok) {
+        const err = new Error("OpenAI error");
+        err.status = openaiRes.status;
+        err.details = raw.slice(0, 3000);
+        throw err;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const err = new Error("OpenAI returned non-JSON API payload");
+        err.status = 500;
+        err.details = raw.slice(0, 3000);
+        throw err;
+      }
+
+      const finishReason = parsed?.choices?.[0]?.finish_reason || "";
+      const text = extractAssistantText(parsed);
+
+      if (!text || !text.trim()) {
+        lastError = new Error("Model returned empty content");
+        if (finishReason === "length") continue;
         continue;
       }
 
-      if (isCvOnly && roleGroups.length >= 2) break;
-      if (!isCvOnly && roleGroups.length >= 3) break;
+      let data;
+      try {
+        data = safeJsonParse(text);
+      } catch (err) {
+        lastError = err;
+        if (finishReason === "length") continue;
+        continue;
+      }
 
-      const shouldInclude = isCvOnly
-        ? item.score >= Math.max(10, top - 4) ||
-          item.titleHits >= 1 ||
-          item.skillsHits >= 2 ||
-          item.toolHits >= 2 ||
-          item.strongHits >= 3
-        : item.score >= Math.max(8, top - 6) ||
-          item.titleHits >= 1 ||
-          item.skillsHits >= 2 ||
-          item.toolHits >= 2 ||
-          item.strongHits >= 2 ||
-          item.summaryHits >= 2;
+      if (
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        Object.keys(data).length === 0
+      ) {
+        lastError = new Error("Model returned empty JSON object");
+        continue;
+      }
 
-      if (shouldInclude) roleGroups.push(item.key);
+      return data;
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        lastError = new Error("OpenAI request timed out");
+        lastError.status = 504;
+        lastError.details = "The upstream request exceeded the timeout window.";
+      } else {
+        lastError = err;
+      }
+
+      if (
+        lastError?.status &&
+        lastError.status >= 400 &&
+        lastError.status < 500 &&
+        lastError.status !== 429
+      ) {
+        throw lastError;
+      }
+    }
+  }
+
+  const err = new Error(lastError?.message || "Model did not return usable JSON");
+  err.status = lastError?.status || 500;
+  err.details = lastError?.details || String(lastError || "Unknown error");
+  throw err;
+}
+
+function buildAtsSystem(outLang) {
+  return `
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics, tools, platforms, and facts explicitly present in the resume and optional job description.
+- Never turn a specific sentence into a more generic sentence.
+- Never remove existing useful specificity such as tools, metrics, platforms, channels, or business context.
+- If a bullet has no measurable metric, improve it using scope + action + context + purpose wording WITHOUT inventing numbers.
+- If the original sentence is support-oriented, you may strengthen clarity, but do NOT upgrade it into full ownership unless clearly supported.
+- Weak sentence detection must prioritize genuinely weak, vague, or support-heavy phrasing first.
+- Do NOT flag already-strong sentences as weak just because they can be polished slightly.
+- Sentences that already contain concrete tools, platforms, metrics, or strong action verbs should usually NOT be selected as weak.
+- Rewrites must be materially better than the original.
+- Do NOT make shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these:
+  clarity, specificity, scope, action strength, business context, recruiter readability.
+- If a rewrite is too similar to the original, rewrite it again more strongly.
+- Keep optimized_cv ATS-friendly, clean, realistic, and parser-friendly.
+- For English output, write like a strong US resume writer, not a marketing copywriter.
+- Premium quality means: grounded, concise, role-appropriate, and recruiter-ready.
+
+HEADING RULES:
+- For Turkish optimized_cv outputs, use these exact headings when relevant:
+  PROFESYONEL ÖZET
+  DENEYİM
+  EĞİTİM
+  YETKİNLİKLER
+  DİLLER
+  SERTİFİKALAR
+  PROJELER
+  EK BİLGİLER
+- Do NOT use:
+  PROFİL
+  BİLDİĞİ DİLLER
+  YETENEKLER
+  BECERİLER
+
+OUTPUT RULES:
+- Return ONLY valid JSON.
+- No markdown.
+- No extra text.
+- All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
+`.trim();
+}
+
+function buildLinkedInSystem(outLang) {
+  return `
+CRITICAL RULES (must follow):
+- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
+- Only use metrics that are explicitly present in the user's resume/job description input text.
+- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + outcome wording WITHOUT numbers.
+- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
+- If unsure, prefer neutral phrasing with no numbers.
+- If the input contains a number, keep it exact; do not round up/down or change it.
+- Do NOT invent employers, titles, degrees, dates, certifications, or metrics.
+- Do NOT replace generic platform language with a specific platform unless it is explicitly present.
+- Return ONLY valid JSON. No markdown. No extra text.
+- All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
+`.trim();
+}
+
+function buildEnglishStyleBlock() {
+  return `
+ENGLISH WRITING STYLE:
+- Write like a strong US resume, not marketing copy.
+- Keep bullets concise, concrete, and natural.
+- Prefer 10-18 words per bullet when possible.
+- Prefer one clear action + scope + context structure.
+- Do NOT add filler words such as:
+  impactful, dynamic, seamless, comprehensive, robust, overall, various.
+- Do NOT add unsupported outcome clauses such as:
+  resulting in, driving, boosting, enhancing, improving, increasing, streamlining, ensuring, maximizing, delivering
+  unless the original text clearly supports that outcome.
+- Do NOT turn one weak verb into another weak verb.
+  Avoid swaps like:
+  helped -> assisted
+  supported -> contributed
+  worked on -> participated in
+- For support-level work, prefer honest execution language such as:
+  coordinated, prepared, tracked, documented, maintained, scheduled, supported execution of, collaborated with.
+- Keep already-strong bullets short and sharp.
+- Do NOT over-expand bullets just to sound more professional.
+`.trim();
+}
+
+function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }) {
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
+  const roleContextText = buildRoleContextText(cv, jd);
+
+  if (hasJD) {
+    return `
+Return JSON in this exact schema:
+
+{
+  "component_scores": {
+    "role_alignment": number,
+    "bullet_strength": number,
+    "jd_keyword_match": number,
+    "section_completeness": number,
+    "ats_safe_formatting": number
+  },
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+REQUIREMENTS:
+- This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
+- component_scores must reflect resume-to-job alignment honestly.
+- missing_keywords MUST include 5-7 items that are genuinely missing or underrepresented from the JOB DESCRIPTION.
+- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
+- weak_sentences MUST include up to 2 items picked from real resume sentences.
+- Do NOT force the count.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Select only sentences that are genuinely weak, vague, generic, or support-heavy.
+- Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
+- Prefer weak experience bullets first, then summary only if necessary.
+- summary MUST be 4-6 bullet lines in ${outLang}.
+- summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
+- Do NOT add extra keys. Do NOT add optimized_cv.
+
+ROLE CONTEXT:
+${roleContextText}
+
+${englishStyleBlock}
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim();
+  }
+
+  return `
+Return JSON in this exact schema:
+
+{
+  "component_scores": {
+    "section_completeness": number,
+    "clarity_readability": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "core_keyword_coverage": number
+  },
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+REQUIREMENTS:
+- This is a GENERAL ATS REVIEW because no job description is provided.
+- component_scores must reflect general ATS readiness honestly.
+- missing_keywords MUST include 5-7 items.
+- These are NOT job-specific missing keywords. They should be recommended ATS/recruiter-friendly resume terms based on the candidate's apparent role and experience.
+- missing_keywords MUST be unique, practical, role-relevant, and written in ${outLang}.
+- weak_sentences MUST include up to 2 items picked from real resume sentences.
+- Do NOT force the count.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Select only sentences that are genuinely weak, vague, generic, or support-heavy.
+- Do NOT select already-strong sentences that already contain concrete tools, platforms, or metrics.
+- Prefer weak experience bullets first, then summary only if necessary.
+- summary MUST be 4-6 bullet lines in ${outLang}.
+- summary must focus on general ATS readiness, structure, clarity, and top improvement areas.
+- Do NOT add extra keys. Do NOT add optimized_cv.
+
+ROLE CONTEXT:
+${roleContextText}
+
+${englishStyleBlock}
+
+RESUME:
+${cv}
+`.trim();
+}
+
+function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }) {
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
+  const roleContextText = buildRoleContextText(cv, jd);
+
+  if (hasJD) {
+    return `
+Return JSON in this exact schema:
+
+{
+  "component_scores": {
+    "role_alignment": number,
+    "bullet_strength": number,
+    "jd_keyword_match": number,
+    "section_completeness": number,
+    "ats_safe_formatting": number
+  },
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+HARD REQUIREMENTS:
+- This is a JOB-SPECIFIC ATS MATCH because a job description is provided.
+- component_scores must reflect resume-to-job alignment honestly.
+- missing_keywords MUST include 12-20 items genuinely missing or underrepresented from the JOB DESCRIPTION.
+- missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
+- weak_sentences MUST include 7-12 items from the resume text when genuinely weak examples exist.
+- Do NOT force the count if there are fewer genuinely weak examples.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Only select genuinely weak, vague, generic, or support-heavy sentences.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
+- Prefer weak experience bullets first.
+- If needed, also use genuinely weak lines from summary, projects, certifications, skills descriptions, or additional information.
+- Do NOT include already-strong sentences just to fill the count.
+- Do NOT use shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- summary MUST be detailed (8-12 bullet lines) in ${outLang}.
+- Do NOT add optimized_cv.
+- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
+
+ROLE CONTEXT:
+${roleContextText}
+
+${englishStyleBlock}
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim();
+  }
+
+  return `
+Return JSON in this exact schema:
+
+{
+  "component_scores": {
+    "section_completeness": number,
+    "clarity_readability": number,
+    "bullet_strength": number,
+    "ats_safe_formatting": number,
+    "core_keyword_coverage": number
+  },
+  "missing_keywords": string[],
+  "weak_sentences": [{"sentence": string, "rewrite": string}],
+  "summary": string
+}
+
+HARD REQUIREMENTS:
+- This is a GENERAL ATS REVIEW because no job description is provided.
+- component_scores must reflect general ATS readiness honestly.
+- missing_keywords MUST include 10-18 items.
+- These are NOT job-specific missing keywords. They must be recommended ATS/recruiter-friendly resume terms based on the candidate's likely role, seniority, and experience.
+- missing_keywords MUST be unique, practical, and written in ${outLang}.
+- weak_sentences MUST include 8-12 items from the resume text when genuinely weak examples exist.
+- Do NOT force the count if there are fewer genuinely weak examples.
+- Both sentence and rewrite MUST be in ${outLang}.
+- Only select genuinely weak, vague, generic, or support-heavy sentences.
+- Do NOT select sentences as weak if they already contain concrete tools, platforms, or metrics unless the rewrite preserves all specificity and is clearly much stronger.
+- Prefer weak experience bullets first.
+- If needed, also use genuinely weak lines from summary, projects, certifications, skills descriptions, or additional information.
+- Do NOT include already-strong sentences just to fill the count.
+- Do NOT use shallow synonym swaps or near-duplicate rewrites.
+- Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
+- summary MUST be detailed (8-12 bullet lines) in ${outLang}.
+- Do NOT add optimized_cv.
+- Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, or platforms.
+
+ROLE CONTEXT:
+${roleContextText}
+
+${englishStyleBlock}
+
+RESUME:
+${cv}
+`.trim();
+}
+
+function buildOptimizeCvPrompt({
+  cv,
+  jd,
+  hasJD,
+  summary,
+  missingKeywords,
+  outLang,
+}) {
+  const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
+  const allowedTermsText = buildAllowedTermsText(cv, jd);
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
+  const roleContextText = buildRoleContextText(cv, jd);
+
+  return hasJD
+    ? `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+Rewrite the resume into a stronger ATS-friendly version aligned to the same job description.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, channels, or software.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume or job description.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Use the analysis summary to improve wording truthfully.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
+- Keep already-strong bullets unchanged or only lightly polish them.
+- Focus most of the rewrite effort on the weaker summary lines and weaker/support-heavy bullets.
+- Preserve the role structure and bullet structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
+- Do NOT remove meaningful bullets unless they are duplicate or redundant.
+- Use canonical section headings only.
+- For English output, do NOT rewrite weak bullets into corporate-fluff language.
+- Avoid rewrites that begin with: assisted, supported, contributed, participated, aided, unless no stronger truthful verb is possible.
+- Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated, responded, resolved, processed, documented.
+- Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, improved follow-up, or improved operational efficiency unless explicitly supported by the resume or job description.
+
+ROLE CONTEXT:
+${roleContextText}
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
+- If a term is not explicitly supported, do NOT add it.
+
+${englishStyleBlock}
+
+QUALITY TARGET:
+- The optimized CV must feel clearly stronger than the original, not just lightly polished.
+- Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
+- Do NOT flatten already-specific bullets into generic corporate language.
+- Keep the resume realistic, premium, and ATS-friendly.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- no unsupported tools/platforms/acronyms added
+- no invented achievements/results added
+- no unjustified ownership escalation
+- no major bullet loss
+- no merged bullets that reduce clarity
+
+RESUME:
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+`.trim()
+    : `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+Rewrite the resume into a stronger ATS-friendly version.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.
+- Do NOT invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, channels, or software.
+- Do NOT replace generic platform language with specific platforms unless explicitly present in the resume.
+- If the original text is support-oriented, you may make it clearer, but do NOT upgrade it into full ownership unless clearly supported.
+- Use the analysis summary to improve wording truthfully.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
+- Keep already-strong bullets unchanged or only lightly polish them.
+- Focus most of the rewrite effort on the weaker summary lines and weaker/support-heavy bullets.
+- Preserve the role structure and bullet structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
+- Do NOT remove meaningful bullets unless they are duplicate or redundant.
+- Use canonical section headings only.
+- For English output, do NOT rewrite weak bullets into corporate-fluff language.
+- Avoid rewrites that begin with: assisted, supported, contributed, participated, aided, unless no stronger truthful verb is possible.
+- Prefer neutral factual verbs such as: coordinated, prepared, tracked, monitored, updated, maintained, scheduled, reported, analyzed, collaborated, responded, resolved, processed, documented.
+- Do NOT add impact claims like increased conversion rates, measurable results, qualified leads, stronger market presence, better campaign outcomes, improved follow-up, or improved operational efficiency unless explicitly supported by the resume or job description.
+
+ROLE CONTEXT:
+${roleContextText}
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
+- If a term is not explicitly supported, do NOT add it.
+
+${englishStyleBlock}
+
+QUALITY TARGET:
+- The optimized CV must feel clearly stronger than the original, not just lightly polished.
+- Improve bullets using clarity + scope + recruiter-friendly wording + business context, without inventing facts.
+- Do NOT flatten already-specific bullets into generic corporate language.
+- Keep the resume realistic, premium, and ATS-friendly.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- no unsupported tools/platforms/acronyms added
+- no invented achievements/results added
+- no unjustified ownership escalation
+- no major bullet loss
+- no merged bullets that reduce clarity
+
+RESUME:
+${cv}
+`.trim();
+}
+
+function buildRepairPrompt({
+  cv,
+  jd,
+  hasJD,
+  currentOptimizedCv,
+  summary,
+  missingKeywords,
+  unsupportedTerms = [],
+  outLang,
+}) {
+  const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
+  const allowedTermsText = buildAllowedTermsText(cv, jd);
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock() : "";
+  const unsupportedText =
+    Array.isArray(unsupportedTerms) && unsupportedTerms.length
+      ? unsupportedTerms.join(", ")
+      : "(none)";
+  const roleContextText = buildRoleContextText(cv, jd);
+
+  return hasJD
+    ? `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+You already generated an optimized resume, but it still needs cleanup.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, channels, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- Keep already-strong bullets strong.
+- Focus the rewrite effort on weaker or support-heavy bullets and any awkward summary lines.
+- Preserve bullet count and structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
+- Use canonical section headings only.
+
+ROLE CONTEXT:
+${roleContextText}
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+REMOVE THESE UNSUPPORTED TERMS IF PRESENT:
+${unsupportedText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume or job description.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume or job description.
+- If a term is not explicitly supported, remove it.
+
+${englishStyleBlock}
+
+QUALITY TARGET:
+- The final output should feel premium and clearly stronger than the original.
+- Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
+- Do NOT flatten already-good bullets.
+- Keep the resume truthful, realistic, and recruiter-ready.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- unsupported terms removed
+- no invented tools/platforms/acronyms
+- no invented outcomes
+- no unjustified ownership escalation
+- no major bullet loss
+
+RESUME (original):
+${cv}
+
+JOB DESCRIPTION:
+${jd}
+
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
+${currentOptimizedCv}
+`.trim()
+    : `
+Return JSON in this exact schema:
+
+{
+  "optimized_cv": string
+}
+
+TASK:
+You already generated an optimized resume, but it still needs cleanup.
+Rewrite it again so the result is materially stronger, cleaner, more ATS-friendly, and more recruiter-ready.
+
+STRICT RULES:
+- Keep the header identity block exactly as written.
+- Keep existing experience titles unchanged.
+- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.
+- Do NOT invent metrics, tools, platforms, acronyms, channels, or achievements.
+- Do NOT replace generic platform language with specific platforms unless explicitly present.
+- Do NOT upgrade support-oriented work into full ownership unless clearly supported.
+- Keep already-strong bullets strong.
+- Focus the rewrite effort on weaker or support-heavy bullets and any awkward summary lines.
+- Preserve bullet count and structure as much as possible.
+- Do NOT merge multiple bullets into one if that removes detail.
+- Use canonical section headings only.
+
+ROLE CONTEXT:
+${roleContextText}
+
+ALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:
+${allowedTermsText}
+
+REMOVE THESE UNSUPPORTED TERMS IF PRESENT:
+${unsupportedText}
+
+HARD FACT LOCK:
+- You may use only tools, platforms, acronyms, channels, and business concepts explicitly present in the resume.
+- Missing keywords are guidance only. Do NOT add a keyword unless it is already supported by the resume.
+- If a term is not explicitly supported, remove it.
+
+${englishStyleBlock}
+
+QUALITY TARGET:
+- The final output should feel premium and clearly stronger than the original.
+- Do NOT keep weak generic bullets if they can be rewritten more clearly and specifically.
+- Do NOT flatten already-good bullets.
+- Keep the resume truthful, realistic, and recruiter-ready.
+
+ANALYSIS SUMMARY:
+${summary || "(none)"}
+
+HIGH PRIORITY KEYWORDS / GAPS:
+${keywordsText || "(none)"}
+
+SELF-CHECK BEFORE RETURNING:
+- unsupported terms removed
+- no invented tools/platforms/acronyms
+- no invented outcomes
+- no unjustified ownership escalation
+- no major bullet loss
+
+RESUME (original):
+${cv}
+
+CURRENT OPTIMIZED CV (rewrite this into a stronger final version):
+${currentOptimizedCv}
+`.trim();
+}
+
+function buildLinkedInPreviewPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[] },
+  "recruiter": { "keywords": string[] }
+}
+
+RULES:
+- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
+- headlines: exactly 1 item.
+- about.short: 600-900 chars, punchy, no emojis.
+- experience_fix: up to 1 item.
+- skills.top: 7-10 items.
+- recruiter.keywords: 5-8 items.
+- No extra keys. Return ONLY valid JSON.
+
+TARGETING META:
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone}
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
+}
+
+function buildLinkedInFullPrompt({
+  cv,
+  jd,
+  outLang,
+  liTargetRole,
+  liSeniority,
+  liIndustry,
+  liLocation,
+  liTone,
+}) {
+  return `
+Return JSON in this exact schema:
+
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": { "short": string, "normal": string, "bold": string },
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": { "top": string[], "tools": string[], "industry": string[] },
+  "recruiter": { "keywords": string[], "boolean": string }
+}
+
+QUALITY RULES:
+- Output VALUES must be in ${outLang}. Do not mix languages.
+- Do NOT invent employers, titles, dates, degrees, or metrics.
+- If resume has no numbers, improve bullets without guessing numbers.
+- Headline max 220 chars each. No emojis.
+- about.short: 500-800 chars.
+- about.normal: 900-1400 chars.
+- about.bold: 900-1400 chars.
+- headlines: exactly 5 items with labels Search, Impact, Niche, Leadership, Clean.
+- experience_fix: 4-6 items maximum, only if there are real, materially stronger rewrites.
+- skills.top: 12-18
+- skills.tools: 8-16
+- skills.industry: 12-20
+- recruiter.keywords: 10-20
+- recruiter.boolean: a single boolean string using OR groups + a few AND terms.
+- Return ONLY valid JSON. No extra keys.
+
+TARGETING META:
+- target_role: ${liTargetRole || "(not provided)"}
+- seniority: ${liSeniority}
+- industry: ${liIndustry || "(not provided)"}
+- location: ${liLocation || "(not provided)"}
+- tone: ${liTone}
+
+RESUME:
+${cv}
+
+TARGET ROLE / JOB (optional):
+${jd || "(none)"}
+`.trim();
+}
+
+export default async function handler(req, res) {
+  const startedAt = Date.now();
+
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "POST required" });
     }
 
-    if (!roleGroups.length) roleGroups = ["generic"];
+    const { cv, jd, preview, lang, mode, linkedin_meta } = req.body || {};
+    const reqMode =
+      typeof mode === "string" && mode.trim() ? mode.trim().toLowerCase() : "ats";
+
+    const sessionOk = verifySession(req);
+    const requestedPreview = !!preview;
+    const isPreview = requestedPreview || !sessionOk;
+
+    console.log("ANALYZE FLAGS", {
+      requestedPreview,
+      sessionOk,
+      isPreview,
+      hasCookie: !!req.headers.cookie,
+      reqMode,
+    });
+
+    const ip = getClientIp(req);
+    const limiter = isPreview ? rlPreview : rlFull;
+    const { success, reset } = await limiter.limit(ip);
+
+    if (!success) {
+      const retrySec = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      return res.status(429).json({
+        error: "Too many requests",
+        retry_after_seconds: retrySec,
+      });
+    }
+
+    if (!cv) {
+      return res.status(400).json({ error: "cv is required" });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "OPENAI_API_KEY is missing on Vercel" });
+    }
+
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    const LANG_MAP = {
+      en: "English",
+      tr: "Turkish",
+      es: "Spanish",
+      ru: "Russian",
+      fr: "French",
+      ar: "Arabic",
+      zh: "Chinese (Simplified)",
+    };
+
+    const langCode =
+      typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
+    const outLang = LANG_MAP[langCode] || "English";
+    const hasJD = typeof jd === "string" && jd.trim().length > 0;
+
+    if (reqMode === "linkedin") {
+      const liMeta =
+        linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
+      const liTargetRole = String(liMeta.target_role || "").trim();
+      const liSeniority = String(liMeta.seniority || "mid").trim();
+      const liIndustry = String(liMeta.industry || "").trim();
+      const liLocation = String(liMeta.location || "").trim();
+      const liTone = String(liMeta.tone || "clean").trim();
+
+      let data;
+      try {
+        data = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildLinkedInSystem(outLang),
+          userPrompt: isPreview
+            ? buildLinkedInPreviewPrompt({
+                cv,
+                jd,
+                outLang,
+                liTargetRole,
+                liSeniority,
+                liIndustry,
+                liLocation,
+                liTone,
+              })
+            : buildLinkedInFullPrompt({
+                cv,
+                jd,
+                outLang,
+                liTargetRole,
+                liSeniority,
+                liIndustry,
+                liLocation,
+                liTone,
+              }),
+          isPreview,
+          passType: "main",
+          maxCompletionTokens: isPreview ? 1100 : 2200,
+        });
+      } catch (err) {
+        return res.status(err?.status || 500).json({
+          error: err?.message || "OpenAI error",
+          status: err?.status || 500,
+          details: err?.details || String(err),
+        });
+      }
+
+      const out = {
+        headlines: Array.isArray(data?.headlines) ? data.headlines : [],
+        about: data?.about && typeof data.about === "object" ? data.about : {},
+        experience_fix: Array.isArray(data?.experience_fix) ? data.experience_fix : [],
+        skills: data?.skills && typeof data.skills === "object" ? data.skills : {},
+        recruiter:
+          data?.recruiter && typeof data.recruiter === "object" ? data.recruiter : {},
+      };
+
+      if (isPreview) {
+        return res.status(200).json({
+          headlines: out.headlines.slice(0, 1),
+          about: { short: String(out.about.short || "") },
+          experience_fix: out.experience_fix.slice(0, 1),
+          skills: {
+            top: Array.isArray(out.skills.top) ? out.skills.top.slice(0, 10) : [],
+          },
+          recruiter: {
+            keywords: Array.isArray(out.recruiter.keywords)
+              ? out.recruiter.keywords.slice(0, 8)
+              : [],
+          },
+        });
+      }
+
+      return res.status(200).json(out);
+    }
+
+    if (isPreview) {
+      console.log("STEP 1: preview analysis start");
+
+      let previewData;
+      try {
+        previewData = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildPreviewAtsPrompt({ cv, jd, hasJD, outLang }),
+          isPreview: true,
+          passType: "main",
+          maxCompletionTokens: 1100,
+        });
+      } catch (err) {
+        return res.status(err?.status || 500).json({
+          error: err?.message || "OpenAI error",
+          status: err?.status || 500,
+          details: err?.details || String(err),
+        });
+      }
+
+      console.log("STEP 2: preview analysis done");
+
+      const componentScores =
+        previewData?.component_scores && typeof previewData.component_scores === "object"
+          ? previewData.component_scores
+          : {};
+
+      const deterministicScore = computeDeterministicAtsScore(cv, jd);
+      const modelComponentScore = computeComponentScore(componentScores, hasJD);
+      const mergedPreviewScore = clampScore(
+        Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+      );
+
+      const normalized = {
+        ats_score: mergedPreviewScore,
+        component_scores: componentScores,
+        missing_keywords: Array.isArray(previewData?.missing_keywords)
+          ? previewData.missing_keywords
+          : [],
+        weak_sentences: filterWeakSentences(
+          Array.isArray(previewData?.weak_sentences) ? previewData.weak_sentences : [],
+          outLang
+        ),
+        summary: typeof previewData?.summary === "string" ? previewData.summary : "",
+      };
+
+      await ensureMinDelay(startedAt, 15000);
+
+      return res.status(200).json({
+        ats_score: normalized.ats_score,
+        summary: normalized.summary,
+        missing_keywords: normalized.missing_keywords.slice(0, 5),
+        weak_sentences: normalized.weak_sentences.slice(0, 2),
+        review_mode: hasJD ? "job_specific" : "general",
+      });
+    }
+
+    console.log("STEP 1: full analysis start");
+
+    let analysisData;
+    try {
+      analysisData = await callOpenAIJson({
+        apiKey,
+        model,
+        system: buildAtsSystem(outLang),
+        userPrompt: buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang }),
+        isPreview: false,
+        passType: "main",
+        maxCompletionTokens: 1800,
+      });
+    } catch (err) {
+      return res.status(err?.status || 500).json({
+        error: err?.message || "OpenAI error",
+        status: err?.status || 500,
+        details: err?.details || String(err),
+      });
+    }
+
+    console.log("STEP 2: full analysis done");
+
+    const componentScores =
+      analysisData?.component_scores && typeof analysisData.component_scores === "object"
+        ? analysisData.component_scores
+        : {};
+
+    const deterministicScore = computeDeterministicAtsScore(cv, jd);
+    const modelComponentScore = computeComponentScore(componentScores, hasJD);
+    const mergedBaseScore = clampScore(
+      Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+    );
+
+    const normalized = {
+      ats_score: mergedBaseScore,
+      component_scores: componentScores,
+      missing_keywords: Array.isArray(analysisData?.missing_keywords)
+        ? analysisData.missing_keywords
+        : [],
+      weak_sentences: filterWeakSentences(
+        Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : [],
+        outLang
+      ),
+      summary: typeof analysisData?.summary === "string" ? analysisData.summary : "",
+      optimized_cv: "",
+      optimized_ats_score: mergedBaseScore,
+    };
+
+    let currentOptimized = "";
+    let unsupportedTerms = [];
+
+    try {
+      console.log("STEP 3: optimize start");
+
+      const optimizeData = await callOpenAIJson({
+        apiKey,
+        model,
+        system: buildAtsSystem(outLang),
+        userPrompt: buildOptimizeCvPrompt({
+          cv,
+          jd,
+          hasJD,
+          summary: normalized.summary,
+          missingKeywords: normalized.missing_keywords,
+          outLang,
+        }),
+        isPreview: false,
+        passType: "optimize",
+        maxCompletionTokens: 3000,
+      });
+
+      console.log("STEP 4: optimize done");
+
+      if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
+        currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
+        unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
+      }
+    } catch (err) {
+      console.log("STEP 4: optimize failed", err?.message || String(err));
+      currentOptimized = "";
+      unsupportedTerms = [];
+    }
+
+    if (!currentOptimized) {
+      currentOptimized = forceSafeResume(cv, cv);
+      unsupportedTerms = [];
+    }
+
+    if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang, normalized.weak_sentences) || unsupportedTerms.length > 0) {
+      try {
+        console.log("STEP 5: repair start");
+
+        const repaired = await callOpenAIJson({
+          apiKey,
+          model,
+          system: buildAtsSystem(outLang),
+          userPrompt: buildRepairPrompt({
+            cv,
+            jd,
+            hasJD,
+            currentOptimizedCv: currentOptimized || cv,
+            summary: normalized.summary,
+            missingKeywords: normalized.missing_keywords,
+            unsupportedTerms,
+            outLang,
+          }),
+          isPreview: false,
+          passType: "repair",
+          maxCompletionTokens: 3200,
+        });
+
+        console.log("STEP 6: repair done");
+
+        if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
+          currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+          unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
+        }
+      } catch (err) {
+        console.log("STEP 6: repair failed", err?.message || String(err));
+      }
+    }
+
+    normalized.optimized_cv = currentOptimized;
+    normalized.optimized_ats_score = computeFinalOptimizedScore(
+      cv,
+      currentOptimized,
+      normalized.ats_score,
+      jd
+    );
+
+    return res.status(200).json({
+      ats_score: normalized.ats_score,
+      optimized_ats_score: normalized.optimized_ats_score,
+      component_scores: normalized.component_scores,
+      missing_keywords: normalized.missing_keywords,
+      weak_sentences: normalized.weak_sentences,
+      optimized_cv: normalized.optimized_cv,
+      summary: normalized.summary,
+      review_mode: hasJD ? "job_specific" : "general",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: "Server error",
+      details: err?.message || String(err),
+    });
   }
-
-  const primaryRole = roleGroups[0] || "generic";
-  const seniority = inferSeniority(`${titleText}\n${combined}`);
-  const focusAreas = inferFunctionalFocus(combined, roleGroups);
-  const selectedPacks = roleGroups.map((k) => ROLE_PACKS[k]).filter(Boolean);
-
-  const domainSignals = uniqueTrimmedStrings(
-    selectedPacks.flatMap((pack) => [
-      ...(pack.strongTerms || []),
-      ...(pack.toolTerms || []),
-      ...(pack.methodologyTerms || []),
-      ...(pack.responsibilityTerms || []),
-    ])
-  )
-    .filter((term) => containsCanonicalTermInNormalizedText(combinedNorm, term))
-    .slice(0, 16);
-
-  return {
-    roleGroups,
-    primaryRole,
-    secondaryRoles: roleGroups.slice(1),
-    seniority,
-    focusAreas,
-    domainSignals,
-    scoredRoles: scored.slice(0, 6),
-  };
-}
-
-function ensureRoleProfile(roleInput, cv = "", jd = "") {
-  if (
-    roleInput &&
-    typeof roleInput === "object" &&
-    !Array.isArray(roleInput) &&
-    Array.isArray(roleInput.roleGroups)
-  ) {
-    return roleInput;
-  }
-
-  const roleGroups =
-    Array.isArray(roleInput) && roleInput.length ? roleInput : inferRoleProfile(cv, jd).roleGroups;
-
-  return {
-    roleGroups,
-    primaryRole: roleGroups[0] || "generic",
-    secondaryRoles: roleGroups.slice(1),
-    seniority: inferSeniority(`${cv}\n${jd}`),
-    focusAreas: [],
-    domainSignals: [],
-    scoredRoles: [],
-  };
-}
-
-function inferRoleGroups(cv = "", jd = "") {
-  return inferRoleProfile(cv, jd).roleGroups;
-}
-
-function getPrimaryRoleKey(roleInput = []) {
-  const profile = ensureRoleProfile(roleInput);
-  return profile.primaryRole || "generic";
-}
-
-function getRolePacks(roleInput = []) {
-  const profile = ensureRoleProfile(roleInput);
-  const packs = (profile.roleGroups || ["generic"])
-    .map((k) => ROLE_PACKS[k])
-    .filter(Boolean);
-
-  return packs.length ? packs : [ROLE_PACKS.generic];
-}
-
-function getRoleSpecificityRegex(roleInput = []) {
-  const terms = uniqueTrimmedStrings(
-    getRolePacks(roleInput).flatMap((p) => getRolePackAllTerms(p))
-  );
-  return buildPhraseRegex(terms);
-}
-
-function getRoleBusinessContextRegex(roleInput = []) {
-  const terms = uniqueTrimmedStrings(
-    getRolePacks(roleInput).flatMap((p) => p.businessContextTerms || [])
-  );
-  return buildPhraseRegex(terms);
 }
 
 function cleanKeywordCandidate(term = "") {
@@ -1755,6 +2677,8 @@ function buildRoleWritingBlock(roleInput = []) {
   const keepRules = uniqueTrimmedStrings(packs.flatMap((p) => p.keepRules || [])).slice(0, 8);
   const avoidRules = uniqueTrimmedStrings(packs.flatMap((p) => p.avoidRules || [])).slice(0, 8);
   const styleHints = uniqueTrimmedStrings(packs.flatMap((p) => p.styleHints || [])).slice(0, 8);
+  const mustPreserveTerms = pickRoleTermsForPrompt(profile, 16);
+  const doNotGenericizeRules = getRoleDoNotGenericizeRules(profile);
 
   return `
 ROLE WRITING RULES:
@@ -1763,8 +2687,12 @@ ROLE WRITING RULES:
 - Functional focus: ${(profile.focusAreas || []).join(", ") || "(none)"}
 - Preserve these role signals when present:
 ${keepRules.length ? keepRules.map((x) => `  - ${x}`).join("\n") : "  - (none)"}
+- Must preserve or explicitly respect these role terms when they already appear:
+  ${mustPreserveTerms.join(", ") || "(none)"}
 - Prefer truthful verbs such as:
   ${preferredVerbs.join(", ") || "coordinated, prepared, tracked, maintained"}
+- Do NOT genericize role wording in these ways:
+${doNotGenericizeRules.length ? doNotGenericizeRules.map((x) => `  - ${x}`).join("\n") : "  - (none)"}
 - Avoid these rewrite patterns:
 ${avoidRules.length ? avoidRules.map((x) => `  - ${x}`).join("\n") : "  - (none)"}
 - Additional role guidance:
@@ -1781,6 +2709,66 @@ function buildLikelyKeywordThemeText(roleInput = [], cv = "") {
     `- likely_seniority: ${profile.seniority}`,
     `- likely_keyword_themes: ${themes.join(", ") || "(none)"}`,
   ].join("\n");
+}
+
+function buildAnalysisSummaryRules({ hasJD = false } = {}) {
+  return hasJD
+    ? `
+ANALYSIS SUMMARY RULES:
+- summary must be plain text with short bullet lines using "- " at the start of each line.
+- keep it concise, direct, and evidence-based.
+- use 4-5 lines for preview-style summaries and 6-8 short lines for full analysis.
+- cover only: job fit, strongest ATS positives, biggest missing keywords, weak-bullet pattern, and top fix priorities.
+- no filler, no hype, no long paragraphs.
+`.trim()
+    : `
+ANALYSIS SUMMARY RULES:
+- summary must be plain text with short bullet lines using "- " at the start of each line.
+- keep it concise, direct, and evidence-based.
+- use 4-5 lines for preview-style summaries and 6-8 short lines for full analysis.
+- cover only: structure, readability, role alignment, main keyword gaps, weak-bullet pattern, and top fix priorities.
+- no filler, no hype, no long paragraphs.
+`.trim();
+}
+
+function buildProfessionalSummaryRewriteBlock(roleInput = [], outLang = "English") {
+  const profile = ensureRoleProfile(roleInput);
+  const mustPreserveTerms = pickRoleTermsForPrompt(profile, 12);
+  const suggestedLen = outLang === "English" ? "45-85 words" : "35-75 words";
+
+  return `
+PROFESSIONAL SUMMARY REWRITE RULES:
+- The PROFESSIONAL SUMMARY inside optimized_cv must be 2-4 sentences.
+- Target ${suggestedLen} when possible.
+- Sentence 1: role/focus + years only if explicitly supported.
+- Sentence 2: core tools, channels, methods, or workflow scope actually present in the resume.
+- Sentence 3 (optional): domain context, collaboration scope, or delivery context already supported.
+- Do NOT write a bloated LinkedIn-style paragraph.
+- Do NOT stack generic adjectives.
+- Do NOT repeat the skills list verbatim.
+- Do NOT add unsupported impact, leadership, or ownership.
+- If these role terms already appear, preserve them naturally: ${mustPreserveTerms.join(", ") || "(none)"}
+`.trim();
+}
+
+function summaryNeedsRewrite(cv = "", roleInput = [], outLang = "English") {
+  const summary = extractSummaryBlockText(cv);
+  if (!summary) return false;
+
+  const wc = countWords(summary);
+  const sentences = countSentences(summary);
+  const specificTerms = pickRoleTermsForPrompt(roleInput, 24);
+  const specificHits = countTermHits(summary, specificTerms) + getExplicitFactTerms(summary).length;
+
+  if (sentences > 4 || wc > 95) return true;
+  if (GENERIC_SUMMARY_RE.test(summary) && specificHits < 2) return true;
+
+  if (outLang === "English") {
+    if (ENGLISH_CORPORATE_FLUFF_RE.test(summary)) return true;
+    if (EN_SOFT_FILLER_RE.test(summary) && specificHits < 2) return true;
+  }
+
+  return false;
 }
 
 function getSentenceSignalProfile(sentence = "", roleInput = []) {
@@ -1879,11 +2867,10 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
   if (hasSpecific && strongAction) weakScore -= 3;
   if (hasNumber && explicitFacts.length > 0) weakScore -= 1;
 
-    const isWeakCandidate =
-    (weakScore >= 4 && strongScore <= 7) ||
-    (startsWeak && strongScore < 8) ||
-    (hasWeakPhrase && strongScore <= 6) ||
-    ((/\b(routine|basic|simple|day-to-day|follow-up)\b/i.test(s) || dutiesOnly) && strongScore <= 6) ||
+  const isWeakCandidate =
+    (weakScore >= 5 && strongScore <= 6) ||
+    (weakScore >= 4 && strongScore <= 5) ||
+    (startsWeak && strongScore < 7) ||
     (genericSummary && !hasSpecific);
 
   return {
@@ -1954,81 +2941,6 @@ function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
   return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
 }
 
-function violatesRoleRewriteRules(source = "", rewrite = "", roleInput = []) {
-  const primaryRole = getPrimaryRoleKey(roleInput);
-  const patterns = ROLE_REWRITE_RED_FLAGS[primaryRole] || [];
-
-  for (const re of patterns) {
-    if (re.test(rewrite) && !re.test(source)) {
-      return true;
-    }
-  }
-
-  if (
-    primaryRole === "software_engineering" &&
-    TECHNICAL_SOURCE_SIGNAL_RE.test(source) &&
-    TECHNICAL_WEAK_REWRITE_START_RE.test(rewrite) &&
-    !TECHNICAL_WEAK_REWRITE_START_RE.test(source)
-  ) {
-    return true;
-  }
-  if (
-  primaryRole === "marketing" &&
-  /\b(supported|assisted|helped|worked on)\b/i.test(source) &&
-  /\b(managed|optimized|executed)\b/i.test(rewrite) &&
-  !/\b(google ads|meta ads|google analytics|excel|email marketing|remarketing|audience targeting|campaign reporting)\b/i.test(source)
-) {
-  return true;
-}
-
-  return false;
-}
-
-function getFallbackWeakCandidates(cv = "", roleInput = [], limit = 8) {
-  const bullets = getBulletLines(cv);
-  const seen = new Set();
-
-  return bullets
-    .map((sentence) => {
-      const profile = getSentenceSignalProfile(sentence, roleInput);
-      let score = profile.weakScore;
-
-      if (FALLBACK_WEAK_TRIGGER_RE.test(sentence)) score += 4;
-      if (/\b(routine|basic|simple|day-to-day|follow-up)\b/i.test(sentence)) score += 2;
-      if (profile.startsWeak) score += 2;
-      if (profile.hasSpecific && profile.strongScore >= 7) score -= 3;
-
-      return { sentence, score, profile };
-    })
-    .filter((x) => x.score >= 4)
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.profile.weakScore - a.profile.weakScore ||
-        a.profile.strongScore - b.profile.strongScore
-    )
-    .filter((x) => {
-      const key = canonicalizeTerm(x.sentence);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, limit)
-    .map(({ sentence }) => ({ sentence }));
-}
-
-function mergeWeakSources(modelWeak = [], bulletUpgrades = [], { outLang = "", roleInput = [] } = {}) {
-  const merged = [
-    ...(Array.isArray(modelWeak) ? modelWeak : []),
-    ...((Array.isArray(bulletUpgrades) ? bulletUpgrades : []).map((x) => ({
-      sentence: x.source,
-      rewrite: x.rewrite,
-    }))),
-  ];
-
-  return filterWeakSentences(merged, { outLang, roleInput });
-}
-
 function isClearlyWeakSentence(sentence = "", roleInput = []) {
   return getSentenceSignalProfile(sentence, roleInput).isWeakCandidate;
 }
@@ -2059,19 +2971,17 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
     })
     .filter((x) => {
       if (outLang !== "English") return true;
-            if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
-      if (ENGLISH_WEAK_SWAP_RE.test(x.rewrite)) return false;
+      if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
       if (hasUnsupportedImpactClaims(x.sentence, x.rewrite)) return false;
-      if (ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) && !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)) {
+      if (
+        ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) &&
+        !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)
+      ) {
         return false;
       }
       if (EN_SOFT_FILLER_RE.test(x.rewrite) && !EN_SOFT_FILLER_RE.test(x.sentence)) {
         return false;
       }
-      if (violatesRoleRewriteRules(x.sentence, x.rewrite, roleInput)) {
-        return false;
-      }
-
       return true;
     })
     .sort((a, b) => {
@@ -2097,7 +3007,6 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     const reason = String(item?.reason || "").trim();
 
     if (!source || !rewrite) continue;
-
     const sourceProfile = getSentenceSignalProfile(source, roleInput);
     if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4)) continue;
     if (isShallowRewrite(source, rewrite)) continue;
@@ -2114,7 +3023,6 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
 
     if (outLang === "English") {
       if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
-      if (ENGLISH_WEAK_SWAP_RE.test(rewrite)) continue;
       if (hasUnsupportedImpactClaims(source, rewrite)) continue;
       if (
         ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) &&
@@ -2125,13 +3033,11 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
       if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) {
         continue;
       }
-      if (violatesRoleRewriteRules(source, rewrite, roleInput)) continue;
     }
 
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-
     out.push({ source, rewrite, reason, sourceProfile, rewriteProfile });
   }
 
@@ -2145,7 +3051,7 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
         b.rewriteProfile.strongScore - a.rewriteProfile.strongScore
       );
     })
-    .slice(0, 8)
+    .slice(0, 10)
     .map(({ source, rewrite, reason }) => ({ source, rewrite, reason }));
 }
 
@@ -2393,44 +3299,18 @@ function finalizeMissingKeywords(
       .filter(Boolean)
   );
 
-    const primaryPack = ROLE_PACKS[profile.primaryRole] || ROLE_PACKS.generic;
-  const primaryFamilyTerms = uniqueTrimmedStrings([
-    ...getRolePackAllTerms(primaryPack),
-    ...(primaryPack.suggestedKeywords || []),
-  ]);
-
-  const isPrimaryFamilyTerm = (term) => {
-    const norm = canonicalizeTerm(term);
-    return primaryFamilyTerms.some((x) => {
-      const xNorm = canonicalizeTerm(x);
-      return xNorm === norm || xNorm.includes(norm) || norm.includes(xNorm);
-    });
-  };
-
   let pool = [...modelTerms];
 
   if (outLang === "English") {
     if (hasJD) {
       const jdTerms = extractJdSignalProfile(jd, profile).ranked.map((x) => x.term);
-      pool = uniqueByNormalizedStrings([
-        ...pool.filter((term) =>
-          isPrimaryFamilyTerm(term) ||
-          looksLikeToolOrMethod(term, profile) ||
-          looksLikeCertification(term) ||
-          containsCanonicalTermInNormalizedText(canonicalizeTerm(jd), term)
-        ),
-        ...jdTerms,
-      ]);
+      pool = uniqueByNormalizedStrings([...pool, ...jdTerms]);
     } else {
       pool = uniqueByNormalizedStrings([
-        ...pool.filter((term) =>
-          isPrimaryFamilyTerm(term) ||
-          looksLikeToolOrMethod(term, profile) ||
-          looksLikeCertification(term) ||
-          containsCanonicalTermInNormalizedText(canonicalizeTerm(cv), term)
-        ),
-        ...getSuggestedKeywords(profile),
-      ]);
+        ...pool,
+        ...getSuggestedKeywords(profile, cv),
+        ...getCvOnlyKeywordPool(profile, cv),
+      ]).filter((term) => isSafeCvOnlySuggestedTerm(term, profile, cv));
     }
   }
 
@@ -2761,6 +3641,7 @@ function shouldRepairOptimizedCv(
     return true;
   }
 
+  if (summaryNeedsRewrite(optimizedCv, roleProfile, outLang)) return true;
   if (countWeakVerbHits(optimizedCv, roleProfile) >= (hasJD ? 2 : 1)) return true;
   if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
   if (hasUnsupportedImpactClaims(originalCv, optimizedCv)) return true;
@@ -2914,20 +3795,12 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
 
   const lead = pickRoleAwareRewriteVerb(source, roleInput);
   const rewrite = `${lead} ${lowerFirst(remainder)}`.replace(/\s+/g, " ").trim();
-  const cleanedRewrite = rewrite
-  .replace(/\b(prepared prepare|managed manage|coordinated coordinate|maintained maintain|processed process|reviewed review)\b/gi, (m) => {
-    const parts = m.split(/\s+/);
-    return capitalizeFirst(parts[0]);
-  })
-  .replace(/\s+/g, " ")
-  .trim();
 
-if (!cleanedRewrite) return "";
-if (canonicalizeTerm(cleanedRewrite) === canonicalizeTerm(source)) return "";
-if (EN_WEAK_REWRITE_START_RE.test(cleanedRewrite)) return "";
+  if (!rewrite) return "";
+  if (canonicalizeTerm(rewrite) === canonicalizeTerm(source)) return "";
+  if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return "";
 
-return `${cleanedRewrite}${ending}`;
-
+  return `${rewrite}${ending}`;
 }
 
 function buildLocalWeakSentenceSet(
@@ -2948,7 +3821,7 @@ function buildLocalWeakSentenceSet(
   return filterWeakSentences(raw, { outLang, roleInput }).slice(0, maxCount);
 }
 
-function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 8, maxCount = 12) {
+function detectWeakSentenceCandidates(cv = "", roleInput = {}, minCount = 5, maxCount = 12) {
   const bullets = getBulletLines(cv).map((sentence) => ({
     sentence,
     sourceType: "bullet",
@@ -3044,22 +3917,6 @@ function mergeWeakSentenceSets(
   return out;
 }
 
-function dedupeWeakSentences(items = []) {
-  const seen = new Set();
-  const out = [];
-
-  for (const item of Array.isArray(items) ? items : []) {
-    const sentence = String(item?.sentence || "").trim();
-    const rewrite = String(item?.rewrite || "").trim();
-    const key = canonicalizeTerm(sentence);
-    if (!sentence || !rewrite || !key || seen.has(key)) continue;
-    seen.add(key);
-    out.push({ sentence, rewrite });
-  }
-
-  return out;
-}
-
 function buildLocalBulletUpgradeFallback(weakSentences = []) {
   return (Array.isArray(weakSentences) ? weakSentences : [])
     .map((item) => ({
@@ -3068,7 +3925,7 @@ function buildLocalBulletUpgradeFallback(weakSentences = []) {
       reason: "Stronger action, clearer scope, and sharper ATS phrasing.",
     }))
     .filter((x) => x.source && x.rewrite)
-    .slice(0, 8);
+    .slice(0, 10);
 }
 
 function applyBulletUpgradesToText(text = "", bulletUpgrades = []) {
@@ -3118,10 +3975,21 @@ function applyBulletUpgradesToCv(originalCv = "", optimizedCv = "", bulletUpgrad
   return forceSafeResume(originalCv, applyBulletUpgradesToText(base, bulletUpgrades));
 }
 
+function getWeakCountWindow(hasJD = false, candidateCount = 0) {
+  if (candidateCount <= 0) return { min: 0, target: 0, max: 0 };
+
+  const max = hasJD ? 10 : 12;
+  const targetBase = hasJD ? 6 : 7;
+  const minBase = hasJD ? 5 : 5;
+
+  const target = Math.min(max, Math.min(candidateCount, targetBase));
+  const min = candidateCount >= minBase ? minBase : Math.min(candidateCount, minBase);
+
+  return { min, target, max: Math.min(max, candidateCount) };
+}
+
 function getDesiredWeakCount(hasJD = false, candidateCount = 0) {
-  if (candidateCount <= 0) return 0;
-  if (hasJD) return Math.min(10, Math.max(5, Math.min(8, candidateCount)));
-  return Math.min(12, Math.max(6, Math.min(10, candidateCount)));
+  return getWeakCountWindow(hasJD, candidateCount).target;
 }
 
 function getClientIp(req) {
@@ -3287,12 +4155,12 @@ function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
       {
         reasoningEffort: "low",
         temperature: null,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 1600),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1800),
       },
       {
         reasoningEffort: "none",
         temperature: 0.2,
-        maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2400),
       },
     ];
   }
@@ -3559,6 +4427,7 @@ function buildPreviewAtsPrompt({ cv, jd, hasJD, outLang, roleProfile }) {
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
+  const analysisSummaryRules = buildAnalysisSummaryRules({ hasJD });
 
   if (hasJD) {
     return `
@@ -3592,8 +4461,8 @@ REQUIREMENTS:
 - Do NOT select already-strong technical or functional bullets that already contain concrete tools, platforms, process detail, or domain terminology unless the rewrite clearly preserves that specificity and materially improves the line.
 - Prefer weak experience bullets first, then summary only if necessary.
 - Rewrites must be clearly stronger, not cosmetic.
-- summary MUST be 4-6 bullet lines in ${outLang}.
-- summary must focus on job fit, biggest missing keywords, ATS risks, and top improvements.
+- summary MUST follow these summary rules exactly:
+${analysisSummaryRules}
 - Do NOT add extra keys. Do NOT add optimized_cv.
 
 ROLE CONTEXT:
@@ -3648,8 +4517,8 @@ REQUIREMENTS:
 - Do NOT select already-strong technical or functional bullets that already contain concrete tools, platforms, process detail, or domain terminology unless the rewrite clearly preserves that specificity and materially improves the line.
 - Prefer weak experience bullets first, then summary only if necessary.
 - Rewrites must be clearly stronger, not cosmetic.
-- summary MUST be 4-6 bullet lines in ${outLang}.
-- summary must focus on general ATS readiness, structure, clarity, role fit, and top improvement areas.
+- summary MUST follow these summary rules exactly:
+${analysisSummaryRules}
 - Do NOT add extra keys. Do NOT add optimized_cv.
 
 ROLE CONTEXT:
@@ -3670,6 +4539,7 @@ function buildFullAtsAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile }) {
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
+  const analysisSummaryRules = buildAnalysisSummaryRules({ hasJD });
 
   if (hasJD) {
     return `
@@ -3696,10 +4566,9 @@ HARD REQUIREMENTS:
   hard skills, tools/platforms, methodologies, certifications, domain terms, responsibility patterns, seniority signals.
 - Avoid low-value filler keywords unless truly material.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include 5-10 items from the resume text when genuinely weak examples exist.
-- Prefer 6-8 strong weak/rewrite pairs over forcing a larger count.
-- You may go up to 12 only if the resume truly contains many weak lines.
-- Do NOT force the count if there are fewer genuinely weak examples.
+- weak_sentences should usually include 5-7 items when enough clearly weak examples exist.
+- You may expand up to 10 items only if the resume genuinely contains that many strong before/after opportunities.
+- Do NOT force 10.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
 - Do NOT select sentences as weak if they already contain concrete tools, platforms, process detail, technical detail, or domain terminology unless the rewrite preserves all specificity and is clearly much stronger.
@@ -3708,7 +4577,8 @@ HARD REQUIREMENTS:
 - Do NOT include already-strong sentences just to fill the count.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- summary MUST be detailed (8-12 bullet lines) in ${outLang}.
+- summary MUST follow these summary rules exactly:
+${analysisSummaryRules}
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, platforms, or unsupported outcomes.
 
@@ -3755,13 +4625,11 @@ HARD REQUIREMENTS:
 - Do NOT suggest branded tools or platform names unless the resume clearly points to them.
 - Prefer non-branded responsibility, workflow, methodology, and ATS phrasing over speculative software names.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
-- weak_sentences MUST include 5-10 items from the resume text when genuinely weak examples exist.
-- Prefer 6-8 strong weak/rewrite pairs over forcing a larger count.
-- You may go up to 12 only if the resume truly contains many weak lines.
-- If the resume contains 8 or more weak or moderately weak bullets, return at least 6 weak_sentences.
+- weak_sentences should usually include 5-7 items when enough clearly weak examples exist.
+- You may expand to 10-12 only if the resume genuinely contains that many real before/after opportunities.
+- Do NOT force 12.
 - After clearly weak bullets are exhausted, include moderately weak bullets that are still materially improvable.
 - Prefer bullets that begin with or rely on verbs such as helped, supported, assisted, worked on, contributed to, participated in, handled, or responsible for.
-- Do NOT return fewer than 6 weak_sentences unless the resume is already unusually strong.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
 - Do NOT select sentences as weak if they already contain concrete tools, platforms, process detail, technical detail, or domain terminology unless the rewrite preserves all specificity and is clearly much stronger.
@@ -3770,7 +4638,8 @@ HARD REQUIREMENTS:
 - Do NOT include already-strong sentences just to fill the count.
 - Do NOT use shallow synonym swaps or near-duplicate rewrites.
 - Each rewrite must improve at least two of these: clarity, ownership, specificity, scope, action strength, business context.
-- summary MUST be detailed (8-12 bullet lines) in ${outLang}.
+- summary MUST follow these summary rules exactly:
+${analysisSummaryRules}
 - Do NOT add optimized_cv.
 - Keep claims truthful. Do not invent employers, degrees, titles, dates, tools, metrics, acronyms, platforms, or unsupported outcomes.
 
@@ -3827,8 +4696,7 @@ STRICT RULES:
   action + task scope + tool/channel/context + purpose
 - reason must be short and explain what improved.
 - Output VALUES only in ${outLang}.
-- Return 4-8 items depending on real quality opportunities.
-- If 6 or more viable weak lines are provided, prefer 5-8 strong rewrites instead of weak filler rewrites.
+- Return 4-10 items depending on real quality opportunities.
 - No extra keys.
 
 ROLE CONTEXT:
@@ -3869,8 +4737,7 @@ STRICT RULES:
   action + task scope + tool/channel/context + purpose
 - reason must be short and explain what improved.
 - Output VALUES only in ${outLang}.
-- Return 4-8 items depending on real quality opportunities.
-- If 6 or more viable weak lines are provided, prefer 5-8 strong rewrites instead of weak filler rewrites.
+- Return 4-10 items depending on real quality opportunities.
 - No extra keys.
 
 ROLE CONTEXT:
@@ -3903,6 +4770,7 @@ function buildOptimizeCvPrompt({
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
+  const summaryBlock = buildProfessionalSummaryRewriteBlock(roleProfile, outLang);
 
   return hasJD
     ? `
@@ -3935,10 +4803,8 @@ STRICT RULES:
 - Use canonical section headings only.
 - The final resume should feel premium: concise, grounded, specific, recruiter-ready, and materially stronger than the original.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
-- Keep the professional summary close to the original length and structure.
-- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
-- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
-- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
+- Follow these PROFESSIONAL SUMMARY rules exactly:
+${summaryBlock}
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -3984,6 +4850,7 @@ SELF-CHECK BEFORE RETURNING:
 - no major bullet loss
 - no merged bullets that reduce clarity
 - weak bullets materially improved, not cosmetically polished
+- professional summary concise, role-specific, and non-generic
 
 RESUME:
 ${cv}
@@ -4021,10 +4888,8 @@ STRICT RULES:
 - Use canonical section headings only.
 - The final resume should feel premium: concise, grounded, specific, recruiter-ready, and materially stronger than the original.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
-- Keep the professional summary close to the original length and structure.
-- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
-- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
-- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
+- Follow these PROFESSIONAL SUMMARY rules exactly:
+${summaryBlock}
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4069,6 +4934,7 @@ SELF-CHECK BEFORE RETURNING:
 - no major bullet loss
 - no merged bullets that reduce clarity
 - weak bullets materially improved, not cosmetically polished
+- professional summary concise, role-specific, and non-generic
 
 RESUME:
 ${cv}
@@ -4098,6 +4964,7 @@ function buildRepairPrompt({
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   const jdSignalText = hasJD ? buildJdSignalText(jd, roleProfile) : "";
   const likelyKeywordThemeText = buildLikelyKeywordThemeText(roleProfile, cv);
+  const summaryBlock = buildProfessionalSummaryRewriteBlock(roleProfile, outLang);
 
   return hasJD
     ? `
@@ -4124,10 +4991,8 @@ STRICT RULES:
 - Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
-- Keep the professional summary close to the original length and structure.
-- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
-- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
-- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
+- Follow these PROFESSIONAL SUMMARY rules exactly:
+${summaryBlock}
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4172,6 +5037,7 @@ SELF-CHECK BEFORE RETURNING:
 - no unjustified leadership escalation
 - no major bullet loss
 - priority rewrite targets reflected where useful
+- professional summary concise, role-specific, and non-generic
 
 RESUME (original):
 ${cv}
@@ -4206,10 +5072,8 @@ STRICT RULES:
 - Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
-- Keep the professional summary close to the original length and structure.
-- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
-- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
-- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
+- Follow these PROFESSIONAL SUMMARY rules exactly:
+${summaryBlock}
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4256,6 +5120,7 @@ SELF-CHECK BEFORE RETURNING:
 - no unjustified leadership escalation
 - no major bullet loss
 - priority rewrite targets reflected where useful
+- professional summary concise, role-specific, and non-generic
 
 RESUME (original):
 ${cv}
@@ -4301,7 +5166,7 @@ STRICT RULES:
 - Each rewrite must be clearly stronger than the original.
 - Avoid shallow synonym swaps.
 - Output VALUES only in ${outLang}.
-- Return 6-12 items when possible.
+- Return 5-10 items when possible. Do NOT force 10.
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4337,7 +5202,7 @@ STRICT RULES:
 - Each rewrite must be clearly stronger than the original.
 - Avoid shallow synonym swaps.
 - Output VALUES only in ${outLang}.
-- Return 6-12 items when possible.
+- Return 5-12 items when possible. Do NOT force 12.
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4633,7 +5498,7 @@ export default async function handler(req, res) {
         { outLang, roleInput: roleProfile }
       );
 
-      const detectedPreviewWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, 2, 6);
+      const detectedPreviewWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, 2, 4);
 
       if (previewWeakSentences.length < Math.min(2, detectedPreviewWeakCandidates.length)) {
         try {
@@ -4746,7 +5611,13 @@ export default async function handler(req, res) {
       { outLang, roleInput: roleProfile }
     );
 
-    const detectedWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, 8, 12);
+    const detectedWeakCandidates = detectWeakSentenceCandidates(
+      cv,
+      roleProfile,
+      hasJD ? 5 : 5,
+      hasJD ? 10 : 12
+    );
+    const weakWindow = getWeakCountWindow(hasJD, detectedWeakCandidates.length);
     const desiredWeakCount = getDesiredWeakCount(hasJD, detectedWeakCandidates.length);
 
     if (modelWeakSentences.length < desiredWeakCount) {
@@ -4777,7 +5648,7 @@ export default async function handler(req, res) {
           fallbackWeakSentences,
           roleProfile,
           outLang,
-          12
+          weakWindow.max || 12
         );
       } catch {
         // keep model weak sentences
@@ -4789,7 +5660,7 @@ export default async function handler(req, res) {
         detectedWeakCandidates,
         roleProfile,
         outLang,
-        12
+        weakWindow.max || 12
       );
 
       modelWeakSentences = mergeWeakSentenceSets(
@@ -4797,9 +5668,11 @@ export default async function handler(req, res) {
         localWeakSentences,
         roleProfile,
         outLang,
-        12
+        weakWindow.max || 12
       );
     }
+
+    modelWeakSentences = modelWeakSentences.slice(0, weakWindow.max || 12);
 
     const componentScores =
       analysisData?.component_scores && typeof analysisData.component_scores === "object"
@@ -4832,25 +5705,8 @@ export default async function handler(req, res) {
       optimized_ats_score: mergedBaseScore,
     };
 
-        let fallbackWeakSeed = [];
-    if (normalized.weak_sentences.length < 5) {
-      fallbackWeakSeed = getFallbackWeakCandidates(cv, roleProfile, 8)
-        .filter(
-          (x) =>
-            !normalized.weak_sentences.some(
-              (w) => canonicalizeTerm(w.sentence) === canonicalizeTerm(x.sentence)
-            )
-        )
-        .slice(0, Math.max(0, 8 - normalized.weak_sentences.length));
-    }
-
-    const bulletUpgradeSources = [
-      ...normalized.weak_sentences.map((x) => ({ sentence: x.sentence })),
-      ...fallbackWeakSeed,
-    ];
-
     let bulletUpgrades = [];
-    if (bulletUpgradeSources.length > 0) {
+    if (normalized.weak_sentences.length > 0) {
       try {
         const bulletData = await callOpenAIJson({
           apiKey,
@@ -4860,7 +5716,7 @@ export default async function handler(req, res) {
             cv,
             jd,
             hasJD,
-            weakSentences: bulletUpgradeSources,
+            weakSentences: normalized.weak_sentences,
             outLang,
             roleProfile,
           }),
@@ -4878,14 +5734,6 @@ export default async function handler(req, res) {
         bulletUpgrades = [];
       }
     }
-
-    normalized.weak_sentences = dedupeWeakSentences(
-  mergeWeakSources(
-    normalized.weak_sentences,
-    bulletUpgrades,
-    { outLang, roleInput: roleProfile }
-  ).slice(0, 10)
-);
 
     if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
       bulletUpgrades = normalizeBulletUpgrades(
@@ -4920,9 +5768,9 @@ export default async function handler(req, res) {
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
-        if (bulletUpgrades.length >= 2 && countWeakVerbHits(currentOptimized, roleProfile) >= 2) {
-  currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
-}
+        if (bulletUpgrades.length) {
+          currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+        }
         unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
     } catch {
@@ -4971,12 +5819,12 @@ export default async function handler(req, res) {
         });
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
-  currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
-  if (bulletUpgrades.length >= 2 && countWeakVerbHits(currentOptimized, roleProfile) >= 2) {
-    currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
-  }
-  unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
-}
+          currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+          if (bulletUpgrades.length) {
+            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+          }
+          unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
+        }
       } catch {
         // keep current optimized version
       }
@@ -5006,11 +5854,11 @@ export default async function handler(req, res) {
         });
 
         if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
-  currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
-  if (bulletUpgrades.length >= 2 && countWeakVerbHits(currentOptimized, roleProfile) >= 2) {
-    currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
-  }
-}
+          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
+          if (bulletUpgrades.length) {
+            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+          }
+        }
       } catch {
         // keep current optimized version
       }
