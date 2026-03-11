@@ -63,6 +63,11 @@ const ACRONYM_RE = /\b[A-Z]{2,}(?:\/[A-Z]{2,})?\b/;
 const CERTIFICATION_RE = /\b(pmp|csm|psm|scrum master|cpa|cfa|acca|ifrs|gaap|lean six sigma|six sigma|itil|hipaa|aws certified|azure fundamentals|google ads certification)\b/i;
 const ENGLISH_FLUFF_RE = /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|best-in-class|value-driven|strategic initiatives|operational excellence)\b/i;
 const ENGLISH_RISKY_OUTCOME_RE = /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|maximizing|delivering)\b/i;
+const WEAK_REWRITE_RESIDUAL_RE = /\b(helped|helps|assisted|assists|supported|supports|contributed to|participated in|involved in|worked on|responsible for|provided support|helped with|assisted with|destek oldum|destek verdim|yardımcı oldum|görev aldım|katkı sağladım|katıldım|çalıştım|yaptım|sorumluydum)\b/i;
+const WEAK_REWRITE_START_RE = /^(helped|helps|assisted|assists|supported|supports|contributed to|participated in|involved in|worked on|responsible for|provided support|helped with|assisted with|handled|destek oldum|destek verdim|yardımcı oldum|görev aldım|katkı sağladım|katıldım|çalıştım|yaptım|sorumluydum)\b/i;
+const SOFT_ACTION_START_RE = /^(prepared|maintained|coordinated|tracked|updated|processed|documented|communicated|organized|reviewed|monitored|followed up on|responded to|scheduled|compiled|recorded|handled)\b/i;
+const GENERIC_TASK_RE = /\b(daily tasks?|routine tasks?|general support|various tasks?|team support|support activities|campaign tasks?|backend improvements?|customer requests?|internal service updates?|documentation tasks?|administrative tasks?|follow-?up tasks?|service tasks?|general coordination|basic reporting|report preparation|operations tasks?|record keeping|data entry|office tasks?)\b/i;
+const SCOPE_CONTEXT_RE = /\b(using|with|for|across|through|via|by|on|under|according to|per|regarding|including|covering|handling|tracking|supporting|kullanarak|ile|için|kapsamında|üzerinde|aracılığıyla|konusunda)\b/i;
 
 const ROLE_TAXONOMY = {
   software_engineering: {
@@ -423,6 +428,35 @@ function extractSummaryLines(cv = "") {
     }
   }
   return out;
+}
+
+function extractWeakCandidatePools(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const experienceBullets = [];
+  const otherBullets = [];
+  let section = "header";
+
+  for (const line of lines) {
+    if (isSectionHeader(line)) {
+      if (/^(EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|DENEYİM|İŞ DENEYİMİ)$/i.test(line)) section = "experience";
+      else if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) section = "summary";
+      else section = "other";
+      continue;
+    }
+
+    if (!BULLET_RE.test(line)) continue;
+    const bullet = line.replace(BULLET_RE, "").trim();
+    if (!bullet) continue;
+
+    if (section === "experience") experienceBullets.push(bullet);
+    else otherBullets.push(bullet);
+  }
+
+  return {
+    experienceBullets,
+    summaryLines: extractSummaryLines(cv),
+    otherBullets,
+  };
 }
 
 function extractHeaderBlock(cv = "") {
@@ -872,27 +906,57 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   const profile = ensureRoleProfile(roleInput, cv, jd);
   const packs = getRolePacks(profile, cv, jd);
   const roleTerms = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])]));
-  if (!s) return { isWeakCandidate: false, weakScore: 0, strongScore: 0, hasSpecific: false, startsWeak: false, hasWeakPhrase: false };
+  if (!s) {
+    return {
+      isWeakCandidate: false,
+      clearWeak: false,
+      moderatelyWeak: false,
+      candidateTier: "none",
+      weakScore: 0,
+      strongScore: 0,
+      improvementPotential: 0,
+      hasSpecific: false,
+      startsWeak: false,
+      hasWeakPhrase: false,
+      strongAction: false,
+      hasScopeSignal: false,
+      genericTask: false,
+      softActionStart: false,
+      roleHits: 0,
+      explicitFactsCount: 0,
+      wordCount: 0,
+      isReasonablyStrong: false,
+    };
+  }
 
   const wc = countWords(s);
   const explicitFacts = extractExplicitFactTerms(s);
+  const acronymHits = extractAcronymLikeTerms(s).length;
   const roleHits = countTermHits(s, roleTerms);
   const hasNumber = /\b\d+(?:[.,]\d+)?%?\b/.test(s);
-  const hasAcronym = looksLikeAcronym(s);
   const strongAction = STRONG_ACTION_RE.test(s);
   const startsWeak = WEAK_START_RE.test(s);
   const hasWeakPhrase = WEAK_VERB_RE.test(s);
   const genericSummary = GENERIC_SUMMARY_RE.test(s);
-  const hasContextSignal = /\b(using|with|for|across|through|via|by|on|under|according to|per|kullanarak|ile|için|kapsamında|üzerinde|aracılığıyla)\b/i.test(s);
-  const hasSpecific = hasNumber || explicitFacts.length > 0 || roleHits >= 2 || hasAcronym || (strongAction && roleHits >= 1);
+  const hasScopeSignal = SCOPE_CONTEXT_RE.test(s);
+  const genericTask = GENERIC_TASK_RE.test(s);
+  const softActionStart = SOFT_ACTION_START_RE.test(s);
+
+  const explicitSpecificity = explicitFacts.length + acronymHits + (hasNumber ? 1 : 0);
+  const hasSpecific =
+    explicitSpecificity > 0 ||
+    roleHits >= 2 ||
+    (strongAction && roleHits >= 1 && hasScopeSignal);
 
   let strongScore = 0;
   let weakScore = 0;
+
   if (strongAction) strongScore += 3;
   if (hasNumber) strongScore += 2;
   if (explicitFacts.length > 0) strongScore += Math.min(3, explicitFacts.length);
+  if (acronymHits > 0) strongScore += Math.min(2, acronymHits);
   if (roleHits > 0) strongScore += Math.min(4, roleHits);
-  if (hasContextSignal) strongScore += 1;
+  if (hasScopeSignal) strongScore += 1;
   if (wc >= 6 && wc <= 22) strongScore += 1;
 
   if (startsWeak) weakScore += 4;
@@ -900,42 +964,133 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   if (genericSummary) weakScore += 3;
   if (!hasSpecific) weakScore += 2;
   if (!strongAction) weakScore += 1;
-  if (wc <= 5) weakScore += 3;
-  else if (wc <= 8 && !hasSpecific) weakScore += 2;
+  if (genericTask && !hasSpecific) weakScore += 2;
+  if (softActionStart && !hasSpecific && roleHits <= 1) weakScore += 1;
+  if (roleHits === 1 && !hasScopeSignal && explicitFacts.length === 0 && !hasNumber) weakScore += 1;
+  if (wc <= 5) weakScore += 2;
+  else if (wc <= 8 && !hasSpecific) weakScore += 1;
   if (wc > 28) weakScore += 1;
 
   if (hasSpecific && strongAction) weakScore -= 3;
-  if (hasNumber && explicitFacts.length > 0) weakScore -= 1;
+  if (roleHits >= 2 && hasScopeSignal) weakScore -= 2;
+  if (explicitFacts.length > 0) weakScore -= 1;
+  if (genericTask && strongAction && roleHits >= 1 && hasScopeSignal) weakScore -= 1;
 
-  const isWeakCandidate = weakScore >= 5 || (startsWeak && strongScore < 7) || (genericSummary && !hasSpecific);
+  const clearWeak =
+    weakScore >= 8 ||
+    (startsWeak && (!hasSpecific || strongScore <= 4)) ||
+    (genericSummary && !hasSpecific) ||
+    (hasWeakPhrase && genericTask && strongScore <= 4);
+
+  const moderatelyWeak =
+    !clearWeak &&
+    (
+      weakScore >= 5 ||
+      (
+        weakScore >= 4 &&
+        (startsWeak || hasWeakPhrase || genericTask || !hasSpecific || softActionStart) &&
+        strongScore <= 6
+      ) ||
+      (
+        softActionStart &&
+        !hasSpecific &&
+        roleHits <= 1 &&
+        wc <= 16
+      )
+    );
+
+  const isWeakCandidate = clearWeak || moderatelyWeak;
+  const candidateTier = clearWeak ? "clear" : moderatelyWeak ? "moderate" : "none";
+  const improvementPotential =
+    Math.max(0, weakScore - Math.floor(strongScore / 2)) +
+    (startsWeak ? 2 : 0) +
+    (genericTask ? 1 : 0) +
+    (!hasSpecific ? 1 : 0);
+
+  const isReasonablyStrong =
+    strongScore >= 6 &&
+    hasSpecific &&
+    !startsWeak &&
+    !hasWeakPhrase &&
+    !genericTask &&
+    wc >= 6 &&
+    wc <= 22;
 
   return {
     isWeakCandidate,
+    clearWeak,
+    moderatelyWeak,
+    candidateTier,
     weakScore,
     strongScore,
+    improvementPotential,
     hasSpecific,
     startsWeak,
     hasWeakPhrase,
     strongAction,
+    hasScopeSignal,
+    genericTask,
+    softActionStart,
+    roleHits,
+    explicitFactsCount: explicitFacts.length + acronymHits + (hasNumber ? 1 : 0),
     wordCount: wc,
+    isReasonablyStrong,
   };
 }
 
 function detectWeakSentenceCandidates(cv = "", roleInput, minCount = 6, maxCount = 12) {
-  const bullets = getBulletLines(cv).map((sentence) => ({ sentence, sourceType: "bullet" }));
-  const summaries = extractSummaryLines(cv).map((sentence) => ({ sentence, sourceType: "summary" }));
-  const ranked = [...bullets, ...summaries]
+  const pools = extractWeakCandidatePools(cv);
+  const candidates = [
+    ...pools.experienceBullets.map((sentence) => ({ sentence, sourceType: "experience_bullet", sectionPriority: 4 })),
+    ...pools.summaryLines.map((sentence) => ({ sentence, sourceType: "summary_line", sectionPriority: 2 })),
+    ...pools.otherBullets.map((sentence) => ({ sentence, sourceType: "other_bullet", sectionPriority: 0 })),
+  ];
+
+  const ranked = candidates
     .map((item) => {
       const profile = getSentenceSignalProfile(item.sentence, roleInput, cv, "");
-      let rank = profile.weakScore * 3 - profile.strongScore + (profile.startsWeak ? 4 : 0) + (profile.hasWeakPhrase ? 3 : 0) + (!profile.hasSpecific ? 2 : 0) + (item.sourceType === "bullet" ? 2 : 0);
-      if (/\b(team|support staff|internal service updates|daily tasks|routine communication|general support)\b/i.test(item.sentence)) rank += 2;
+      const tierBoost = profile.candidateTier === "clear" ? 50 : profile.candidateTier === "moderate" ? 30 : 0;
+      let rank =
+        item.sectionPriority * 100 +
+        tierBoost +
+        profile.improvementPotential * 3 +
+        (profile.startsWeak ? 8 : 0) +
+        (profile.hasWeakPhrase ? 6 : 0) +
+        (!profile.hasSpecific ? 4 : 0) +
+        (profile.genericTask ? 5 : 0) -
+        profile.strongScore * 2;
+
+      if (/\b(team|support staff|internal service updates|daily tasks|routine communication|general support|various tasks|basic reporting)\b/i.test(item.sentence)) {
+        rank += 4;
+      }
+
       return { ...item, profile, rank };
     })
-    .filter((item) => item.profile.isWeakCandidate || item.profile.weakScore >= (item.sourceType === "bullet" ? 4 : 3))
-    .sort((a, b) => b.rank - a.rank || b.profile.weakScore - a.profile.weakScore || a.profile.strongScore - b.profile.strongScore);
+    .filter((item) => {
+      if (item.profile.isReasonablyStrong) return false;
+      if (item.profile.clearWeak || item.profile.moderatelyWeak) return true;
+      if (item.sourceType === "experience_bullet") {
+        return item.profile.weakScore >= 3 && (item.profile.startsWeak || item.profile.hasWeakPhrase || item.profile.genericTask || !item.profile.hasSpecific);
+      }
+      if (item.sourceType === "summary_line") {
+        return item.profile.weakScore >= 4 || (item.profile.genericTask && !item.profile.hasSpecific);
+      }
+      return item.profile.weakScore >= 5;
+    })
+    .sort((a, b) => {
+      const tierOrder = { clear: 2, moderate: 1, none: 0 };
+      return (
+        b.rank - a.rank ||
+        tierOrder[b.profile.candidateTier] - tierOrder[a.profile.candidateTier] ||
+        b.profile.improvementPotential - a.profile.improvementPotential ||
+        b.profile.weakScore - a.profile.weakScore ||
+        a.profile.strongScore - b.profile.strongScore
+      );
+    });
 
   const out = [];
   const seen = new Set();
+
   for (const item of ranked) {
     const key = canonicalizeTerm(item.sentence);
     if (!key || seen.has(key)) continue;
@@ -943,6 +1098,7 @@ function detectWeakSentenceCandidates(cv = "", roleInput, minCount = 6, maxCount
     out.push(item.sentence);
     if (out.length >= maxCount) break;
   }
+
   return out.length >= minCount ? out : out.slice(0, maxCount);
 }
 
@@ -950,6 +1106,138 @@ function splitSentenceEnding(str = "") {
   const s = String(str || "").trim();
   const m = s.match(/[.?!]+$/);
   return { body: s.replace(/[.?!]+$/, "").trim(), ending: m ? m[0] : "." };
+}
+
+function stripLeadingWeakPhrase(text = "") {
+  const s = String(text || "").trim();
+  const patterns = [
+    /^helped with\s+/i,
+    /^helped to\s+/i,
+    /^helped\s+/i,
+    /^assisted with\s+/i,
+    /^assisted\s+/i,
+    /^supported with\s+/i,
+    /^supported\s+/i,
+    /^supports\s+/i,
+    /^worked on\s+/i,
+    /^responsible for\s+/i,
+    /^contributed to\s+/i,
+    /^participated in\s+/i,
+    /^involved in\s+/i,
+    /^provided support for\s+/i,
+    /^provided support to\s+/i,
+    /^provided support\s+/i,
+    /^handled\s+/i,
+    /^tasked with\s+/i,
+    /^duties included\s+/i,
+    /^yardımcı oldum\s+/i,
+    /^destek oldum\s+/i,
+    /^destek verdim\s+/i,
+    /^görev aldım\s+/i,
+    /^katkı sağladım\s+/i,
+    /^katıldım\s+/i,
+    /^çalıştım\s+/i,
+    /^yaptım\s+/i,
+    /^sorumluydum\s+/i,
+  ];
+
+  let out = s;
+  for (const re of patterns) {
+    if (re.test(out)) {
+      out = out.replace(re, "").trim();
+      break;
+    }
+  }
+  return out;
+}
+
+function getTokenDeltaMetrics(source = "", rewrite = "") {
+  const sourceSet = new Set(tokenizeForSimilarity(source));
+  const rewriteSet = new Set(tokenizeForSimilarity(rewrite));
+  const added = [...rewriteSet].filter((token) => !sourceSet.has(token));
+  const removed = [...sourceSet].filter((token) => !rewriteSet.has(token));
+
+  return {
+    added,
+    removed,
+    addedCount: added.length,
+    removedCount: removed.length,
+    totalDelta: added.length + removed.length,
+  };
+}
+
+function hasUnsupportedSpecificityInWeakRewrite(source = "", rewrite = "", cv = "", jd = "") {
+  const sourceHasNumber = /\b\d+(?:[.,]\d+)?%?\b/.test(source);
+  const rewriteHasNumber = /\b\d+(?:[.,]\d+)?%?\b/.test(rewrite);
+  if (rewriteHasNumber && !sourceHasNumber) return true;
+
+  const allowed = new Set(
+    uniqueTrimmedStrings([
+      ...extractExplicitFactTerms(source),
+      ...extractExplicitFactTerms(cv),
+      ...extractExplicitFactTerms(jd),
+      ...extractAcronymLikeTerms(source),
+      ...extractAcronymLikeTerms(cv),
+      ...extractAcronymLikeTerms(jd),
+    ]).map(canonicalizeTerm)
+  );
+
+  const rewriteTerms = uniqueTrimmedStrings([
+    ...extractExplicitFactTerms(rewrite),
+    ...extractAcronymLikeTerms(rewrite),
+  ]);
+
+  return rewriteTerms.some((term) => !allowed.has(canonicalizeTerm(term)));
+}
+
+function countMeaningfulRewriteImprovements(source = "", rewrite = "", roleInput, cv = "", jd = "") {
+  const sourceProfile = getSentenceSignalProfile(source, roleInput, cv, jd);
+  const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
+
+  let improvements = 0;
+
+  if (!rewriteProfile.startsWeak && sourceProfile.startsWeak) improvements += 1;
+
+  if (
+    rewriteProfile.strongScore >= sourceProfile.strongScore + 2 ||
+    (rewriteProfile.strongAction && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || !sourceProfile.strongAction))
+  ) {
+    improvements += 1;
+  }
+
+  if (
+    (rewriteProfile.hasSpecific && !sourceProfile.hasSpecific) ||
+    rewriteProfile.roleHits > sourceProfile.roleHits ||
+    rewriteProfile.explicitFactsCount > sourceProfile.explicitFactsCount
+  ) {
+    improvements += 1;
+  }
+
+  if (
+    (rewriteProfile.hasScopeSignal && !sourceProfile.hasScopeSignal) ||
+    (
+      rewriteProfile.wordCount >= 6 &&
+      rewriteProfile.wordCount <= 20 &&
+      (sourceProfile.wordCount < 6 || sourceProfile.wordCount > 22)
+    )
+  ) {
+    improvements += 1;
+  }
+
+  if (rewriteProfile.weakScore <= sourceProfile.weakScore - 2) improvements += 1;
+
+  return improvements;
+}
+
+function rewriteStillFeelsWeak(rewrite = "", roleInput, cv = "", jd = "") {
+  const profile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
+
+  if (WEAK_REWRITE_START_RE.test(rewrite)) return true;
+  if (WEAK_REWRITE_RESIDUAL_RE.test(rewrite)) return true;
+  if (profile.startsWeak || profile.hasWeakPhrase) return true;
+  if (profile.isWeakCandidate && profile.weakScore >= 5) return true;
+
+  return false;
 }
 
 function pickRoleAwareRewriteVerb(sentence = "", roleInput, cv = "", jd = "") {
@@ -961,59 +1249,124 @@ function pickRoleAwareRewriteVerb(sentence = "", roleInput, cv = "", jd = "") {
   if (/(schedule|calendar|meeting|travel|communication)/i.test(sentence)) return "Coordinated";
   if (/(invoice|order|request|processing|account updates?)/i.test(sentence)) return "Processed";
   if (/(analysis|reconciliation|audit|review|validation)/i.test(sentence)) return "Reviewed";
-  const verbs = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.safeSupportVerbs || []), ...(role.verbs || [])])).filter((verb) => !/^(supported|assisted|helped|contributed|participated|aided)$/i.test(verb));
+  if (/(testing|qa|defect|bug|test cases?)/i.test(sentence)) return "Executed";
+  if (/(backend|api|integration|feature|code|application|system)/i.test(sentence)) return "Implemented";
+
+  const verbs = uniqueTrimmedStrings(
+    packs.flatMap((role) => [...(role.safeSupportVerbs || []), ...(role.verbs || [])])
+  ).filter((verb) => !/^(supported|assisted|helped|contributed|participated|aided)$/i.test(verb));
+
   return capitalizeFirst(verbs[0] || "Coordinated");
 }
 
 function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv = "", jd = "") {
   if (outLang !== "English") return "";
+
   const source = String(sentence || "").trim();
   if (!source) return "";
+
+  const sourceProfile = getSentenceSignalProfile(source, roleInput, cv, jd);
+  if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4 || sourceProfile.moderatelyWeak)) return "";
+
   const { body, ending } = splitSentenceEnding(source);
 
   const specials = [
-    { re: /^supported daily communication with customers regarding (.+)$/i, fn: (m) => `Coordinated daily customer communication regarding ${m[1]}` },
-    { re: /^supported routine communication between (.+)$/i, fn: (m) => `Coordinated routine communication between ${m[1]}` },
-    { re: /^supported daily customer service tasks with the team$/i, fn: () => "Coordinated daily customer service tasks with team members" },
-    { re: /^assisted with customer requests and internal service updates$/i, fn: () => "Coordinated customer requests and internal service updates" },
-    { re: /^prepared weekly support summaries for the team$/i, fn: () => "Prepared weekly support summaries for internal team review" },
+    {
+      re: /^supported daily communication with customers regarding (.+)$/i,
+      fn: (m) => `Coordinated daily customer communication regarding ${m[1]} and followed up on related requests`,
+    },
+    {
+      re: /^supported routine communication between (.+)$/i,
+      fn: (m) => `Coordinated routine communication between ${m[1]}`,
+    },
+    {
+      re: /^supported daily customer service tasks with the team$/i,
+      fn: () => "Coordinated daily customer service tasks and followed up on open customer requests",
+    },
+    {
+      re: /^assisted with customer requests and internal service updates$/i,
+      fn: () => "Coordinated customer requests and internal service updates across ongoing service workflows",
+    },
+    {
+      re: /^prepared weekly support summaries for the team$/i,
+      fn: () => "Prepared weekly support summaries for internal review and case follow-up tracking",
+    },
   ];
 
   for (const item of specials) {
     const match = body.match(item.re);
     if (match) {
-      const rewrite = item.fn(match);
-      if (rewrite && canonicalizeTerm(rewrite) !== canonicalizeTerm(source)) return `${rewrite}${ending}`;
+      const rewrite = `${item.fn(match)}${ending}`;
+      const filtered = filterWeakSentences([{ sentence: source, rewrite }], { outLang, roleInput, cv, jd });
+      if (filtered.length) return filtered[0].rewrite;
     }
   }
 
-  const genericStarts = [
-    /^supported\s+/i, /^supports\s+/i, /^assisted with\s+/i, /^assisted\s+/i, /^helped with\s+/i, /^helped\s+/i,
-    /^worked on\s+/i, /^responsible for\s+/i, /^participated in\s+/i, /^contributed to\s+/i, /^provided support for\s+/i, /^handled\s+/i,
+  const stripped = stripLeadingWeakPhrase(body);
+  if (!stripped || countWords(stripped) < 2) return "";
+
+  const directVerbMaps = [
+    [/^prepare\s+(.+)$/i, (m) => `Prepared ${m[1]}`],
+    [/^maintain\s+(.+)$/i, (m) => `Maintained ${m[1]}`],
+    [/^coordinate\s+(.+)$/i, (m) => `Coordinated ${m[1]}`],
+    [/^track\s+(.+)$/i, (m) => `Tracked ${m[1]}`],
+    [/^update\s+(.+)$/i, (m) => `Updated ${m[1]}`],
+    [/^process\s+(.+)$/i, (m) => `Processed ${m[1]}`],
+    [/^review\s+(.+)$/i, (m) => `Reviewed ${m[1]}`],
+    [/^monitor\s+(.+)$/i, (m) => `Monitored ${m[1]}`],
+    [/^document\s+(.+)$/i, (m) => `Documented ${m[1]}`],
+    [/^organize\s+(.+)$/i, (m) => `Organized ${m[1]}`],
+    [/^schedule\s+(.+)$/i, (m) => `Scheduled ${m[1]}`],
+    [/^respond to\s+(.+)$/i, (m) => `Responded to ${m[1]}`],
+    [/^follow(?:ed)? up on\s+(.+)$/i, (m) => `Followed up on ${m[1]}`],
+    [/^analy[sz]e\s+(.+)$/i, (m) => `Analyzed ${m[1]}`],
+    [/^report on\s+(.+)$/i, (m) => `Reported on ${m[1]}`],
+    [/^resolve\s+(.+)$/i, (m) => `Resolved ${m[1]}`],
   ];
 
-  let remainder = body;
-  let matched = false;
-  for (const re of genericStarts) {
-    if (re.test(remainder)) {
-      remainder = remainder.replace(re, "").trim();
-      matched = true;
+  let rewrite = "";
+
+  for (const [re, mapper] of directVerbMaps) {
+    const match = stripped.match(re);
+    if (match) {
+      rewrite = mapper(match);
       break;
     }
   }
-  if (!matched || !remainder) return "";
 
-  remainder = remainder
-    .replace(/\bwith the team\b/i, "with team members")
-    .replace(/\bfor the team\b/i, "for internal team review")
-    .replace(/\brelated to\b/i, "regarding")
+  if (!rewrite) {
+    const lead = pickRoleAwareRewriteVerb(source, roleInput, cv, jd);
+    if (!SCOPE_CONTEXT_RE.test(stripped) && sourceProfile.roleHits <= 1 && sourceProfile.explicitFactsCount === 0 && countWords(stripped) <= 3) {
+      return "";
+    }
+    rewrite = `${lead} ${lowerFirst(stripped)}`.replace(/\s+/g, " ").trim();
+  }
+
+  rewrite = rewrite
+    .replace(/\bprepare prepared\b/i, "Prepared")
+    .replace(/\bmaintain maintained\b/i, "Maintained")
+    .replace(/\bcoordinate coordinated\b/i, "Coordinated")
+    .replace(/\btrack tracked\b/i, "Tracked")
+    .replace(/\bupdate updated\b/i, "Updated")
+    .replace(/\bprocess processed\b/i, "Processed")
+    .replace(/\breview reviewed\b/i, "Reviewed")
+    .replace(/\bmonitor monitored\b/i, "Monitored")
+    .replace(/\bdocument documented\b/i, "Documented")
+    .replace(/\borganize organized\b/i, "Organized")
+    .replace(/\bschedule scheduled\b/i, "Scheduled")
     .replace(/\s+/g, " ")
     .trim();
 
-  const lead = pickRoleAwareRewriteVerb(source, roleInput, cv, jd);
-  const rewrite = `${lead} ${lowerFirst(remainder)}`.replace(/\s+/g, " ").trim();
-  if (!rewrite || canonicalizeTerm(rewrite) === canonicalizeTerm(source)) return "";
-  return `${rewrite}${ending}`;
+  if (!rewrite) return "";
+
+  const filtered = filterWeakSentences([{ sentence: source, rewrite: `${rewrite}${ending}` }], {
+    outLang,
+    roleInput,
+    cv,
+    jd,
+  });
+
+  return filtered.length ? filtered[0].rewrite : "";
 }
 
 function isShallowRewrite(sentence = "", rewrite = "") {
@@ -1021,9 +1374,41 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   const r = String(rewrite || "").trim();
   if (!s || !r) return true;
   if (canonicalizeTerm(s) === canonicalizeTerm(r)) return true;
+
   const sim = jaccardSimilarity(s, r);
+  const delta = getTokenDeltaMetrics(s, r);
+  const sourceCore = stripLeadingWeakPhrase(s);
+  const rewriteCore = stripLeadingWeakPhrase(r);
+  const sourceSpecificity = extractExplicitFactTerms(s).length + extractAcronymLikeTerms(s).length;
+  const rewriteSpecificity = extractExplicitFactTerms(r).length + extractAcronymLikeTerms(r).length;
+  const rewriteHasScope = SCOPE_CONTEXT_RE.test(r);
+
   if (sim >= 0.9) return true;
-  if (/\b(assisted|contributed|participated|supported|helped)\b/i.test(s) && /\b(assisted|contributed|participated|supported|helped)\b/i.test(r) && sim >= 0.72) return true;
+  if (WEAK_REWRITE_RESIDUAL_RE.test(r) && WEAK_VERB_RE.test(s)) return true;
+  if (delta.totalDelta <= 1) return true;
+  if (delta.totalDelta <= 2 && !rewriteHasScope && rewriteSpecificity <= sourceSpecificity) return true;
+
+  if (
+    sourceCore &&
+    rewriteCore &&
+    jaccardSimilarity(sourceCore, rewriteCore) >= 0.88 &&
+    delta.totalDelta <= 3 &&
+    !rewriteHasScope &&
+    rewriteSpecificity <= sourceSpecificity
+  ) {
+    return true;
+  }
+
+  if (
+    SOFT_ACTION_START_RE.test(r) &&
+    WEAK_START_RE.test(s) &&
+    delta.totalDelta <= 2 &&
+    !rewriteHasScope &&
+    rewriteSpecificity <= sourceSpecificity
+  ) {
+    return true;
+  }
+
   return false;
 }
 
@@ -1035,27 +1420,49 @@ function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
 
 function filterWeakSentences(items = [], { outLang = "English", roleInput, cv = "", jd = "" } = {}) {
   return (Array.isArray(items) ? items : [])
-    .map((item) => ({ sentence: String(item?.sentence || item?.source || "").trim(), rewrite: String(item?.rewrite || item?.after || "").trim() }))
+    .map((item) => ({
+      sentence: String(item?.sentence || item?.source || "").trim(),
+      rewrite: String(item?.rewrite || item?.after || "").trim(),
+    }))
     .filter((item) => item.sentence && item.rewrite)
     .filter((item) => canonicalizeTerm(item.sentence) !== canonicalizeTerm(item.rewrite))
     .map((item) => {
       const sourceProfile = getSentenceSignalProfile(item.sentence, roleInput, cv, jd);
       const rewriteProfile = getSentenceSignalProfile(item.rewrite, roleInput, cv, jd);
-      return { ...item, sourceProfile, rewriteProfile };
+      const improvements = countMeaningfulRewriteImprovements(item.sentence, item.rewrite, roleInput, cv, jd);
+      return { ...item, sourceProfile, rewriteProfile, improvements };
     })
-    .filter((item) => item.sourceProfile.isWeakCandidate || item.sourceProfile.weakScore >= 4)
-    .filter((item) => !isShallowRewrite(item.sentence, item.rewrite))
     .filter((item) => {
-      const stronger = item.rewriteProfile.strongScore > item.sourceProfile.strongScore || item.rewriteProfile.weakScore < item.sourceProfile.weakScore;
-      return stronger;
+      if (item.sourceProfile.isReasonablyStrong) return false;
+      return (
+        item.sourceProfile.isWeakCandidate ||
+        item.sourceProfile.weakScore >= 4 ||
+        (
+          item.sourceProfile.weakScore >= 3 &&
+          (item.sourceProfile.startsWeak || item.sourceProfile.hasWeakPhrase || item.sourceProfile.genericTask || !item.sourceProfile.hasSpecific)
+        )
+      );
     })
+    .filter((item) => !isShallowRewrite(item.sentence, item.rewrite))
+    .filter((item) => item.improvements >= 2)
+    .filter((item) => !rewriteStillFeelsWeak(item.rewrite, roleInput, cv, jd))
+    .filter((item) => !hasUnsupportedSpecificityInWeakRewrite(item.sentence, item.rewrite, cv, jd))
     .filter((item) => {
       if (outLang !== "English") return true;
       if (ENGLISH_FLUFF_RE.test(item.rewrite) && !ENGLISH_FLUFF_RE.test(item.sentence)) return false;
       if (hasUnsupportedImpactClaims(item.sentence, item.rewrite)) return false;
       return true;
     })
-    .sort((a, b) => (b.sourceProfile.weakScore - a.sourceProfile.weakScore) || ((b.sourceProfile.weakScore - b.rewriteProfile.weakScore) - (a.sourceProfile.weakScore - a.rewriteProfile.weakScore)))
+    .sort((a, b) => {
+      const tierOrder = { clear: 2, moderate: 1, none: 0 };
+      return (
+        tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] ||
+        b.improvements - a.improvements ||
+        b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
+        b.sourceProfile.improvementPotential - a.sourceProfile.improvementPotential ||
+        a.rewriteProfile.weakScore - b.rewriteProfile.weakScore
+      );
+    })
     .slice(0, 12)
     .map(({ sentence, rewrite }) => ({ sentence, rewrite }));
 }
@@ -1064,17 +1471,21 @@ function mergeWeakSentenceSets(primary = [], secondary = [], roleInput, outLang 
   const combined = [...(Array.isArray(primary) ? primary : []), ...(Array.isArray(secondary) ? secondary : [])];
   const seen = new Set();
   const out = [];
+
   for (const item of combined) {
     const sentence = String(item?.sentence || "").trim();
     const rewrite = String(item?.rewrite || "").trim();
     if (!sentence || !rewrite) continue;
+
     const key = canonicalizeTerm(sentence);
     if (!key || seen.has(key)) continue;
     seen.add(key);
+
     const filtered = filterWeakSentences([{ sentence, rewrite }], { outLang, roleInput, cv, jd });
     if (filtered.length) out.push(filtered[0]);
     if (out.length >= maxCount) break;
   }
+
   return out;
 }
 
@@ -1092,24 +1503,42 @@ function buildLocalWeakSentenceSet(candidates = [], roleInput, outLang = "Englis
 function normalizeBulletUpgrades(items = [], outLang = "English", roleInput, cv = "", jd = "") {
   const seen = new Set();
   const out = [];
+
   for (const item of Array.isArray(items) ? items : []) {
     const source = String(item?.source || item?.sentence || "").trim();
     const rewrite = String(item?.rewrite || item?.after || "").trim();
     const reason = String(item?.reason || "").trim();
     if (!source || !rewrite) continue;
+
     const sourceProfile = getSentenceSignalProfile(source, roleInput, cv, jd);
     const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
-    if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4)) continue;
+    const improvements = countMeaningfulRewriteImprovements(source, rewrite, roleInput, cv, jd);
+
+    if (sourceProfile.isReasonablyStrong) continue;
+    if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4 || (sourceProfile.weakScore >= 3 && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || sourceProfile.genericTask)))) continue;
     if (isShallowRewrite(source, rewrite)) continue;
-    if (!(rewriteProfile.strongScore > sourceProfile.strongScore || rewriteProfile.weakScore < sourceProfile.weakScore)) continue;
+    if (improvements < 2) continue;
+    if (rewriteStillFeelsWeak(rewrite, roleInput, cv, jd)) continue;
+    if (hasUnsupportedSpecificityInWeakRewrite(source, rewrite, cv, jd)) continue;
     if (outLang === "English" && (hasUnsupportedImpactClaims(source, rewrite) || (ENGLISH_FLUFF_RE.test(rewrite) && !ENGLISH_FLUFF_RE.test(source)))) continue;
+
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ source, rewrite, reason, sourceProfile, rewriteProfile });
+
+    out.push({ source, rewrite, reason, sourceProfile, rewriteProfile, improvements });
   }
+
   return out
-    .sort((a, b) => (b.sourceProfile.weakScore - a.sourceProfile.weakScore) || (b.rewriteProfile.strongScore - a.rewriteProfile.strongScore))
+    .sort((a, b) => {
+      const tierOrder = { clear: 2, moderate: 1, none: 0 };
+      return (
+        tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] ||
+        b.improvements - a.improvements ||
+        b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
+        a.rewriteProfile.weakScore - b.rewriteProfile.weakScore
+      );
+    })
     .slice(0, 8)
     .map(({ source, rewrite, reason }) => ({ source, rewrite, reason }));
 }
