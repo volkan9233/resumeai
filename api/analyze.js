@@ -1147,6 +1147,14 @@ const EN_SOFT_FILLER_RE =
 
 const EN_UNSUPPORTED_IMPACT_RE =
   /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty|enhance(?:d|s|ing)? service satisfaction|improve(?:d|s|ing)? operational efficiency|reduced costs|generated revenue|improved retention|optimized performance|accelerated delivery)\b/i;
+|inform(?:ed|s|ing)? marketing strategies
+|streamlin(?:e|ed|ing)? marketing operations
+|optimiz(?:e|ed|ing)? campaign effectiveness
+|for efficiency
+|for timely execution
+|for effective scheduling
+|for team access
+|to maintain current marketing materials
 
 const ENGLISH_RISKY_RESULT_RE =
   /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering|aimed at|focused on|designed to)\b/i;
@@ -1275,6 +1283,18 @@ const ROLE_REWRITE_RED_FLAGS = {
     /\bimprov(?:e|ed|ing)? campaign effectiveness\b/i,
     /\bsupport(?:ed|s|ing)? brand growth\b/i,
     /\boptimiz(?:e|ed|ing)? campaign performance\b/i,
+    /\boptimiz(?:e|ed|ing)? campaign effectiveness\b/i,
+ /\binform(?:ed|s|ing)? marketing strategies\b/i,
+ /\bstreamlin(?:e|ed|ing)? marketing operations\b/i,
+ /\bfor efficiency\b/i,
+ /\bfor timely execution\b/i,
+ /\bcommitted to continuous learning\b/i,
+ /\bcontinuous learning and improvement\b/i,
+ /\bstrong background in\b/i,
+ /\bexecut(?:e|ed|ing)? social media posting\b/i,
+ /\bmanage(?:d|s|ing)? reporting tasks\b/i,
+ /\basset management\b/i,
+ /\baudience engagement strategies\b/i,
   ],
 
   software_engineering: [
@@ -2894,6 +2914,19 @@ function buildLocalWeakRewrite(sentence = "", roleInput = [], outLang = "English
 
   const lead = pickRoleAwareRewriteVerb(source, roleInput);
   const rewrite = `${lead} ${lowerFirst(remainder)}`.replace(/\s+/g, " ").trim();
+  const cleanedRewrite = rewrite
+  .replace(/\b(prepared prepare|managed manage|coordinated coordinate|maintained maintain|processed process|reviewed review)\b/gi, (m) => {
+    const parts = m.split(/\s+/);
+    return capitalizeFirst(parts[0]);
+  })
+  .replace(/\s+/g, " ")
+  .trim();
+
+if (!cleanedRewrite) return "";
+if (canonicalizeTerm(cleanedRewrite) === canonicalizeTerm(source)) return "";
+if (EN_WEAK_REWRITE_START_RE.test(cleanedRewrite)) return "";
+
+return `${cleanedRewrite}${ending}`;
 
   if (!rewrite) return "";
   if (canonicalizeTerm(rewrite) === canonicalizeTerm(source)) return "";
@@ -3891,6 +3924,10 @@ STRICT RULES:
 - Use canonical section headings only.
 - The final resume should feel premium: concise, grounded, specific, recruiter-ready, and materially stronger than the original.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
+- Keep the professional summary close to the original length and structure.
+- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
+- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
+- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4072,6 +4109,10 @@ STRICT RULES:
 - Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
+- Keep the professional summary close to the original length and structure.
+- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
+- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
+- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4819,6 +4860,22 @@ export default async function handler(req, res) {
       }
     }
 
+    function dedupeWeakSentences(items = []) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const sentence = String(item?.sentence || "").trim();
+    const rewrite = String(item?.rewrite || "").trim();
+    const key = canonicalizeTerm(sentence);
+    if (!sentence || !rewrite || !key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ sentence, rewrite });
+  }
+
+  return out;
+}
+
     normalized.weak_sentences = mergeWeakSources(
       normalized.weak_sentences,
       bulletUpgrades,
@@ -4858,9 +4915,9 @@ export default async function handler(req, res) {
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim());
-        if (bulletUpgrades.length) {
-          currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
-        }
+        if (bulletUpgrades.length >= 2 && countWeakVerbHits(currentOptimized, roleProfile) >= 2) {
+  currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+}
         unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
     } catch {
