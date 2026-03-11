@@ -1253,6 +1253,46 @@ const SKILL_NGRAM_HINTS = uniqueTrimmedStrings([
   "boq",
 ]);
 
+const FALLBACK_WEAK_TRIGGER_RE =
+  /\b(helped|assisted|supported|worked on|contributed to|participated in|responsible for|tasked with|routine|basic|simple|day-to-day|follow-up|support tasks|support activities|support work|assisted with)\b/i;
+
+const ROLE_REWRITE_RED_FLAGS = {
+  customer_support: [
+    /\bmanaged daily communication\b/i,
+    /\bfacilitated communication\b/i,
+    /\bstreamlin(?:e|ed|ing) issue resolution\b/i,
+    /\bensure(?:d|s|ing)? timely resolution\b/i,
+    /\bmaintain(?:ed|s|ing)? service quality\b/i,
+    /\bimprov(?:e|ed|ing)? customer satisfaction\b/i,
+    /\bexecut(?:e|ed|ing)? customer service operations\b/i,
+  ],
+
+  marketing: [
+    /\bboost(?:ed|ing)? audience engagement\b/i,
+    /\bprovide(?:d|s|ing)? actionable insights\b/i,
+    /\binform(?:ed|s|ing)? strategy\b/i,
+    /\benhance(?:d|s|ing)? online presence\b/i,
+    /\bimprov(?:e|ed|ing)? campaign effectiveness\b/i,
+    /\bsupport(?:ed|s|ing)? brand growth\b/i,
+    /\boptimiz(?:e|ed|ing)? campaign performance\b/i,
+  ],
+
+  software_engineering: [
+    /\bmaintained application development tasks\b/i,
+    /\bcoordinated backend modules\b/i,
+    /\bmaintained rest api integrations\b/i,
+    /\bcoordinated internal development tasks\b/i,
+    /\bmaintained bug fixes\b/i,
+    /\bfacilitated technical follow[- ]up\b/i,
+  ],
+};
+
+const TECHNICAL_SOURCE_SIGNAL_RE =
+  /\b(api|backend|database|sql|debugging|deployment|testing|server-side|bug fixes|cloud|python|node\.js|rest api|microservices|application development)\b/i;
+
+const TECHNICAL_WEAK_REWRITE_START_RE =
+  /^(?:coordinated|facilitated|managed|maintained)\b/i;
+
 function isBrandedOrVendorSpecific(term = "") {
   const norm = canonicalizeTerm(term);
   return BRAND_SPECIFIC_TERMS.some((x) => canonicalizeTerm(x) === norm);
@@ -1827,10 +1867,11 @@ function getSentenceSignalProfile(sentence = "", roleInput = []) {
   if (hasSpecific && strongAction) weakScore -= 3;
   if (hasNumber && explicitFacts.length > 0) weakScore -= 1;
 
-  const isWeakCandidate =
-    (weakScore >= 5 && strongScore <= 6) ||
-    (weakScore >= 4 && strongScore <= 5) ||
-    (startsWeak && strongScore < 7) ||
+    const isWeakCandidate =
+    (weakScore >= 4 && strongScore <= 7) ||
+    (startsWeak && strongScore < 8) ||
+    (hasWeakPhrase && strongScore <= 6) ||
+    ((/\b(routine|basic|simple|day-to-day|follow-up)\b/i.test(s) || dutiesOnly) && strongScore <= 6) ||
     (genericSummary && !hasSpecific);
 
   return {
@@ -1901,6 +1942,73 @@ function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
   return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
 }
 
+function violatesRoleRewriteRules(source = "", rewrite = "", roleInput = []) {
+  const primaryRole = getPrimaryRoleKey(roleInput);
+  const patterns = ROLE_REWRITE_RED_FLAGS[primaryRole] || [];
+
+  for (const re of patterns) {
+    if (re.test(rewrite) && !re.test(source)) {
+      return true;
+    }
+  }
+
+  if (
+    primaryRole === "software_engineering" &&
+    TECHNICAL_SOURCE_SIGNAL_RE.test(source) &&
+    TECHNICAL_WEAK_REWRITE_START_RE.test(rewrite) &&
+    !TECHNICAL_WEAK_REWRITE_START_RE.test(source)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function getFallbackWeakCandidates(cv = "", roleInput = [], limit = 8) {
+  const bullets = getBulletLines(cv);
+  const seen = new Set();
+
+  return bullets
+    .map((sentence) => {
+      const profile = getSentenceSignalProfile(sentence, roleInput);
+      let score = profile.weakScore;
+
+      if (FALLBACK_WEAK_TRIGGER_RE.test(sentence)) score += 4;
+      if (/\b(routine|basic|simple|day-to-day|follow-up)\b/i.test(sentence)) score += 2;
+      if (profile.startsWeak) score += 2;
+      if (profile.hasSpecific && profile.strongScore >= 7) score -= 3;
+
+      return { sentence, score, profile };
+    })
+    .filter((x) => x.score >= 4)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.profile.weakScore - a.profile.weakScore ||
+        a.profile.strongScore - b.profile.strongScore
+    )
+    .filter((x) => {
+      const key = canonicalizeTerm(x.sentence);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit)
+    .map(({ sentence }) => ({ sentence }));
+}
+
+function mergeWeakSources(modelWeak = [], bulletUpgrades = [], { outLang = "", roleInput = [] } = {}) {
+  const merged = [
+    ...(Array.isArray(modelWeak) ? modelWeak : []),
+    ...((Array.isArray(bulletUpgrades) ? bulletUpgrades : []).map((x) => ({
+      sentence: x.source,
+      rewrite: x.rewrite,
+    }))),
+  ];
+
+  return filterWeakSentences(merged, { outLang, roleInput });
+}
+
 function isClearlyWeakSentence(sentence = "", roleInput = []) {
   return getSentenceSignalProfile(sentence, roleInput).isWeakCandidate;
 }
@@ -1931,17 +2039,19 @@ function filterWeakSentences(items = [], { outLang = "", roleInput = [] } = {}) 
     })
     .filter((x) => {
       if (outLang !== "English") return true;
-      if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
+            if (EN_WEAK_REWRITE_START_RE.test(x.rewrite)) return false;
+      if (ENGLISH_WEAK_SWAP_RE.test(x.rewrite)) return false;
       if (hasUnsupportedImpactClaims(x.sentence, x.rewrite)) return false;
-      if (
-        ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) &&
-        !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)
-      ) {
+      if (ENGLISH_CORPORATE_FLUFF_RE.test(x.rewrite) && !ENGLISH_CORPORATE_FLUFF_RE.test(x.sentence)) {
         return false;
       }
       if (EN_SOFT_FILLER_RE.test(x.rewrite) && !EN_SOFT_FILLER_RE.test(x.sentence)) {
         return false;
       }
+      if (violatesRoleRewriteRules(x.sentence, x.rewrite, roleInput)) {
+        return false;
+      }
+
       return true;
     })
     .sort((a, b) => {
@@ -1982,16 +2092,12 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     if (!stronger) continue;
 
     if (outLang === "English") {
-      if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
+            if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
+      if (ENGLISH_WEAK_SWAP_RE.test(rewrite)) continue;
       if (hasUnsupportedImpactClaims(source, rewrite)) continue;
-      if (
-        ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) &&
-        !ENGLISH_CORPORATE_FLUFF_RE.test(source)
-      ) {
-        continue;
-      }
-      if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) {
-        continue;
+      if (ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) && !ENGLISH_CORPORATE_FLUFF_RE.test(source)) continue;
+      if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) continue;
+      if (violatesRoleRewriteRules(source, rewrite, roleInput)) continue;
       }
     }
 
@@ -2259,18 +2365,44 @@ function finalizeMissingKeywords(
       .filter(Boolean)
   );
 
+    const primaryPack = ROLE_PACKS[profile.primaryRole] || ROLE_PACKS.generic;
+  const primaryFamilyTerms = uniqueTrimmedStrings([
+    ...getRolePackAllTerms(primaryPack),
+    ...(primaryPack.suggestedKeywords || []),
+  ]);
+
+  const isPrimaryFamilyTerm = (term) => {
+    const norm = canonicalizeTerm(term);
+    return primaryFamilyTerms.some((x) => {
+      const xNorm = canonicalizeTerm(x);
+      return xNorm === norm || xNorm.includes(norm) || norm.includes(xNorm);
+    });
+  };
+
   let pool = [...modelTerms];
 
   if (outLang === "English") {
     if (hasJD) {
       const jdTerms = extractJdSignalProfile(jd, profile).ranked.map((x) => x.term);
-      pool = uniqueByNormalizedStrings([...pool, ...jdTerms]);
+      pool = uniqueByNormalizedStrings([
+        ...pool.filter((term) =>
+          isPrimaryFamilyTerm(term) ||
+          looksLikeToolOrMethod(term, profile) ||
+          looksLikeCertification(term) ||
+          containsCanonicalTermInNormalizedText(canonicalizeTerm(jd), term)
+        ),
+        ...jdTerms,
+      ]);
     } else {
       pool = uniqueByNormalizedStrings([
-        ...pool,
-        ...getSuggestedKeywords(profile, cv),
-        ...getCvOnlyKeywordPool(profile, cv),
-      ]).filter((term) => isSafeCvOnlySuggestedTerm(term, profile, cv));
+        ...pool.filter((term) =>
+          isPrimaryFamilyTerm(term) ||
+          looksLikeToolOrMethod(term, profile) ||
+          looksLikeCertification(term) ||
+          containsCanonicalTermInNormalizedText(canonicalizeTerm(cv), term)
+        ),
+        ...getSuggestedKeywords(profile),
+      ]);
     }
   }
 
@@ -3512,7 +3644,9 @@ HARD REQUIREMENTS:
   hard skills, tools/platforms, methodologies, certifications, domain terms, responsibility patterns, seniority signals.
 - Avoid low-value filler keywords unless truly material.
 - missing_keywords MUST be unique, role-relevant, and written in ${outLang}.
-- weak_sentences MUST include 7-12 items from the resume text when genuinely weak examples exist.
+- weak_sentences MUST include 5-10 items from the resume text when genuinely weak examples exist.
+- Prefer 6-8 strong weak/rewrite pairs over forcing a larger count.
+- You may go up to 12 only if the resume truly contains many weak lines.
 - Do NOT force the count if there are fewer genuinely weak examples.
 - Both sentence and rewrite MUST be in ${outLang}.
 - Only select genuinely weak, vague, generic, or support-heavy sentences.
@@ -3569,7 +3703,9 @@ HARD REQUIREMENTS:
 - Do NOT suggest branded tools or platform names unless the resume clearly points to them.
 - Prefer non-branded responsibility, workflow, methodology, and ATS phrasing over speculative software names.
 - missing_keywords MUST be unique, practical, and written in ${outLang}.
-- weak_sentences MUST include 8-12 items from the resume text when genuinely weak examples exist.
+- weak_sentences MUST include 5-10 items from the resume text when genuinely weak examples exist.
+- Prefer 6-8 strong weak/rewrite pairs over forcing a larger count.
+- You may go up to 12 only if the resume truly contains many weak lines.
 - If the resume contains 8 or more weak or moderately weak bullets, return at least 6 weak_sentences.
 - After clearly weak bullets are exhausted, include moderately weak bullets that are still materially improvable.
 - Prefer bullets that begin with or rely on verbs such as helped, supported, assisted, worked on, contributed to, participated in, handled, or responsible for.
@@ -3639,7 +3775,8 @@ STRICT RULES:
   action + task scope + tool/channel/context + purpose
 - reason must be short and explain what improved.
 - Output VALUES only in ${outLang}.
-- Return 3-8 items depending on real quality opportunities.
+- Return 4-8 items depending on real quality opportunities.
+- If 6 or more viable weak lines are provided, prefer 5-8 strong rewrites instead of weak filler rewrites.
 - No extra keys.
 
 ROLE CONTEXT:
@@ -3680,7 +3817,8 @@ STRICT RULES:
   action + task scope + tool/channel/context + purpose
 - reason must be short and explain what improved.
 - Output VALUES only in ${outLang}.
-- Return 3-8 items depending on real quality opportunities.
+- Return 4-8 items depending on real quality opportunities.
+- If 6 or more viable weak lines are provided, prefer 5-8 strong rewrites instead of weak filler rewrites.
 - No extra keys.
 
 ROLE CONTEXT:
@@ -4626,8 +4764,25 @@ export default async function handler(req, res) {
       optimized_ats_score: mergedBaseScore,
     };
 
+        let fallbackWeakSeed = [];
+    if (normalized.weak_sentences.length < 5) {
+      fallbackWeakSeed = getFallbackWeakCandidates(cv, roleProfile, 8)
+        .filter(
+          (x) =>
+            !normalized.weak_sentences.some(
+              (w) => canonicalizeTerm(w.sentence) === canonicalizeTerm(x.sentence)
+            )
+        )
+        .slice(0, Math.max(0, 8 - normalized.weak_sentences.length));
+    }
+
+    const bulletUpgradeSources = [
+      ...normalized.weak_sentences.map((x) => ({ sentence: x.sentence })),
+      ...fallbackWeakSeed,
+    ];
+
     let bulletUpgrades = [];
-    if (normalized.weak_sentences.length > 0) {
+    if (bulletUpgradeSources.length > 0) {
       try {
         const bulletData = await callOpenAIJson({
           apiKey,
@@ -4637,7 +4792,7 @@ export default async function handler(req, res) {
             cv,
             jd,
             hasJD,
-            weakSentences: normalized.weak_sentences,
+            weakSentences: bulletUpgradeSources,
             outLang,
             roleProfile,
           }),
@@ -4655,6 +4810,12 @@ export default async function handler(req, res) {
         bulletUpgrades = [];
       }
     }
+
+    normalized.weak_sentences = mergeWeakSources(
+      normalized.weak_sentences,
+      bulletUpgrades,
+      { outLang, roleInput: roleProfile }
+    ).slice(0, 10);
 
     if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
       bulletUpgrades = normalizeBulletUpgrades(
