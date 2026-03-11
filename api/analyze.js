@@ -1146,15 +1146,7 @@ const EN_SOFT_FILLER_RE =
   /\b(aimed at|focused on|with a focus on|designed to|to improve|to enhance|to strengthen|to maximize|to optimize|to drive|to facilitate|to promote|to ensure|to support decision-making|to improve service quality|to enhance engagement)\b/i;
 
 const EN_UNSUPPORTED_IMPACT_RE =
-  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty|enhance(?:d|s|ing)? service satisfaction|improve(?:d|s|ing)? operational efficiency|reduced costs|generated revenue|improved retention|optimized performance|accelerated delivery)\b/i;
-|inform(?:ed|s|ing)? marketing strategies
-|streamlin(?:e|ed|ing)? marketing operations
-|optimiz(?:e|ed|ing)? campaign effectiveness
-|for efficiency
-|for timely execution
-|for effective scheduling
-|for team access
-|to maintain current marketing materials
+  /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty|enhance(?:d|s|ing)? service satisfaction|improve(?:d|s|ing)? operational efficiency|reduced costs|generated revenue|improved retention|optimized performance|accelerated delivery|inform(?:ed|s|ing)? marketing strategies|streamlin(?:e|ed|ing)? marketing operations|optimiz(?:e|ed|ing)? campaign effectiveness|for efficiency|for timely execution|for effective scheduling|for team access|to maintain current marketing materials)\b/i;
 
 const ENGLISH_RISKY_RESULT_RE =
   /\b(resulting in|driving|boosting|enhancing|improving|increasing|streamlining|ensuring|maximizing|delivering|aimed at|focused on|designed to)\b/i;
@@ -1980,6 +1972,14 @@ function violatesRoleRewriteRules(source = "", rewrite = "", roleInput = []) {
   ) {
     return true;
   }
+  if (
+  primaryRole === "marketing" &&
+  /\b(supported|assisted|helped|worked on)\b/i.test(source) &&
+  /\b(managed|optimized|executed)\b/i.test(rewrite) &&
+  !/\b(google ads|meta ads|google analytics|excel|email marketing|remarketing|audience targeting|campaign reporting)\b/i.test(source)
+) {
+  return true;
+}
 
   return false;
 }
@@ -2928,11 +2928,6 @@ if (EN_WEAK_REWRITE_START_RE.test(cleanedRewrite)) return "";
 
 return `${cleanedRewrite}${ending}`;
 
-  if (!rewrite) return "";
-  if (canonicalizeTerm(rewrite) === canonicalizeTerm(source)) return "";
-  if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return "";
-
-  return `${rewrite}${ending}`;
 }
 
 function buildLocalWeakSentenceSet(
@@ -3044,6 +3039,22 @@ function mergeWeakSentenceSets(
     }
 
     if (out.length >= maxCount) break;
+  }
+
+  return out;
+}
+
+function dedupeWeakSentences(items = []) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const sentence = String(item?.sentence || "").trim();
+    const rewrite = String(item?.rewrite || "").trim();
+    const key = canonicalizeTerm(sentence);
+    if (!sentence || !rewrite || !key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ sentence, rewrite });
   }
 
   return out;
@@ -4010,6 +4021,10 @@ STRICT RULES:
 - Use canonical section headings only.
 - The final resume should feel premium: concise, grounded, specific, recruiter-ready, and materially stronger than the original.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
+- Keep the professional summary close to the original length and structure.
+- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
+- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
+- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4191,6 +4206,10 @@ STRICT RULES:
 - Do NOT merge multiple bullets into one if that removes detail.
 - Use canonical section headings only.
 - Preserve profession-native language. Technical content must stay technical, finance content must stay finance-specific, education content must stay instructional, etc.
+- Keep the professional summary close to the original length and structure.
+- Do NOT expand a 2-3 sentence summary into 5-6 sentences unless the original already supports that depth.
+- Do NOT add motivation, growth mindset, commitment, passion, or self-development statements unless explicitly present.
+- Do NOT add strategic or impact-oriented summary language unless clearly supported by the original resume.
 
 ROLE CONTEXT:
 ${roleContextText}
@@ -4860,27 +4879,13 @@ export default async function handler(req, res) {
       }
     }
 
-    function dedupeWeakSentences(items = []) {
-  const seen = new Set();
-  const out = [];
-
-  for (const item of Array.isArray(items) ? items : []) {
-    const sentence = String(item?.sentence || "").trim();
-    const rewrite = String(item?.rewrite || "").trim();
-    const key = canonicalizeTerm(sentence);
-    if (!sentence || !rewrite || !key || seen.has(key)) continue;
-    seen.add(key);
-    out.push({ sentence, rewrite });
-  }
-
-  return out;
-}
-
-    normalized.weak_sentences = mergeWeakSources(
-      normalized.weak_sentences,
-      bulletUpgrades,
-      { outLang, roleInput: roleProfile }
-    ).slice(0, 10);
+    normalized.weak_sentences = dedupeWeakSentences(
+  mergeWeakSources(
+    normalized.weak_sentences,
+    bulletUpgrades,
+    { outLang, roleInput: roleProfile }
+  ).slice(0, 10)
+);
 
     if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
       bulletUpgrades = normalizeBulletUpgrades(
@@ -4966,12 +4971,12 @@ export default async function handler(req, res) {
         });
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
-          currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
-          if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
-          }
-          unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
-        }
+  currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim());
+  if (bulletUpgrades.length >= 2 && countWeakVerbHits(currentOptimized, roleProfile) >= 2) {
+    currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+  }
+  unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
+}
       } catch {
         // keep current optimized version
       }
@@ -5001,11 +5006,11 @@ export default async function handler(req, res) {
         });
 
         if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
-          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
-          if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
-          }
-        }
+  currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim());
+  if (bulletUpgrades.length >= 2 && countWeakVerbHits(currentOptimized, roleProfile) >= 2) {
+    currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades);
+  }
+}
       } catch {
         // keep current optimized version
       }
