@@ -925,6 +925,8 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
       roleHits: 0,
       explicitFactsCount: 0,
       wordCount: 0,
+      hasConcreteRoleDetail: false,
+      hasProtectedSpecificity: false,
       isReasonablyStrong: false,
     };
   }
@@ -943,10 +945,10 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   const softActionStart = SOFT_ACTION_START_RE.test(s);
 
   const explicitSpecificity = explicitFacts.length + acronymHits + (hasNumber ? 1 : 0);
-  const hasSpecific =
-    explicitSpecificity > 0 ||
-    roleHits >= 2 ||
-    (strongAction && roleHits >= 1 && hasScopeSignal);
+  const hasConcreteRoleDetail = explicitSpecificity >= 1 || roleHits >= 2;
+  const hasProtectedSpecificity = explicitSpecificity >= 2 || roleHits >= 3 || (roleHits >= 2 && hasScopeSignal);
+  const hasMeaningfulContext = hasConcreteRoleDetail || hasScopeSignal;
+  const hasSpecific = hasConcreteRoleDetail || (strongAction && roleHits >= 1 && hasScopeSignal);
 
   let strongScore = 0;
   let weakScore = 0;
@@ -959,43 +961,45 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   if (hasScopeSignal) strongScore += 1;
   if (wc >= 6 && wc <= 22) strongScore += 1;
 
-  if (startsWeak) weakScore += 4;
-  if (hasWeakPhrase) weakScore += 3;
+  if (startsWeak) weakScore += hasConcreteRoleDetail ? 2 : 4;
+  if (hasWeakPhrase) weakScore += hasConcreteRoleDetail ? 1 : 3;
   if (genericSummary) weakScore += 3;
   if (!hasSpecific) weakScore += 2;
   if (!strongAction) weakScore += 1;
-  if (genericTask && !hasSpecific) weakScore += 2;
-  if (softActionStart && !hasSpecific && roleHits <= 1) weakScore += 1;
-  if (roleHits === 1 && !hasScopeSignal && explicitFacts.length === 0 && !hasNumber) weakScore += 1;
+  if (genericTask) weakScore += hasConcreteRoleDetail ? 1 : 2;
+  if (softActionStart && !hasConcreteRoleDetail && !hasScopeSignal) weakScore += 2;
+  else if (softActionStart && !hasMeaningfulContext) weakScore += 1;
+  if (roleHits === 1 && !hasScopeSignal && explicitFacts.length === 0 && !strongAction) weakScore += 1;
   if (wc <= 5) weakScore += 2;
   else if (wc <= 8 && !hasSpecific) weakScore += 1;
   if (wc > 28) weakScore += 1;
 
-  if (hasSpecific && strongAction) weakScore -= 3;
-  if (roleHits >= 2 && hasScopeSignal) weakScore -= 2;
-  if (explicitFacts.length > 0) weakScore -= 1;
-  if (genericTask && strongAction && roleHits >= 1 && hasScopeSignal) weakScore -= 1;
+  if (hasProtectedSpecificity && strongAction && !genericTask) weakScore -= 3;
+  if (hasConcreteRoleDetail && hasScopeSignal) weakScore -= 2;
+  if (explicitSpecificity > 0 && strongAction) weakScore -= 1;
+  if (startsWeak && hasProtectedSpecificity && hasScopeSignal) weakScore -= 1;
+  if (genericTask && strongAction && hasConcreteRoleDetail && hasScopeSignal) weakScore -= 1;
 
   const clearWeak =
     weakScore >= 8 ||
-    (startsWeak && (!hasSpecific || strongScore <= 4)) ||
+    (startsWeak && !hasConcreteRoleDetail && (strongScore <= 5 || genericTask)) ||
     (genericSummary && !hasSpecific) ||
-    (hasWeakPhrase && genericTask && strongScore <= 4);
+    (hasWeakPhrase && genericTask && !hasConcreteRoleDetail && strongScore <= 5);
 
   const moderatelyWeak =
     !clearWeak &&
     (
-      weakScore >= 5 ||
+      (weakScore >= 6 && strongScore <= 6) ||
       (
-        weakScore >= 4 &&
-        (startsWeak || hasWeakPhrase || genericTask || !hasSpecific || softActionStart) &&
-        strongScore <= 6
+        weakScore >= 5 &&
+        (startsWeak || hasWeakPhrase || genericTask || !hasMeaningfulContext || softActionStart) &&
+        strongScore <= 7
       ) ||
       (
-        softActionStart &&
-        !hasSpecific &&
-        roleHits <= 1 &&
-        wc <= 16
+        weakScore >= 4 &&
+        (startsWeak || genericTask || softActionStart) &&
+        !hasProtectedSpecificity &&
+        strongScore <= 6
       )
     );
 
@@ -1004,8 +1008,9 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   const improvementPotential =
     Math.max(0, weakScore - Math.floor(strongScore / 2)) +
     (startsWeak ? 2 : 0) +
-    (genericTask ? 1 : 0) +
-    (!hasSpecific ? 1 : 0);
+    (genericTask ? 2 : 0) +
+    (!hasMeaningfulContext ? 1 : 0) +
+    (softActionStart && !hasConcreteRoleDetail ? 1 : 0);
 
   const isReasonablyStrong =
     strongScore >= 6 &&
@@ -1014,7 +1019,7 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
     !hasWeakPhrase &&
     !genericTask &&
     wc >= 6 &&
-    wc <= 22;
+    wc <= 24;
 
   return {
     isWeakCandidate,
@@ -1032,8 +1037,11 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
     genericTask,
     softActionStart,
     roleHits,
-    explicitFactsCount: explicitFacts.length + acronymHits + (hasNumber ? 1 : 0),
+    explicitFactsCount: explicitSpecificity,
     wordCount: wc,
+    hasConcreteRoleDetail,
+    hasProtectedSpecificity,
+    hasMeaningfulContext,
     isReasonablyStrong,
   };
 }
@@ -1049,14 +1057,14 @@ function detectWeakSentenceCandidates(cv = "", roleInput, minCount = 6, maxCount
   const ranked = candidates
     .map((item) => {
       const profile = getSentenceSignalProfile(item.sentence, roleInput, cv, "");
-      const tierBoost = profile.candidateTier === "clear" ? 50 : profile.candidateTier === "moderate" ? 30 : 0;
+      const tierBoost = profile.candidateTier === "clear" ? 54 : profile.candidateTier === "moderate" ? 32 : 0;
       let rank =
         item.sectionPriority * 100 +
         tierBoost +
         profile.improvementPotential * 3 +
         (profile.startsWeak ? 8 : 0) +
         (profile.hasWeakPhrase ? 6 : 0) +
-        (!profile.hasSpecific ? 4 : 0) +
+        (!profile.hasMeaningfulContext ? 5 : 0) +
         (profile.genericTask ? 5 : 0) -
         profile.strongScore * 2;
 
@@ -1064,18 +1072,40 @@ function detectWeakSentenceCandidates(cv = "", roleInput, minCount = 6, maxCount
         rank += 4;
       }
 
+      if (profile.hasProtectedSpecificity && profile.strongAction && !profile.genericTask) {
+        rank -= 10;
+      }
+
       return { ...item, profile, rank };
     })
     .filter((item) => {
       if (item.profile.isReasonablyStrong) return false;
+      if (item.profile.hasProtectedSpecificity && item.profile.strongScore >= 6 && !item.profile.genericTask) return false;
       if (item.profile.clearWeak || item.profile.moderatelyWeak) return true;
+
       if (item.sourceType === "experience_bullet") {
-        return item.profile.weakScore >= 3 && (item.profile.startsWeak || item.profile.hasWeakPhrase || item.profile.genericTask || !item.profile.hasSpecific);
+        return (
+          item.profile.weakScore >= 4 &&
+          (
+            (item.profile.startsWeak && !item.profile.hasProtectedSpecificity) ||
+            item.profile.genericTask ||
+            (item.profile.softActionStart && !item.profile.hasConcreteRoleDetail) ||
+            (!item.profile.hasSpecific && !item.profile.strongAction)
+          )
+        );
       }
+
       if (item.sourceType === "summary_line") {
-        return item.profile.weakScore >= 4 || (item.profile.genericTask && !item.profile.hasSpecific);
+        return (
+          item.profile.weakScore >= 4 &&
+          (GENERIC_SUMMARY_RE.test(item.sentence) || item.profile.startsWeak || item.profile.genericTask || !item.profile.hasSpecific)
+        );
       }
-      return item.profile.weakScore >= 5;
+
+      return (
+        item.profile.weakScore >= 5 &&
+        (item.profile.startsWeak || item.profile.genericTask || !item.profile.hasSpecific)
+      );
     })
     .sort((a, b) => {
       const tierOrder = { clear: 2, moderate: 1, none: 0 };
@@ -1190,23 +1220,56 @@ function hasUnsupportedSpecificityInWeakRewrite(source = "", rewrite = "", cv = 
   return rewriteTerms.some((term) => !allowed.has(canonicalizeTerm(term)));
 }
 
+function losesImportantRoleDetail(source = "", rewrite = "", roleInput, cv = "", jd = "") {
+  const sourceExplicit = new Set(uniqueTrimmedStrings([
+    ...extractExplicitFactTerms(source),
+    ...extractAcronymLikeTerms(source),
+  ]).map(canonicalizeTerm));
+  const rewriteExplicit = new Set(uniqueTrimmedStrings([
+    ...extractExplicitFactTerms(rewrite),
+    ...extractAcronymLikeTerms(rewrite),
+  ]).map(canonicalizeTerm));
+
+  for (const term of sourceExplicit) {
+    if (!rewriteExplicit.has(term)) return true;
+  }
+
+  const packs = getRolePacks(roleInput, cv, jd);
+  const roleTerms = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])]));
+  const sourceRoleTerms = roleTerms.filter((term) => containsCanonicalTermInText(source, term)).map(canonicalizeTerm);
+  const rewriteRoleTerms = roleTerms.filter((term) => containsCanonicalTermInText(rewrite, term)).map(canonicalizeTerm);
+
+  if (sourceRoleTerms.length >= 2 && rewriteRoleTerms.length + 1 < sourceRoleTerms.length) {
+    return true;
+  }
+
+  return false;
+}
+
 function countMeaningfulRewriteImprovements(source = "", rewrite = "", roleInput, cv = "", jd = "") {
   const sourceProfile = getSentenceSignalProfile(source, roleInput, cv, jd);
   const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
+  const delta = getTokenDeltaMetrics(source, rewrite);
 
   let improvements = 0;
 
-  if (!rewriteProfile.startsWeak && sourceProfile.startsWeak) improvements += 1;
-
   if (
-    rewriteProfile.strongScore >= sourceProfile.strongScore + 2 ||
-    (rewriteProfile.strongAction && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || !sourceProfile.strongAction))
+    !rewriteProfile.startsWeak &&
+    !WEAK_REWRITE_RESIDUAL_RE.test(rewrite) &&
+    (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase)
   ) {
     improvements += 1;
   }
 
   if (
-    (rewriteProfile.hasSpecific && !sourceProfile.hasSpecific) ||
+    rewriteProfile.strongScore >= sourceProfile.strongScore + 2 ||
+    (rewriteProfile.strongAction && !sourceProfile.strongAction)
+  ) {
+    improvements += 1;
+  }
+
+  if (
+    (rewriteProfile.hasScopeSignal && !sourceProfile.hasScopeSignal) ||
     rewriteProfile.roleHits > sourceProfile.roleHits ||
     rewriteProfile.explicitFactsCount > sourceProfile.explicitFactsCount
   ) {
@@ -1214,17 +1277,19 @@ function countMeaningfulRewriteImprovements(source = "", rewrite = "", roleInput
   }
 
   if (
-    (rewriteProfile.hasScopeSignal && !sourceProfile.hasScopeSignal) ||
-    (
-      rewriteProfile.wordCount >= 6 &&
-      rewriteProfile.wordCount <= 20 &&
-      (sourceProfile.wordCount < 6 || sourceProfile.wordCount > 22)
-    )
+    rewriteProfile.weakScore <= sourceProfile.weakScore - 2 &&
+    rewriteProfile.wordCount >= 5 &&
+    rewriteProfile.wordCount <= 22
   ) {
     improvements += 1;
   }
 
-  if (rewriteProfile.weakScore <= sourceProfile.weakScore - 2) improvements += 1;
+  if (
+    delta.totalDelta >= 3 &&
+    jaccardSimilarity(stripLeadingWeakPhrase(source), stripLeadingWeakPhrase(rewrite)) <= 0.88
+  ) {
+    improvements += 1;
+  }
 
   return improvements;
 }
@@ -1235,7 +1300,10 @@ function rewriteStillFeelsWeak(rewrite = "", roleInput, cv = "", jd = "") {
   if (WEAK_REWRITE_START_RE.test(rewrite)) return true;
   if (WEAK_REWRITE_RESIDUAL_RE.test(rewrite)) return true;
   if (profile.startsWeak || profile.hasWeakPhrase) return true;
-  if (profile.isWeakCandidate && profile.weakScore >= 5) return true;
+  if (profile.isWeakCandidate && profile.weakScore >= 4) return true;
+  if (profile.genericTask && !profile.hasSpecific && !profile.hasScopeSignal) return true;
+  if (profile.softActionStart && !profile.hasConcreteRoleDetail && !profile.hasScopeSignal) return true;
+  if (ENGLISH_FLUFF_RE.test(rewrite)) return true;
 
   return false;
 }
@@ -1304,6 +1372,7 @@ function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv
 
   const stripped = stripLeadingWeakPhrase(body);
   if (!stripped || countWords(stripped) < 2) return "";
+  if (GENERIC_TASK_RE.test(stripped) && sourceProfile.roleHits <= 1 && sourceProfile.explicitFactsCount === 0 && !SCOPE_CONTEXT_RE.test(stripped)) return "";
 
   const directVerbMaps = [
     [/^prepare\s+(.+)$/i, (m) => `Prepared ${m[1]}`],
@@ -1382,6 +1451,8 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   const sourceSpecificity = extractExplicitFactTerms(s).length + extractAcronymLikeTerms(s).length;
   const rewriteSpecificity = extractExplicitFactTerms(r).length + extractAcronymLikeTerms(r).length;
   const rewriteHasScope = SCOPE_CONTEXT_RE.test(r);
+  const sourceTokens = tokenizeForSimilarity(s);
+  const rewriteTokens = tokenizeForSimilarity(r);
 
   if (sim >= 0.9) return true;
   if (WEAK_REWRITE_RESIDUAL_RE.test(r) && WEAK_VERB_RE.test(s)) return true;
@@ -1389,12 +1460,32 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   if (delta.totalDelta <= 2 && !rewriteHasScope && rewriteSpecificity <= sourceSpecificity) return true;
 
   if (
+    sourceTokens.length === rewriteTokens.length &&
+    sourceTokens.length >= 3 &&
+    sourceTokens.slice(1).join(" ") === rewriteTokens.slice(1).join(" ") &&
+    rewriteSpecificity <= sourceSpecificity &&
+    !rewriteHasScope
+  ) {
+    return true;
+  }
+
+  if (
     sourceCore &&
     rewriteCore &&
-    jaccardSimilarity(sourceCore, rewriteCore) >= 0.88 &&
-    delta.totalDelta <= 3 &&
-    !rewriteHasScope &&
-    rewriteSpecificity <= sourceSpecificity
+    canonicalizeTerm(sourceCore) === canonicalizeTerm(rewriteCore) &&
+    rewriteSpecificity <= sourceSpecificity &&
+    !rewriteHasScope
+  ) {
+    return true;
+  }
+
+  if (
+    sourceCore &&
+    rewriteCore &&
+    jaccardSimilarity(sourceCore, rewriteCore) >= 0.9 &&
+    delta.totalDelta <= 4 &&
+    rewriteSpecificity <= sourceSpecificity &&
+    !rewriteHasScope
   ) {
     return true;
   }
@@ -1402,7 +1493,7 @@ function isShallowRewrite(sentence = "", rewrite = "") {
   if (
     SOFT_ACTION_START_RE.test(r) &&
     WEAK_START_RE.test(s) &&
-    delta.totalDelta <= 2 &&
+    delta.totalDelta <= 3 &&
     !rewriteHasScope &&
     rewriteSpecificity <= sourceSpecificity
   ) {
@@ -1434,19 +1525,22 @@ function filterWeakSentences(items = [], { outLang = "English", roleInput, cv = 
     })
     .filter((item) => {
       if (item.sourceProfile.isReasonablyStrong) return false;
+      if (item.sourceProfile.hasProtectedSpecificity && item.sourceProfile.strongScore >= 6 && !item.sourceProfile.genericTask) return false;
       return (
-        item.sourceProfile.isWeakCandidate ||
-        item.sourceProfile.weakScore >= 4 ||
+        item.sourceProfile.clearWeak ||
+        item.sourceProfile.moderatelyWeak ||
         (
-          item.sourceProfile.weakScore >= 3 &&
+          item.sourceProfile.weakScore >= 4 &&
           (item.sourceProfile.startsWeak || item.sourceProfile.hasWeakPhrase || item.sourceProfile.genericTask || !item.sourceProfile.hasSpecific)
         )
       );
     })
     .filter((item) => !isShallowRewrite(item.sentence, item.rewrite))
     .filter((item) => item.improvements >= 2)
+    .filter((item) => item.rewriteProfile.weakScore <= item.sourceProfile.weakScore - 1 || item.rewriteProfile.strongScore >= item.sourceProfile.strongScore + 2)
     .filter((item) => !rewriteStillFeelsWeak(item.rewrite, roleInput, cv, jd))
     .filter((item) => !hasUnsupportedSpecificityInWeakRewrite(item.sentence, item.rewrite, cv, jd))
+    .filter((item) => !losesImportantRoleDetail(item.sentence, item.rewrite, roleInput, cv, jd))
     .filter((item) => {
       if (outLang !== "English") return true;
       if (ENGLISH_FLUFF_RE.test(item.rewrite) && !ENGLISH_FLUFF_RE.test(item.sentence)) return false;
@@ -1515,11 +1609,14 @@ function normalizeBulletUpgrades(items = [], outLang = "English", roleInput, cv 
     const improvements = countMeaningfulRewriteImprovements(source, rewrite, roleInput, cv, jd);
 
     if (sourceProfile.isReasonablyStrong) continue;
-    if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4 || (sourceProfile.weakScore >= 3 && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || sourceProfile.genericTask)))) continue;
+    if (sourceProfile.hasProtectedSpecificity && sourceProfile.strongScore >= 6 && !sourceProfile.genericTask) continue;
+    if (!(sourceProfile.clearWeak || sourceProfile.moderatelyWeak || (sourceProfile.weakScore >= 4 && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || sourceProfile.genericTask || !sourceProfile.hasSpecific)))) continue;
     if (isShallowRewrite(source, rewrite)) continue;
     if (improvements < 2) continue;
+    if (!(rewriteProfile.weakScore <= sourceProfile.weakScore - 1 || rewriteProfile.strongScore >= sourceProfile.strongScore + 2)) continue;
     if (rewriteStillFeelsWeak(rewrite, roleInput, cv, jd)) continue;
     if (hasUnsupportedSpecificityInWeakRewrite(source, rewrite, cv, jd)) continue;
+    if (losesImportantRoleDetail(source, rewrite, roleInput, cv, jd)) continue;
     if (outLang === "English" && (hasUnsupportedImpactClaims(source, rewrite) || (ENGLISH_FLUFF_RE.test(rewrite) && !ENGLISH_FLUFF_RE.test(source)))) continue;
 
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
@@ -1536,6 +1633,7 @@ function normalizeBulletUpgrades(items = [], outLang = "English", roleInput, cv 
         tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] ||
         b.improvements - a.improvements ||
         b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
+        b.sourceProfile.improvementPotential - a.sourceProfile.improvementPotential ||
         a.rewriteProfile.weakScore - b.rewriteProfile.weakScore
       );
     })
