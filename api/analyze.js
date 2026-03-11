@@ -2077,6 +2077,7 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     const reason = String(item?.reason || "").trim();
 
     if (!source || !rewrite) continue;
+
     const sourceProfile = getSentenceSignalProfile(source, roleInput);
     if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4)) continue;
     if (isShallowRewrite(source, rewrite)) continue;
@@ -2092,18 +2093,25 @@ function normalizeBulletUpgrades(items = [], outLang = "", roleInput = []) {
     if (!stronger) continue;
 
     if (outLang === "English") {
-            if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
+      if (EN_WEAK_REWRITE_START_RE.test(rewrite)) continue;
       if (ENGLISH_WEAK_SWAP_RE.test(rewrite)) continue;
       if (hasUnsupportedImpactClaims(source, rewrite)) continue;
-      if (ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) && !ENGLISH_CORPORATE_FLUFF_RE.test(source)) continue;
-      if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) continue;
-      if (violatesRoleRewriteRules(source, rewrite, roleInput)) continue;
+      if (
+        ENGLISH_CORPORATE_FLUFF_RE.test(rewrite) &&
+        !ENGLISH_CORPORATE_FLUFF_RE.test(source)
+      ) {
+        continue;
       }
+      if (EN_SOFT_FILLER_RE.test(rewrite) && !EN_SOFT_FILLER_RE.test(source)) {
+        continue;
+      }
+      if (violatesRoleRewriteRules(source, rewrite, roleInput)) continue;
     }
 
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
     if (seen.has(key)) continue;
     seen.add(key);
+
     out.push({ source, rewrite, reason, sourceProfile, rewriteProfile });
   }
 
