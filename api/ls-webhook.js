@@ -56,8 +56,8 @@ export default async function handler(req, res) {
   attrs?.id ||
   evt?.data?.id ||
   "";
-    console.log("LS WEBHOOK", { eventName, orderId, email });
     const email = attrs?.user_email || attrs?.customer_email || attrs?.email;
+console.log("LS WEBHOOK", { eventName, orderId, email });
 
     // Sadece bizim ürünse işleyelim (ürün adıyla da filtreleyebilirsin)
     // const productName = attrs?.product_name || "";
