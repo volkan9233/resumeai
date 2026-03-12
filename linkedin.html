@@ -918,6 +918,122 @@ tone: {
 }  // ✅ ES burada bitti
 }; // ✅ I18N burada bitti
 
+  const ROLE_FAMILY_PRESETS = {
+  software_engineering: {
+    targetRole: "Software Engineer",
+    labels: { en: "Software Engineering", tr: "Yazılım Geliştirme", es: "Ingeniería de Software" }
+  },
+  qa: {
+    targetRole: "QA Engineer",
+    labels: { en: "QA / Testing", tr: "QA / Test", es: "QA / Testing" }
+  },
+  data: {
+    targetRole: "Data Analyst",
+    labels: { en: "Data / Analytics", tr: "Veri / Analitik", es: "Datos / Analítica" }
+  },
+  product: {
+    targetRole: "Product Manager",
+    labels: { en: "Product", tr: "Ürün", es: "Producto" }
+  },
+  project: {
+    targetRole: "Project Manager",
+    labels: { en: "Project / Program", tr: "Proje / Program", es: "Proyecto / Programa" }
+  },
+  business_analysis: {
+    targetRole: "Business Analyst",
+    labels: { en: "Business Analysis", tr: "İş Analizi", es: "Análisis de Negocio" }
+  },
+  marketing: {
+    targetRole: "Marketing Specialist",
+    labels: { en: "Marketing", tr: "Pazarlama", es: "Marketing" }
+  },
+  sales: {
+    targetRole: "Sales Specialist",
+    labels: { en: "Sales", tr: "Satış", es: "Ventas" }
+  },
+  customer_support: {
+    targetRole: "Customer Support Specialist",
+    labels: { en: "Customer Support", tr: "Müşteri Destek", es: "Atención al Cliente" }
+  },
+  customer_success: {
+    targetRole: "Customer Success Specialist",
+    labels: { en: "Customer Success", tr: "Müşteri Başarısı", es: "Customer Success" }
+  },
+  operations: {
+    targetRole: "Operations Specialist",
+    labels: { en: "Operations", tr: "Operasyon", es: "Operaciones" }
+  },
+  procurement_supply_chain: {
+    targetRole: "Procurement Specialist",
+    labels: { en: "Procurement / Supply Chain", tr: "Satın Alma / Tedarik Zinciri", es: "Compras / Supply Chain" }
+  },
+  finance_accounting: {
+    targetRole: "Finance Specialist",
+    labels: { en: "Finance / Accounting", tr: "Finans / Muhasebe", es: "Finanzas / Contabilidad" }
+  },
+  hr_recruiting: {
+    targetRole: "HR Specialist",
+    labels: { en: "HR / Recruiting", tr: "İK / İşe Alım", es: "RRHH / Recruiting" }
+  },
+  administration: {
+    targetRole: "Administrative Specialist",
+    labels: { en: "Administration", tr: "İdari İşler", es: "Administración" }
+  },
+  executive_assistant: {
+    targetRole: "Executive Assistant",
+    labels: { en: "Executive Assistant", tr: "Yönetici Asistanı", es: "Asistente Ejecutivo" }
+  },
+  design: {
+    targetRole: "Designer",
+    labels: { en: "Design", tr: "Tasarım", es: "Diseño" }
+  },
+  education: {
+    targetRole: "Teacher",
+    labels: { en: "Education", tr: "Eğitim", es: "Educación" }
+  },
+  healthcare_administration: {
+    targetRole: "Healthcare Administrator",
+    labels: { en: "Healthcare Administration", tr: "Sağlık Yönetimi", es: "Administración Sanitaria" }
+  },
+  engineering: {
+    targetRole: "Engineer",
+    labels: { en: "Engineering", tr: "Mühendislik", es: "Ingeniería" }
+  },
+  legal_compliance: {
+    targetRole: "Legal / Compliance Specialist",
+    labels: { en: "Legal / Compliance", tr: "Hukuk / Uyum", es: "Legal / Compliance" }
+  },
+  generic: {
+    targetRole: "Professional",
+    labels: { en: "General / Other", tr: "Genel / Diğer", es: "General / Otro" }
+  }
+};
+
+function renderRoleFamilyOptions(){
+  const lang = getLang();
+  const t = window.__t || I18N.en;
+  const sel = document.getElementById("roleFamily");
+  if (!sel) return;
+
+  const current = sel.value || "";
+  sel.innerHTML = "";
+
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.disabled = true;
+  ph.selected = !current;
+  ph.textContent = t.roleFamilyPlaceholder || "Select job family";
+  sel.appendChild(ph);
+
+  Object.entries(ROLE_FAMILY_PRESETS).forEach(([value, cfg]) => {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = (cfg.labels && cfg.labels[lang]) || cfg.labels?.en || value;
+    if (current === value) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 function getLang(){
   const qs = new URLSearchParams(location.search);
   return (qs.get("lang") || "en").toLowerCase();
