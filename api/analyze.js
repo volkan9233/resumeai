@@ -2258,7 +2258,7 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
-  const englishStyleBlock = outLang === "English" ? build(roleProfile, cv, jd) : "";
+  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   return [
     `Return JSON in this exact schema:\n\n{\n  "optimized_cv": string\n}`,
