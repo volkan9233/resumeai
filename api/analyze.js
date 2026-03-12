@@ -2461,40 +2461,6 @@ const model = isPreview ? previewModel : fullModel;
       }
     }
 
-    if (unsupportedTerms.length > 0) {
-      try {
-        const cleaned = await callOpenAIJson({
-          apiKey,
-          model,
-          system: systemPrompt,
-          userPrompt: buildRepairPrompt({
-            cv,
-            jd,
-            hasJD,
-            currentOptimizedCv: currentOptimized || cv,
-            summary: normalized.summary,
-            missingKeywords: normalized.missing_keywords,
-            bulletUpgrades,
-            unsupportedTerms,
-            outLang,
-            roleProfile,
-          }),
-          isPreview: false,
-          passType: "repair",
-          maxCompletionTokens: 3800,
-        });
-
-        if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
-          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim(), outLang);
-          if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades, outLang);
-          }
-        }
-      } catch {
-        // keep currentOptimized
-      }
-    }
-
     normalized.optimized_cv = currentOptimized;
     normalized.optimized_ats_score = computeFinalOptimizedScore(cv, currentOptimized, normalized.ats_score, jd);
 
