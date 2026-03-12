@@ -2164,13 +2164,22 @@ weakRules,
 "- Does it avoid fake impact and awkward wording?",
 "- If any answer is no, do not return that item.",
 
-"WEAK SENTENCE OUTPUT COUNT RULE",
-"- Do not force maximum count.",
-"- Return only genuinely strong rewrite opportunities.",
-"- Target behavior: usually 5 to 10 items.",
-"- Minimum 4 if the resume clearly contains many weak bullets.",
-"- Maximum 12.",
-"- If the resume is already fairly strong, return fewer.",
+...(isPreview
+  ? [
+      "WEAK SENTENCE OUTPUT COUNT RULE",
+      "- For preview mode, return up to 2 weak_sentences only.",
+      "- Do not force the count.",
+      "- Return only genuinely strong rewrite opportunities.",
+    ]
+  : [
+      "WEAK SENTENCE OUTPUT COUNT RULE",
+      "- Do not force maximum count.",
+      "- Return only genuinely strong rewrite opportunities.",
+      "- Target behavior: usually 5 to 10 items.",
+      "- Minimum 4 if the resume clearly contains many weak bullets.",
+      "- Maximum 12.",
+      "- If the resume is already fairly strong, return fewer.",
+    ]),
 
 "- Both sentence and rewrite must stay truthful and materially better.",
 summaryRule,
