@@ -2294,7 +2294,7 @@ const model = isPreview ? previewModel : fullModel;
         userPrompt: buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview }),
         isPreview,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1200 : 2200,
+        maxCompletionTokens: isPreview ? 1000 : 1800,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -2374,7 +2374,7 @@ const model = isPreview ? previewModel : fullModel;
           userPrompt: buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences: normalized.weak_sentences, outLang, roleProfile }),
           isPreview: false,
           passType: "bullet",
-          maxCompletionTokens: 1700,
+          maxCompletionTokens: 1400,
         });
         bulletUpgrades = normalizeBulletUpgrades(Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : [], outLang, roleProfile, cv, jd);
       } catch {
@@ -2406,7 +2406,7 @@ const model = isPreview ? previewModel : fullModel;
         }),
         isPreview: false,
         passType: "optimize",
-        maxCompletionTokens: 3600,
+        maxCompletionTokens: 3000,
       });
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
@@ -2446,7 +2446,7 @@ const model = isPreview ? previewModel : fullModel;
           }),
           isPreview: false,
           passType: "repair",
-          maxCompletionTokens: 3800,
+          maxCompletionTokens: 3000,
         });
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
