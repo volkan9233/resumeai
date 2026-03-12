@@ -2258,10 +2258,21 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "OPENAI_API_KEY is missing on Vercel" });
     }
 
-    const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
     const hasJD = !!jd;
     const sessionOk = verifySession(req);
     const isPreview = previewRequested || !sessionOk;
+
+    const previewModel =
+  process.env.OPENAI_MODEL_PREVIEW ||
+  process.env.OPENAI_MODEL ||
+  "gpt-4.1-mini";
+
+const fullModel =
+  process.env.OPENAI_MODEL_FULL ||
+  process.env.OPENAI_MODEL ||
+  "gpt-4.1-mini";
+
+const model = isPreview ? previewModel : fullModel;
 
     const ip = getClientIp(req);
     const limiter = isPreview ? rlPreview : rlFull;
