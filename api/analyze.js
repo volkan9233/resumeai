@@ -2365,51 +2365,26 @@ const model = isPreview ? previewModel : fullModel;
     }
 
     let bulletUpgrades = [];
-
-if (normalized.weak_sentences.length > 0) {
-  bulletUpgrades = normalizeBulletUpgrades(
-    buildLocalBulletUpgradeFallback(normalized.weak_sentences),
-    outLang,
-    roleProfile,
-    cv,
-    jd
-  );
-}
-
-if (bulletUpgrades.length < Math.min(3, normalized.weak_sentences.length)) {
-  try {
-    const bulletData = await callOpenAIJson({
-      apiKey,
-      model,
-      system: systemPrompt,
-      userPrompt: buildTargetedBulletUpgradePrompt({
-        cv,
-        jd,
-        hasJD,
-        weakSentences: normalized.weak_sentences,
-        outLang,
-        roleProfile,
-      }),
-      isPreview: false,
-      passType: "bullet",
-      maxCompletionTokens: 1200,
-    });
-
-    const modelBulletUpgrades = normalizeBulletUpgrades(
-      Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : [],
-      outLang,
-      roleProfile,
-      cv,
-      jd
-    );
-
-    if (modelBulletUpgrades.length > bulletUpgrades.length) {
-      bulletUpgrades = modelBulletUpgrades;
+    if (normalized.weak_sentences.length > 0) {
+      try {
+        const bulletData = await callOpenAIJson({
+          apiKey,
+          model,
+          system: systemPrompt,
+          userPrompt: buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences: normalized.weak_sentences, outLang, roleProfile }),
+          isPreview: false,
+          passType: "bullet",
+          maxCompletionTokens: 1700,
+        });
+        bulletUpgrades = normalizeBulletUpgrades(Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : [], outLang, roleProfile, cv, jd);
+      } catch {
+        bulletUpgrades = [];
+      }
     }
-  } catch {
-    // local bulletUpgrades ile devam
-  }
-}
+
+    if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
+      bulletUpgrades = normalizeBulletUpgrades(buildLocalBulletUpgradeFallback(normalized.weak_sentences), outLang, roleProfile, cv, jd);
+    }
 
     let currentOptimized = "";
     let unsupportedTerms = [];
