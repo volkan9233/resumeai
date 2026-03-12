@@ -1363,12 +1363,14 @@ async function run(){
   const btn = document.getElementById("btn");
   const status = document.getElementById("status");
   const spinner = document.getElementById("spinner");
-  const targetRole = (document.getElementById("targetRole")?.value || "").trim();
-if (!targetRole) {
+  const roleFamily = (document.getElementById("roleFamily")?.value || "").trim();
+if (!roleFamily) {
   status.className = "status err";
-  status.textContent = "Please enter Target role (required).";
+  status.textContent = t.needRoleFamily || "Please select a job family.";
   return;
 }
+
+const targetRole = ROLE_FAMILY_PRESETS[roleFamily]?.targetRole || "";
 
   if(!resume){
     status.className = "status err";
