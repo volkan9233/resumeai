@@ -1682,17 +1682,16 @@ function buildAttempts({ model, passType = "main", isPreview = false, maxComplet
 
   if (passType === "optimize") {
     return [
-      { reasoningEffort: "low", temperature: null, maxCompletionTokens },
-      { reasoningEffort: "none", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 300) },
+      { reasoningEffort: "minimal", temperature: 0.1, maxCompletionTokens },
+      { reasoningEffort: "low", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 200) },
     ];
   }
 
   return [
-    { reasoningEffort: "none", temperature: 0.1, maxCompletionTokens },
-    { reasoningEffort: "none", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 200) },
+    { reasoningEffort: "minimal", temperature: 0.1, maxCompletionTokens },
+    { reasoningEffort: "minimal", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 150) },
   ];
 }
-
 async function fetchWithTimeout(url, options, timeoutMs = 45000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
