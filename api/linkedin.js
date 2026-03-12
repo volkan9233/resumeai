@@ -4,14 +4,12 @@ import crypto from "crypto";
 
 const redis = Redis.fromEnv();
 
-// Preview: 10 dakika / 3
 const rlPreview = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(3, "10 m"),
   prefix: "resumeai:rl:preview",
 });
 
-// Full: 1 dakika / 3
 const rlFull = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(3, "1 m"),
@@ -28,8 +26,8 @@ const LANG_MAP = {
   zh: "Chinese (Simplified)",
 };
 
-const VALID_LI_TONES = new Set(["clean", "confident", "bold"]);
-const VALID_LI_SENIORITY = new Set([
+const VALID_TONES = new Set(["clean", "confident", "bold"]);
+const VALID_SENIORITY = new Set([
   "intern",
   "junior",
   "associate",
@@ -40,6 +38,1184 @@ const VALID_LI_SENIORITY = new Set([
   "director",
   "executive",
 ]);
+
+const VALID_ROLE_FAMILIES = new Set([
+  "software_engineering",
+  "qa",
+  "data",
+  "product",
+  "project",
+  "business_analysis",
+  "marketing",
+  "sales",
+  "customer_support",
+  "customer_success",
+  "operations",
+  "procurement_supply_chain",
+  "finance_accounting",
+  "hr_recruiting",
+  "administration",
+  "executive_assistant",
+  "design",
+  "education",
+  "healthcare_administration",
+  "engineering",
+  "legal_compliance",
+  "generic",
+]);
+
+const ROLE_FAMILIES = {
+  software_engineering: {
+    titles: [
+      "Software Engineer",
+      "Software Developer",
+      "Backend Engineer",
+      "Frontend Engineer",
+      "Full Stack Developer",
+      "Full-Stack Developer",
+      "Web Developer",
+      "Application Developer",
+      "Mobile Developer",
+      "DevOps Engineer",
+      "Systems Engineer",
+    ],
+    aliases: [
+      "software engineer",
+      "software developer",
+      "backend engineer",
+      "backend developer",
+      "frontend engineer",
+      "frontend developer",
+      "full stack developer",
+      "full-stack developer",
+      "web developer",
+      "application developer",
+      "mobile developer",
+      "ios developer",
+      "android developer",
+      "devops engineer",
+      "systems engineer",
+      "developer",
+      "engineer",
+    ],
+    keywords: [
+      "software development",
+      "application development",
+      "backend",
+      "frontend",
+      "full stack",
+      "api integration",
+      "database",
+      "system design",
+      "debugging",
+      "deployment",
+      "cloud",
+      "microservices",
+      "version control",
+      "code review",
+    ],
+    strongTerms: [
+      "REST API",
+      "microservices",
+      "SQL",
+      "Python",
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Node.js",
+      "Java",
+      "C#",
+      "AWS",
+      "Azure",
+      "GCP",
+      "Docker",
+      "Kubernetes",
+      "Git",
+      "CI/CD",
+      "unit testing",
+      "integration testing",
+    ],
+    toolTerms: [
+      "SQL",
+      "Python",
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Node.js",
+      "Java",
+      "C#",
+      "AWS",
+      "Azure",
+      "GCP",
+      "Docker",
+      "Kubernetes",
+      "Git",
+      "Postman",
+    ],
+    linkedinKeywords: [
+      "software development",
+      "backend development",
+      "frontend development",
+      "API integration",
+      "application architecture",
+      "database design",
+      "cloud services",
+      "system reliability",
+      "debugging",
+      "code review",
+    ],
+    recruiterTerms: [
+      "software engineer",
+      "software developer",
+      "backend engineer",
+      "frontend engineer",
+      "full stack developer",
+      "web developer",
+      "application developer",
+    ],
+  },
+  qa: {
+    titles: [
+      "QA Engineer",
+      "Quality Assurance Engineer",
+      "Software Tester",
+      "Test Engineer",
+      "QA Analyst",
+      "Automation Tester",
+    ],
+    aliases: [
+      "qa engineer",
+      "quality assurance engineer",
+      "software tester",
+      "test engineer",
+      "qa analyst",
+      "manual tester",
+      "automation tester",
+      "test analyst",
+      "quality assurance",
+      "qa",
+    ],
+    keywords: [
+      "quality assurance",
+      "test execution",
+      "test planning",
+      "bug tracking",
+      "defect reporting",
+      "regression testing",
+      "test documentation",
+      "test automation",
+      "uat",
+    ],
+    strongTerms: [
+      "QA",
+      "test cases",
+      "test scenarios",
+      "regression testing",
+      "Selenium",
+      "Cypress",
+      "Postman",
+      "Jira",
+      "bug tracking",
+      "defect management",
+      "UAT",
+    ],
+    toolTerms: ["Selenium", "Cypress", "Postman", "Jira", "API testing", "test automation"],
+    linkedinKeywords: [
+      "test execution",
+      "regression testing",
+      "defect tracking",
+      "test documentation",
+      "API testing",
+      "automation testing",
+      "quality validation",
+      "release testing",
+    ],
+    recruiterTerms: ["qa engineer", "qa analyst", "software tester", "test engineer", "quality assurance"],
+  },
+  data: {
+    titles: [
+      "Data Analyst",
+      "Business Intelligence Analyst",
+      "BI Analyst",
+      "Reporting Analyst",
+      "Analytics Specialist",
+    ],
+    aliases: [
+      "data analyst",
+      "business intelligence analyst",
+      "bi analyst",
+      "reporting analyst",
+      "analytics specialist",
+      "data specialist",
+      "business analyst data",
+    ],
+    keywords: [
+      "data analysis",
+      "analytics",
+      "dashboard",
+      "reporting",
+      "kpi",
+      "trend analysis",
+      "data validation",
+      "performance metrics",
+      "data modeling",
+      "etl",
+    ],
+    strongTerms: [
+      "SQL",
+      "Python",
+      "Excel",
+      "Tableau",
+      "Power BI",
+      "Looker Studio",
+      "dashboard",
+      "KPI",
+      "data modeling",
+      "ETL",
+      "reporting",
+      "analysis",
+    ],
+    toolTerms: ["SQL", "Python", "Excel", "Tableau", "Power BI", "Looker Studio", "Google Sheets"],
+    linkedinKeywords: [
+      "data visualization",
+      "dashboard reporting",
+      "trend analysis",
+      "KPI tracking",
+      "data validation",
+      "report automation",
+      "data modeling",
+      "ETL",
+    ],
+    recruiterTerms: ["data analyst", "bi analyst", "analytics specialist", "reporting analyst", "business intelligence"],
+  },
+  product: {
+    titles: ["Product Manager", "Product Owner", "Associate Product Manager", "Technical Product Manager"],
+    aliases: [
+      "product manager",
+      "product owner",
+      "associate product manager",
+      "technical product manager",
+      "product specialist",
+    ],
+    keywords: [
+      "product roadmap",
+      "backlog",
+      "requirements",
+      "user stories",
+      "feature planning",
+      "stakeholder alignment",
+      "product discovery",
+      "release planning",
+      "feature prioritization",
+    ],
+    strongTerms: [
+      "roadmap",
+      "backlog",
+      "user stories",
+      "requirements gathering",
+      "acceptance criteria",
+      "Jira",
+      "Confluence",
+      "Agile",
+      "Scrum",
+      "feature prioritization",
+      "cross-functional collaboration",
+    ],
+    toolTerms: ["Jira", "Confluence", "Figma", "analytics"],
+    linkedinKeywords: [
+      "product roadmap",
+      "backlog prioritization",
+      "requirements gathering",
+      "release planning",
+      "acceptance criteria",
+      "stakeholder communication",
+      "cross-functional collaboration",
+    ],
+    recruiterTerms: ["product manager", "product owner", "associate product manager", "technical product manager"],
+  },
+  project: {
+    titles: ["Project Manager", "Project Coordinator", "Program Coordinator", "Program Manager"],
+    aliases: [
+      "project manager",
+      "project coordinator",
+      "program coordinator",
+      "program manager",
+      "pm",
+      "project lead",
+    ],
+    keywords: [
+      "project coordination",
+      "project management",
+      "timelines",
+      "deliverables",
+      "status tracking",
+      "stakeholder updates",
+      "milestones",
+      "project documentation",
+      "risk tracking",
+    ],
+    strongTerms: [
+      "project coordination",
+      "project management",
+      "timelines",
+      "deliverables",
+      "milestones",
+      "status tracking",
+      "risk tracking",
+      "Jira",
+      "Confluence",
+      "Agile",
+      "Primavera P6",
+      "MS Project",
+    ],
+    toolTerms: ["Jira", "Confluence", "Excel", "Primavera P6", "MS Project"],
+    linkedinKeywords: [
+      "timeline management",
+      "deliverable coordination",
+      "status reporting",
+      "stakeholder communication",
+      "risk tracking",
+      "project documentation",
+      "resource coordination",
+      "milestone tracking",
+    ],
+    recruiterTerms: ["project manager", "project coordinator", "program manager", "program coordinator"],
+  },
+  business_analysis: {
+    titles: ["Business Analyst", "Systems Analyst", "Process Analyst", "Operations Analyst"],
+    aliases: ["business analyst", "systems analyst", "process analyst", "operations analyst"],
+    keywords: [
+      "business requirements",
+      "process analysis",
+      "gap analysis",
+      "workflow analysis",
+      "stakeholder interviews",
+      "documentation",
+      "reporting",
+      "process mapping",
+    ],
+    strongTerms: [
+      "requirements gathering",
+      "process mapping",
+      "gap analysis",
+      "documentation",
+      "stakeholder management",
+      "Jira",
+      "Confluence",
+      "reporting",
+      "Excel",
+      "SQL",
+      "UAT",
+    ],
+    toolTerms: ["Jira", "Confluence", "Excel", "SQL", "Power BI", "Visio"],
+    linkedinKeywords: [
+      "requirements gathering",
+      "workflow analysis",
+      "process mapping",
+      "documentation",
+      "stakeholder communication",
+      "UAT support",
+      "process improvement",
+    ],
+    recruiterTerms: ["business analyst", "systems analyst", "process analyst", "operations analyst"],
+  },
+  marketing: {
+    titles: [
+      "Digital Marketing Specialist",
+      "Marketing Specialist",
+      "Performance Marketing Specialist",
+      "Marketing Executive",
+      "Growth Marketer",
+    ],
+    aliases: [
+      "digital marketing specialist",
+      "marketing specialist",
+      "performance marketing specialist",
+      "marketing executive",
+      "content specialist",
+      "growth marketer",
+      "marketing manager",
+    ],
+    keywords: [
+      "Google Ads",
+      "Meta Ads",
+      "Google Analytics",
+      "GA4",
+      "Google Tag Manager",
+      "SEO",
+      "SEM",
+      "PPC",
+      "campaign reporting",
+      "content marketing",
+      "email marketing",
+      "social media",
+      "lead generation",
+    ],
+    strongTerms: [
+      "Google Ads",
+      "Meta Ads",
+      "Google Analytics",
+      "GA4",
+      "Google Tag Manager",
+      "SEO",
+      "SEM",
+      "PPC",
+      "A/B test",
+      "lead generation",
+      "campaign optimization",
+      "Search Console",
+      "HubSpot",
+    ],
+    toolTerms: ["Google Ads", "Meta Ads", "Google Analytics", "GA4", "Google Tag Manager", "Search Console", "HubSpot"],
+    linkedinKeywords: [
+      "PPC",
+      "SEO",
+      "SEM",
+      "GA4",
+      "Google Tag Manager",
+      "audience segmentation",
+      "A/B testing",
+      "lead generation",
+      "campaign reporting",
+    ],
+    recruiterTerms: ["digital marketing specialist", "performance marketing specialist", "marketing specialist", "growth marketer"],
+  },
+  sales: {
+    titles: ["Sales Specialist", "Sales Executive", "Account Executive", "Sales Coordinator", "Business Development Executive"],
+    aliases: [
+      "sales specialist",
+      "sales executive",
+      "account executive",
+      "sales coordinator",
+      "business development executive",
+      "sales representative",
+    ],
+    keywords: [
+      "sales",
+      "lead management",
+      "pipeline",
+      "crm",
+      "sales reporting",
+      "proposal",
+      "client communication",
+      "deal tracking",
+      "order processing",
+    ],
+    strongTerms: [
+      "pipeline",
+      "CRM",
+      "lead follow-up",
+      "account support",
+      "sales reporting",
+      "proposal",
+      "deal tracking",
+      "order processing",
+      "Salesforce",
+      "HubSpot",
+    ],
+    toolTerms: ["Salesforce", "HubSpot", "CRM", "Excel"],
+    linkedinKeywords: [
+      "sales pipeline",
+      "lead management",
+      "CRM",
+      "proposal preparation",
+      "deal tracking",
+      "account coordination",
+      "client follow-up",
+      "sales reporting",
+    ],
+    recruiterTerms: ["sales executive", "sales specialist", "account executive", "sales coordinator", "business development"],
+  },
+  customer_support: {
+    titles: [
+      "Customer Support Specialist",
+      "Customer Service Representative",
+      "Support Specialist",
+      "Technical Support Specialist",
+      "Help Desk Specialist",
+    ],
+    aliases: [
+      "customer support specialist",
+      "customer service representative",
+      "support specialist",
+      "technical support specialist",
+      "help desk specialist",
+      "customer support",
+      "customer service",
+    ],
+    keywords: [
+      "customer support",
+      "ticket handling",
+      "issue resolution",
+      "live chat",
+      "email support",
+      "complaint handling",
+      "service quality",
+      "crm",
+      "zendesk",
+      "freshdesk",
+      "sla",
+      "escalation",
+    ],
+    strongTerms: [
+      "customer support",
+      "ticket",
+      "issue resolution",
+      "issue escalation",
+      "email support",
+      "live chat",
+      "complaint handling",
+      "SLA",
+      "Zendesk",
+      "Freshdesk",
+      "CRM",
+      "help desk",
+    ],
+    toolTerms: ["Zendesk", "Freshdesk", "CRM", "help desk"],
+    linkedinKeywords: [
+      "ticket management",
+      "issue resolution",
+      "service quality",
+      "SLA",
+      "escalation handling",
+      "support documentation",
+      "customer communication",
+      "case follow-up",
+    ],
+    recruiterTerms: ["customer support specialist", "customer service representative", "support specialist", "technical support specialist"],
+  },
+  customer_success: {
+    titles: ["Customer Success Specialist", "Customer Success Manager", "Client Success Specialist", "Account Manager"],
+    aliases: [
+      "customer success specialist",
+      "customer success manager",
+      "client success specialist",
+      "account manager",
+      "customer success",
+    ],
+    keywords: [
+      "customer success",
+      "onboarding",
+      "renewal",
+      "retention",
+      "account management",
+      "customer communication",
+      "relationship management",
+      "customer feedback",
+      "nps",
+      "csat",
+      "qbr",
+    ],
+    strongTerms: [
+      "customer success",
+      "onboarding",
+      "account management",
+      "renewal",
+      "retention",
+      "customer feedback",
+      "relationship management",
+      "NPS",
+      "CSAT",
+      "QBR",
+      "CRM",
+      "Salesforce",
+      "HubSpot",
+    ],
+    toolTerms: ["CRM", "Salesforce", "HubSpot"],
+    linkedinKeywords: [
+      "customer onboarding",
+      "account management",
+      "renewal support",
+      "customer retention",
+      "relationship management",
+      "CSAT",
+      "NPS",
+      "QBR",
+      "client engagement",
+    ],
+    recruiterTerms: ["customer success specialist", "customer success manager", "client success specialist", "account manager"],
+  },
+  operations: {
+    titles: ["Operations Specialist", "Operations Coordinator", "Operations Analyst", "Operations Manager", "Office Manager"],
+    aliases: [
+      "operations specialist",
+      "operations coordinator",
+      "operations analyst",
+      "operations manager",
+      "office manager",
+      "operations",
+    ],
+    keywords: [
+      "operations",
+      "workflow",
+      "documentation",
+      "reporting",
+      "process coordination",
+      "process improvement",
+      "scheduling",
+      "cross-functional coordination",
+      "vendor communication",
+      "record keeping",
+      "task tracking",
+    ],
+    strongTerms: [
+      "operations",
+      "workflow",
+      "process coordination",
+      "documentation",
+      "reporting",
+      "scheduling",
+      "status updates",
+      "vendor communication",
+      "process improvement",
+      "Excel",
+      "ERP",
+      "SAP",
+      "Jira",
+    ],
+    toolTerms: ["Excel", "ERP", "SAP", "Jira"],
+    linkedinKeywords: [
+      "workflow coordination",
+      "process documentation",
+      "status reporting",
+      "cross-functional collaboration",
+      "task prioritization",
+      "operational tracking",
+      "resource coordination",
+      "vendor communication",
+    ],
+    recruiterTerms: ["operations specialist", "operations coordinator", "operations analyst", "operations manager"],
+  },
+  procurement_supply_chain: {
+    titles: [
+      "Procurement Specialist",
+      "Purchasing Specialist",
+      "Buyer",
+      "Logistics Specialist",
+      "Supply Chain Specialist",
+      "Logistics Coordinator",
+    ],
+    aliases: [
+      "procurement specialist",
+      "purchasing specialist",
+      "buyer",
+      "sourcing specialist",
+      "procurement coordinator",
+      "supply chain specialist",
+      "logistics specialist",
+      "logistics coordinator",
+      "warehouse coordinator",
+      "inventory specialist",
+      "procurement",
+      "logistics",
+      "supply chain",
+    ],
+    keywords: [
+      "procurement",
+      "purchasing",
+      "sourcing",
+      "vendor management",
+      "rfq",
+      "purchase orders",
+      "supplier communication",
+      "cost comparison",
+      "supply chain",
+      "inventory",
+      "shipment coordination",
+      "warehouse operations",
+      "order fulfillment",
+      "delivery tracking",
+      "stock control",
+    ],
+    strongTerms: [
+      "procurement",
+      "sourcing",
+      "vendor management",
+      "supplier communication",
+      "purchase orders",
+      "RFQ",
+      "price comparison",
+      "SAP",
+      "ERP",
+      "inventory management",
+      "shipment tracking",
+      "warehouse operations",
+      "logistics coordination",
+      "stock control",
+      "order fulfillment",
+    ],
+    toolTerms: ["SAP", "ERP", "Excel", "warehouse management"],
+    linkedinKeywords: [
+      "vendor management",
+      "sourcing",
+      "purchase orders",
+      "supplier communication",
+      "RFQ",
+      "inventory management",
+      "shipment tracking",
+      "warehouse operations",
+      "logistics coordination",
+      "stock control",
+    ],
+    recruiterTerms: ["procurement specialist", "buyer", "sourcing specialist", "supply chain specialist", "logistics specialist", "logistics coordinator"],
+  },
+  finance_accounting: {
+    titles: [
+      "Accountant",
+      "Financial Analyst",
+      "Finance Specialist",
+      "Accounts Payable Specialist",
+      "Accounts Receivable Specialist",
+      "Bookkeeper",
+      "Finance Assistant",
+    ],
+    aliases: [
+      "accountant",
+      "financial analyst",
+      "finance specialist",
+      "accounts payable specialist",
+      "accounts receivable specialist",
+      "bookkeeper",
+      "finance assistant",
+      "finance",
+      "accounting",
+    ],
+    keywords: [
+      "financial reporting",
+      "reconciliation",
+      "accounts payable",
+      "accounts receivable",
+      "invoice processing",
+      "budget tracking",
+      "expense reporting",
+      "forecasting",
+      "variance analysis",
+      "audit support",
+      "ledger",
+      "month-end",
+    ],
+    strongTerms: [
+      "financial reporting",
+      "reconciliation",
+      "accounts payable",
+      "accounts receivable",
+      "invoice processing",
+      "budgeting",
+      "forecasting",
+      "variance analysis",
+      "audit",
+      "ledger",
+      "Excel",
+      "IFRS",
+      "GAAP",
+      "SAP",
+      "Oracle",
+      "QuickBooks",
+      "NetSuite",
+      "ERP",
+    ],
+    toolTerms: ["Excel", "SAP", "Oracle", "QuickBooks", "NetSuite", "ERP"],
+    linkedinKeywords: [
+      "financial reporting",
+      "account reconciliation",
+      "budget tracking",
+      "variance analysis",
+      "forecasting",
+      "month-end close",
+      "AP/AR",
+      "audit support",
+      "ERP systems",
+    ],
+    recruiterTerms: ["accountant", "financial analyst", "finance specialist", "accounts payable specialist", "accounts receivable specialist", "bookkeeper"],
+  },
+  hr_recruiting: {
+    titles: ["HR Specialist", "Human Resources Specialist", "Recruiter", "Talent Acquisition Specialist", "HR Coordinator"],
+    aliases: [
+      "hr specialist",
+      "human resources specialist",
+      "recruiter",
+      "talent acquisition specialist",
+      "hr coordinator",
+      "people operations specialist",
+      "human resources",
+      "hr",
+      "recruiting",
+    ],
+    keywords: [
+      "recruitment",
+      "candidate screening",
+      "interview scheduling",
+      "employee records",
+      "onboarding",
+      "offboarding",
+      "training coordination",
+      "hr administration",
+      "compliance",
+      "payroll support",
+    ],
+    strongTerms: [
+      "recruiting",
+      "candidate screening",
+      "interview scheduling",
+      "onboarding",
+      "offboarding",
+      "employee records",
+      "talent acquisition",
+      "compliance",
+      "payroll support",
+      "Workday",
+      "Greenhouse",
+      "ATS",
+      "HRIS",
+    ],
+    toolTerms: ["Workday", "Greenhouse", "ATS", "Excel", "HRIS"],
+    linkedinKeywords: [
+      "talent acquisition",
+      "candidate screening",
+      "interview coordination",
+      "employee onboarding",
+      "HR administration",
+      "policy compliance",
+      "record management",
+      "HRIS",
+    ],
+    recruiterTerms: ["hr specialist", "human resources specialist", "recruiter", "talent acquisition specialist", "hr coordinator"],
+  },
+  administration: {
+    titles: ["Administrative Assistant", "Office Assistant", "Admin Assistant", "Office Coordinator"],
+    aliases: [
+      "administrative assistant",
+      "office assistant",
+      "admin assistant",
+      "office coordinator",
+      "administration",
+      "administrative support",
+    ],
+    keywords: [
+      "administrative support",
+      "calendar management",
+      "scheduling",
+      "meeting coordination",
+      "document preparation",
+      "filing",
+      "data entry",
+      "record keeping",
+      "office support",
+    ],
+    strongTerms: [
+      "calendar management",
+      "scheduling",
+      "meeting coordination",
+      "document preparation",
+      "filing",
+      "data entry",
+      "record keeping",
+      "office operations",
+      "Office",
+      "Excel",
+      "PowerPoint",
+      "Google Sheets",
+    ],
+    toolTerms: ["Office", "Excel", "PowerPoint", "Google Sheets"],
+    linkedinKeywords: [
+      "document management",
+      "calendar coordination",
+      "meeting scheduling",
+      "record maintenance",
+      "office administration",
+      "task coordination",
+      "data entry accuracy",
+      "administrative reporting",
+    ],
+    recruiterTerms: ["administrative assistant", "office assistant", "admin assistant", "office coordinator"],
+  },
+  executive_assistant: {
+    titles: ["Executive Assistant", "Personal Assistant", "Administrative Assistant"],
+    aliases: [
+      "executive assistant",
+      "personal assistant",
+      "administrative assistant",
+      "executive support",
+    ],
+    keywords: [
+      "calendar management",
+      "travel coordination",
+      "meeting coordination",
+      "document preparation",
+      "executive support",
+      "scheduling",
+      "record keeping",
+      "office administration",
+    ],
+    strongTerms: [
+      "calendar management",
+      "travel coordination",
+      "meeting coordination",
+      "document preparation",
+      "record keeping",
+      "scheduling",
+      "executive support",
+      "Excel",
+      "PowerPoint",
+      "Office",
+      "Google Sheets",
+    ],
+    toolTerms: ["Excel", "PowerPoint", "Office", "Google Sheets"],
+    linkedinKeywords: [
+      "calendar management",
+      "meeting coordination",
+      "travel coordination",
+      "document management",
+      "record maintenance",
+      "executive support",
+      "task prioritization",
+      "stakeholder communication",
+    ],
+    recruiterTerms: ["executive assistant", "personal assistant", "administrative assistant"],
+  },
+  design: {
+    titles: ["Designer", "Graphic Designer", "UI Designer", "UX Designer", "Product Designer", "Visual Designer"],
+    aliases: ["designer", "graphic designer", "ui designer", "ux designer", "product designer", "visual designer"],
+    keywords: [
+      "design",
+      "wireframes",
+      "prototypes",
+      "user interface",
+      "user experience",
+      "visual design",
+      "brand assets",
+      "design systems",
+    ],
+    strongTerms: [
+      "Figma",
+      "Adobe Creative Suite",
+      "Photoshop",
+      "Illustrator",
+      "wireframes",
+      "prototypes",
+      "UI",
+      "UX",
+      "design system",
+      "mockups",
+    ],
+    toolTerms: ["Figma", "Adobe Creative Suite", "Photoshop", "Illustrator", "After Effects"],
+    linkedinKeywords: [
+      "wireframing",
+      "prototyping",
+      "design systems",
+      "UI design",
+      "UX design",
+      "user flows",
+      "visual design",
+      "mockups",
+    ],
+    recruiterTerms: ["graphic designer", "ui designer", "ux designer", "product designer", "visual designer"],
+  },
+  education: {
+    titles: ["Teacher", "Instructor", "Lecturer", "Teaching Assistant"],
+    aliases: ["teacher", "english teacher", "math teacher", "subject teacher", "instructor", "lecturer", "teaching assistant"],
+    keywords: [
+      "lesson planning",
+      "classroom management",
+      "student assessment",
+      "curriculum",
+      "instruction",
+      "student support",
+      "teaching materials",
+    ],
+    strongTerms: [
+      "lesson planning",
+      "classroom management",
+      "student assessment",
+      "curriculum development",
+      "instruction",
+      "learning materials",
+      "student progress",
+      "Google Classroom",
+      "PowerPoint",
+      "Office",
+    ],
+    toolTerms: ["Excel", "PowerPoint", "Google Classroom", "Office"],
+    linkedinKeywords: [
+      "lesson planning",
+      "classroom management",
+      "student assessment",
+      "curriculum development",
+      "learning materials",
+      "student progress tracking",
+      "instruction",
+      "academic planning",
+    ],
+    recruiterTerms: ["teacher", "instructor", "lecturer", "teaching assistant"],
+  },
+  healthcare_administration: {
+    titles: ["Healthcare Administrator", "Medical Secretary", "Medical Office Assistant", "Patient Coordinator", "Clinic Coordinator"],
+    aliases: [
+      "healthcare administrator",
+      "medical secretary",
+      "medical office assistant",
+      "patient coordinator",
+      "clinic coordinator",
+      "healthcare administration",
+    ],
+    keywords: [
+      "patient scheduling",
+      "medical records",
+      "insurance verification",
+      "ehr",
+      "emr",
+      "clinic operations",
+      "appointment coordination",
+      "hipaa",
+    ],
+    strongTerms: [
+      "patient scheduling",
+      "medical records",
+      "insurance verification",
+      "EHR",
+      "EMR",
+      "HIPAA",
+      "appointment coordination",
+      "patient communication",
+      "clinic administration",
+    ],
+    toolTerms: ["EHR", "EMR", "Excel", "Office"],
+    linkedinKeywords: [
+      "patient scheduling",
+      "medical records",
+      "insurance verification",
+      "EHR/EMR",
+      "appointment coordination",
+      "HIPAA",
+      "patient communication",
+      "clinic administration",
+    ],
+    recruiterTerms: ["healthcare administrator", "medical secretary", "medical office assistant", "patient coordinator", "clinic coordinator"],
+  },
+  engineering: {
+    titles: ["Engineer", "Civil Engineer", "Mechanical Engineer", "Site Engineer", "Design Engineer", "Production Engineer"],
+    aliases: [
+      "engineer",
+      "civil engineer",
+      "site engineer",
+      "construction engineer",
+      "mechanical engineer",
+      "design engineer",
+      "maintenance engineer",
+      "production engineer",
+      "industrial engineer",
+    ],
+    keywords: [
+      "technical drawings",
+      "site supervision",
+      "construction",
+      "quantity takeoff",
+      "boq",
+      "technical documentation",
+      "autocad",
+      "revit",
+      "primavera p6",
+      "solidworks",
+      "equipment maintenance",
+      "production support",
+      "quality checks",
+    ],
+    strongTerms: [
+      "AutoCAD",
+      "Revit",
+      "Primavera P6",
+      "site supervision",
+      "technical drawings",
+      "quantity takeoff",
+      "BOQ",
+      "construction documentation",
+      "inspection",
+      "SolidWorks",
+      "preventive maintenance",
+      "equipment inspection",
+      "quality checks",
+      "root cause analysis",
+    ],
+    toolTerms: ["AutoCAD", "Revit", "Primavera P6", "SolidWorks", "Excel", "ERP"],
+    linkedinKeywords: [
+      "technical documentation",
+      "drawing review",
+      "site coordination",
+      "quantity takeoff",
+      "equipment inspection",
+      "preventive maintenance",
+      "production support",
+      "quality checks",
+    ],
+    recruiterTerms: ["civil engineer", "mechanical engineer", "site engineer", "design engineer", "production engineer", "engineer"],
+  },
+  legal_compliance: {
+    titles: ["Legal Assistant", "Compliance Specialist", "Compliance Analyst", "Legal Support Specialist"],
+    aliases: [
+      "legal assistant",
+      "compliance specialist",
+      "compliance analyst",
+      "legal support specialist",
+      "legal support",
+      "compliance",
+    ],
+    keywords: [
+      "compliance",
+      "legal documentation",
+      "contract support",
+      "policy review",
+      "regulatory documentation",
+      "case files",
+      "record maintenance",
+    ],
+    strongTerms: [
+      "compliance",
+      "legal documentation",
+      "contract support",
+      "policy review",
+      "regulatory documentation",
+      "case files",
+      "record maintenance",
+      "audit support",
+    ],
+    toolTerms: ["Excel", "Office"],
+    linkedinKeywords: [
+      "compliance documentation",
+      "policy review",
+      "contract support",
+      "record maintenance",
+      "regulatory support",
+      "documentation control",
+    ],
+    recruiterTerms: ["compliance specialist", "compliance analyst", "legal assistant", "legal support specialist"],
+  },
+  generic: {
+    titles: ["Professional", "Specialist", "Coordinator", "Analyst"],
+    aliases: [],
+    keywords: ["documentation", "coordination", "reporting", "analysis", "communication", "tracking", "support"],
+    strongTerms: ["documentation", "coordination", "reporting", "analysis", "communication", "tracking", "support", "Excel", "Office"],
+    toolTerms: ["Excel", "Office", "Google Sheets", "PowerPoint"],
+    linkedinKeywords: ["documentation", "cross-functional collaboration", "process tracking", "stakeholder communication", "task coordination", "reporting"],
+    recruiterTerms: ["specialist", "coordinator", "analyst", "professional"],
+  },
+};
+
+const TITLE_DENYLIST_BY_FAMILY = {
+  operations: ["market manager", "marketing manager", "product manager", "finance manager"],
+  customer_support: ["customer success manager", "product manager", "marketing manager"],
+  procurement_supply_chain: ["marketing manager", "product manager", "market manager"],
+  administration: ["operations manager", "product manager", "marketing manager"],
+  executive_assistant: ["operations manager", "product manager", "marketing manager"],
+};
+
+const META_LANGUAGE_RE = /\b(on linkedin[, ]*i aim to|i use clean recruiter-safe language|recruiter-safe language|search-aware|grounded positioning|right audience|strong wording|make the work more visible|the goal is not to sound louder|position my work|recruiter-ready language|linkedIn strategy|profile positioning|writing style)\b/i;
+const FLUFF_RE = /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|strategic initiatives|operational excellence|value-driven|best-in-class|visionary|game-changing|world-class|transformational|synergy|self-starter|go-getter|passionate|results-driven|highly motivated|hardworking|dedicated)\b/i;
+const UNSUPPORTED_IMPACT_RE = /\b(improve(?:d|s|ing)? efficiency|operational value|stakeholder readiness|future analysis|decision-making|better campaign outcomes|improved follow-up|reduced costs|generated revenue|improved retention|optimized performance|accelerated delivery|enable teams to work with fewer interruptions|support quality improvements|business impact|strategic ownership|growth strategy|revenue growth|performance gains)\b/i;
+const WEAK_REWRITE_START_RE = /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided|worked on|involved in|responsible for|handled)\b/i;
+const WEAK_START_RE = /^(helped|helps|assisted|assists|supported|supports|worked on|contributed to|participated in|involved in|handled|tasked with|responsible for|duties included|provided support for|yardımcı oldum|destek verdim|destek oldum|görev aldım|ilgilen(dim|di)|bulundum|çalıştım|yaptım)\b/i;
+const STRONG_ACTION_RE = /\b(engineered|built|developed|designed|implemented|integrated|tested|debugged|validated|automated|configured|deployed|maintained|planned|executed|created|responded|resolved|documented|scheduled|reviewed|updated|monitored|processed|reconciled|screened|analyzed|reported|tracked|managed|delivered|verified|produced|prepared|mapped|facilitated|taught|assessed|inspected|coordinated|collaborated|communicated|organized|compiled|addressed|guided|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|izledim|tasarladım|planladım|sundum|denetledim|doğruladım|işledim|değerlendirdim|koordine ettim)\b/i;
+const GENERIC_ROLE_DRIFT_RE = /\b(market manager|marketing manager|product manager|finance manager|customer success manager|operations manager|director|head of)\b/i;
+const ACRONYM_RE = /\b[A-Z]{2,}(?:\/[A-Z]{2,})?\b/;
 
 function uniqueTrimmedStrings(arr = []) {
   return Array.from(
@@ -56,7 +1232,7 @@ function escapeRegex(str = "") {
 }
 
 function normalizeCompareText(str = "") {
-  return String(str)
+  return String(str || "")
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}\s+%/#&.-]/gu, " ")
@@ -90,6 +1266,7 @@ function canonicalizeTerm(str = "") {
     [/electronic medical record/g, "emr"],
     [/customer service/g, "customer support"],
     [/talent acquisition/g, "recruiting"],
+    [/c sharp/g, "c#"],
   ];
 
   for (const [re, to] of replacements) {
@@ -137,7 +1314,7 @@ function countTermHits(text = "", terms = []) {
 }
 
 function countWords(str = "") {
-  return String(str).trim().split(/\s+/).filter(Boolean).length;
+  return String(str || "").trim().split(/\s+/).filter(Boolean).length;
 }
 
 function clampText(str = "", max = 1000) {
@@ -145,7 +1322,7 @@ function clampText(str = "", max = 1000) {
 }
 
 function getNonEmptyLines(str = "") {
-  return String(str)
+  return String(str || "")
     .replace(/\r/g, "")
     .split("\n")
     .map((x) => x.trim())
@@ -153,7 +1330,7 @@ function getNonEmptyLines(str = "") {
 }
 
 function getBulletLines(str = "") {
-  return String(str)
+  return String(str || "")
     .replace(/\r/g, "")
     .split("\n")
     .map((x) => x.trim())
@@ -163,7 +1340,7 @@ function getBulletLines(str = "") {
 }
 
 function tokenizeForSimilarity(str = "") {
-  return String(str)
+  return String(str || "")
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -208,7 +1385,7 @@ function splitSentenceEnding(str = "") {
 
 function isSectionHeader(line = "") {
   return /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|CORE SUMMARY|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|EDUCATION|LANGUAGES|CERTIFICATIONS|LICENSES|PROJECTS|ADDITIONAL INFORMATION|AWARDS|ACHIEVEMENTS|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i.test(
-    String(line).trim()
+    String(line || "").trim()
   );
 }
 
@@ -236,411 +1413,6 @@ function extractSummaryLines(cv = "") {
   return out;
 }
 
-function extractHeaderBlock(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const header = [];
-
-  for (const line of lines) {
-    if (isSectionHeader(line)) break;
-    header.push(line);
-  }
-
-  return header.slice(0, 6);
-}
-
-function verifySession(req) {
-  const appSecret = process.env.APP_SECRET;
-  if (!appSecret) return false;
-
-  const cookie = req.headers.cookie || "";
-  const m = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
-  if (!m) return false;
-
-  const token = decodeURIComponent(m[1]);
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-
-  const [data, sig] = parts;
-  const expected = crypto
-    .createHmac("sha256", appSecret)
-    .update(data)
-    .digest("base64url");
-
-  if (sig !== expected) return false;
-
-  let payload;
-  try {
-    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return false;
-  }
-
-  if (!payload?.exp || Date.now() > payload.exp) return false;
-  return true;
-}
-
-function getClientIp(req) {
-  const xf = req.headers["x-forwarded-for"];
-  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
-  return req.socket?.remoteAddress || "unknown";
-}
-
-async function ensureMinDelay(startedAt, minMs) {
-  const elapsed = Date.now() - startedAt;
-  const remain = minMs - elapsed;
-  if (remain > 0) {
-    await new Promise((resolve) => setTimeout(resolve, remain));
-  }
-}
-
-function normalizeSeniority(s = "") {
-  const value = String(s || "mid").trim().toLowerCase();
-  if (VALID_LI_SENIORITY.has(value)) return value;
-  if (/intern|staj/i.test(value)) return "intern";
-  if (/junior|jr/i.test(value)) return "junior";
-  if (/associate/i.test(value)) return "associate";
-  if (/senior|sr|uzman|kıdemli|kidemli/i.test(value)) return "senior";
-  if (/lead/i.test(value)) return "lead";
-  if (/manager|supervisor/i.test(value)) return "manager";
-  if (/director|head/i.test(value)) return "director";
-  if (/executive|vp|chief|c-level/i.test(value)) return "executive";
-  return "mid";
-}
-
-function normalizeTone(s = "") {
-  const value = String(s || "clean").trim().toLowerCase();
-  return VALID_LI_TONES.has(value) ? value : "clean";
-}
-
-const ROLE_PACKS = {
-  software_engineering: {
-    titles: [
-      "software engineer",
-      "software developer",
-      "backend engineer",
-      "backend developer",
-      "frontend engineer",
-      "frontend developer",
-      "full stack developer",
-      "full-stack developer",
-      "web developer",
-      "application developer",
-      "mobile developer",
-      "ios developer",
-      "android developer",
-      "devops engineer",
-      "systems engineer",
-    ],
-    keywords: [
-      "software development",
-      "application development",
-      "backend",
-      "frontend",
-      "full stack",
-      "api integration",
-      "database",
-      "system design",
-      "debugging",
-      "deployment",
-      "cloud",
-      "microservices",
-      "version control",
-      "code review",
-    ],
-    strongTerms: [
-      "rest api",
-      "microservices",
-      "sql",
-      "python",
-      "javascript",
-      "typescript",
-      "react",
-      "node.js",
-      "java",
-      "c sharp",
-      "aws",
-      "azure",
-      "gcp",
-      "docker",
-      "kubernetes",
-      "git",
-      "ci/cd",
-      "unit testing",
-    ],
-    toolTerms: [
-      "sql",
-      "python",
-      "javascript",
-      "typescript",
-      "react",
-      "node.js",
-      "java",
-      "c sharp",
-      "aws",
-      "azure",
-      "gcp",
-      "docker",
-      "kubernetes",
-      "git",
-      "postman",
-    ],
-    suggestedKeywords: [
-      "REST APIs",
-      "microservices",
-      "system design",
-      "unit testing",
-      "integration testing",
-      "cloud services",
-      "database optimization",
-      "CI/CD",
-      "version control",
-      "debugging",
-      "performance tuning",
-      "agile development",
-    ],
-  },
-  qa: {
-    titles: [
-      "qa engineer",
-      "quality assurance engineer",
-      "software tester",
-      "test engineer",
-      "qa analyst",
-      "manual tester",
-      "automation tester",
-      "test analyst",
-    ],
-    keywords: [
-      "quality assurance",
-      "test execution",
-      "test planning",
-      "bug tracking",
-      "defect reporting",
-      "regression testing",
-      "test documentation",
-      "test automation",
-    ],
-    strongTerms: [
-      "qa",
-      "test cases",
-      "test scenarios",
-      "regression testing",
-      "selenium",
-      "cypress",
-      "postman",
-      "jira",
-      "bug tracking",
-      "defect management",
-      "uat",
-    ],
-    toolTerms: ["selenium", "cypress", "postman", "jira", "api testing", "test automation"],
-    suggestedKeywords: [
-      "test cases",
-      "regression testing",
-      "defect tracking",
-      "test documentation",
-      "UAT",
-      "API testing",
-      "automation testing",
-      "quality validation",
-      "release testing",
-      "bug verification",
-    ],
-  },
-  data: {
-    titles: ["data analyst", "business intelligence analyst", "bi analyst", "reporting analyst", "analytics specialist", "data specialist"],
-    keywords: ["data analysis", "analytics", "dashboard", "reporting", "kpi", "trend analysis", "data validation", "performance metrics"],
-    strongTerms: ["sql", "python", "excel", "tableau", "power bi", "looker studio", "dashboard", "kpi", "data modeling", "etl", "reporting", "analysis"],
-    toolTerms: ["sql", "python", "excel", "tableau", "power bi", "looker studio", "google sheets"],
-    suggestedKeywords: ["SQL", "data visualization", "dashboard reporting", "trend analysis", "KPI tracking", "data validation", "Power BI", "Tableau", "report automation", "data modeling", "ETL", "Excel reporting"],
-  },
-  product: {
-    titles: ["product manager", "product owner", "associate product manager", "technical product manager", "product specialist"],
-    keywords: ["product roadmap", "backlog", "requirements", "user stories", "feature planning", "stakeholder alignment", "product discovery", "release planning"],
-    strongTerms: ["roadmap", "backlog", "user stories", "requirements gathering", "acceptance criteria", "jira", "confluence", "agile", "scrum", "feature prioritization", "cross-functional collaboration"],
-    toolTerms: ["jira", "confluence", "figma", "analytics"],
-    suggestedKeywords: ["product roadmap", "backlog prioritization", "requirements gathering", "user stories", "acceptance criteria", "release planning", "stakeholder communication", "cross-functional collaboration", "Agile", "Jira"],
-  },
-  business_analysis: {
-    titles: ["business analyst", "systems analyst", "process analyst", "operations analyst"],
-    keywords: ["business requirements", "process analysis", "gap analysis", "workflow analysis", "stakeholder interviews", "documentation", "reporting"],
-    strongTerms: ["requirements gathering", "process mapping", "gap analysis", "documentation", "stakeholder management", "jira", "confluence", "reporting", "excel", "sql"],
-    toolTerms: ["jira", "confluence", "excel", "sql", "power bi", "visio"],
-    suggestedKeywords: ["requirements gathering", "process mapping", "workflow analysis", "gap analysis", "stakeholder communication", "documentation", "UAT support", "Jira", "Confluence", "process improvement"],
-  },
-  finance: {
-    titles: ["accountant", "financial analyst", "finance specialist", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "finance assistant"],
-    keywords: ["financial reporting", "reconciliation", "accounts payable", "accounts receivable", "invoice processing", "budget tracking", "expense reporting", "forecasting", "variance analysis", "audit support", "ledger", "month-end"],
-    strongTerms: ["financial reporting", "reconciliation", "accounts payable", "accounts receivable", "invoice processing", "budgeting", "forecasting", "variance analysis", "audit", "ledger", "excel", "ifrs", "gaap"],
-    toolTerms: ["excel", "sap", "oracle", "quickbooks", "netsuite", "erp"],
-    suggestedKeywords: ["financial reporting", "account reconciliation", "budget tracking", "variance analysis", "forecasting", "month-end close", "AP/AR", "audit support", "Excel", "ERP systems", "GAAP", "IFRS"],
-  },
-  hr: {
-    titles: ["hr specialist", "human resources specialist", "recruiter", "talent acquisition specialist", "hr coordinator", "people operations specialist"],
-    keywords: ["recruitment", "candidate screening", "interview scheduling", "employee records", "onboarding", "offboarding", "training coordination", "hr administration", "compliance", "payroll support"],
-    strongTerms: ["recruiting", "candidate screening", "interview scheduling", "onboarding", "offboarding", "employee records", "talent acquisition", "compliance", "payroll support", "workday", "greenhouse", "ats"],
-    toolTerms: ["workday", "greenhouse", "ats", "excel", "hris"],
-    suggestedKeywords: ["talent acquisition", "candidate screening", "interview coordination", "employee onboarding", "HR administration", "policy compliance", "record management", "ATS", "Workday", "Greenhouse"],
-  },
-  operations: {
-    titles: ["operations manager", "operations specialist", "operations coordinator", "operations analyst", "office manager"],
-    keywords: ["operations", "workflow", "documentation", "reporting", "process coordination", "process improvement", "scheduling", "cross-functional coordination", "vendor communication", "record keeping"],
-    strongTerms: ["operations", "workflow", "process coordination", "documentation", "reporting", "scheduling", "status updates", "vendor communication", "process improvement"],
-    toolTerms: ["excel", "erp", "sap", "jira"],
-    suggestedKeywords: ["process improvement", "workflow coordination", "vendor communication", "cross-functional collaboration", "status reporting", "documentation", "task prioritization", "operational tracking", "process documentation", "resource coordination"],
-  },
-  supply_chain: {
-    titles: ["supply chain specialist", "logistics specialist", "logistics coordinator", "warehouse coordinator", "inventory specialist"],
-    keywords: ["supply chain", "logistics", "inventory", "shipment coordination", "warehouse operations", "order fulfillment", "dispatch", "delivery tracking", "stock control"],
-    strongTerms: ["inventory management", "warehouse management", "shipment tracking", "logistics coordination", "stock control", "order fulfillment", "vendor coordination", "transport planning", "sap", "erp"],
-    toolTerms: ["sap", "erp", "excel", "warehouse management"],
-    suggestedKeywords: ["inventory management", "shipment tracking", "warehouse operations", "logistics coordination", "stock control", "order fulfillment", "vendor coordination", "ERP systems", "delivery planning", "inventory reconciliation"],
-  },
-  procurement: {
-    titles: ["procurement specialist", "purchasing specialist", "buyer", "sourcing specialist", "procurement coordinator"],
-    keywords: ["procurement", "purchasing", "sourcing", "vendor management", "rfq", "purchase orders", "supplier communication", "cost comparison"],
-    strongTerms: ["procurement", "sourcing", "vendor management", "supplier communication", "purchase orders", "rfq", "price comparison", "contract support", "sap", "erp"],
-    toolTerms: ["sap", "erp", "excel"],
-    suggestedKeywords: ["vendor management", "sourcing", "purchase orders", "supplier communication", "RFQ", "price comparison", "ERP systems", "procurement documentation", "vendor evaluation", "contract support"],
-  },
-  sales: {
-    titles: ["sales specialist", "sales executive", "account executive", "sales coordinator", "business development executive"],
-    keywords: ["sales", "lead management", "pipeline", "crm", "sales reporting", "proposal", "client communication", "deal tracking", "order processing"],
-    strongTerms: ["pipeline", "crm", "lead follow-up", "account support", "sales reporting", "proposal", "deal tracking", "order processing", "salesforce", "hubspot"],
-    toolTerms: ["salesforce", "hubspot", "crm", "excel"],
-    suggestedKeywords: ["sales pipeline", "lead management", "CRM", "proposal preparation", "deal tracking", "account coordination", "client follow-up", "Salesforce", "HubSpot", "sales reporting"],
-  },
-  customer_support: {
-    titles: ["customer support specialist", "customer service representative", "support specialist", "technical support specialist", "help desk specialist"],
-    keywords: ["customer support", "ticket handling", "issue resolution", "live chat", "email support", "complaint handling", "service quality", "crm", "zendesk", "freshdesk", "sla", "escalation"],
-    strongTerms: ["customer support", "ticket", "issue resolution", "issue escalation", "email support", "live chat", "complaint handling", "response time", "resolution time", "help desk"],
-    toolTerms: ["zendesk", "freshdesk", "crm", "help desk"],
-    suggestedKeywords: ["ticket management", "issue resolution", "service quality", "SLA", "escalation handling", "support documentation", "customer communication", "Zendesk", "CRM", "case follow-up"],
-  },
-  customer_success: {
-    titles: ["customer success specialist", "customer success manager", "client success specialist", "account manager"],
-    keywords: ["customer success", "onboarding", "renewal", "retention", "account management", "customer communication", "relationship management", "customer feedback", "nps", "csat", "qbr"],
-    strongTerms: ["customer success", "onboarding", "account management", "renewal", "retention", "customer feedback", "relationship management", "nps", "csat", "qbr"],
-    toolTerms: ["crm", "salesforce", "hubspot"],
-    suggestedKeywords: ["customer onboarding", "account management", "renewal support", "customer retention", "relationship management", "CSAT", "NPS", "QBR", "client engagement", "cross-functional collaboration"],
-  },
-  executive_assistant: {
-    titles: ["executive assistant", "personal assistant", "administrative assistant", "office assistant"],
-    keywords: ["calendar management", "travel coordination", "meeting coordination", "document preparation", "executive support", "scheduling", "record keeping", "office administration"],
-    strongTerms: ["calendar management", "travel coordination", "meeting coordination", "document preparation", "record keeping", "scheduling", "executive support"],
-    toolTerms: ["excel", "powerpoint", "office", "google sheets"],
-    suggestedKeywords: ["calendar management", "meeting coordination", "travel coordination", "document management", "record maintenance", "executive support", "office administration", "task prioritization", "time management", "stakeholder communication"],
-  },
-  project: {
-    titles: ["project manager", "project coordinator", "program coordinator", "program manager", "pm"],
-    keywords: ["project coordination", "project management", "timelines", "deliverables", "status tracking", "stakeholder updates", "milestones", "project documentation", "risk tracking"],
-    strongTerms: ["project coordination", "project management", "timelines", "deliverables", "milestones", "status tracking", "risk tracking", "jira", "confluence", "agile"],
-    toolTerms: ["jira", "confluence", "excel", "primavera p6", "ms project"],
-    suggestedKeywords: ["timeline management", "deliverable coordination", "status reporting", "stakeholder communication", "risk tracking", "project documentation", "resource coordination", "Agile", "Jira", "milestone tracking"],
-  },
-  marketing: {
-    titles: ["digital marketing specialist", "marketing specialist", "performance marketing specialist", "marketing executive", "content specialist", "growth marketer"],
-    keywords: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "campaign reporting", "content marketing", "email marketing", "social media", "lead generation"],
-    strongTerms: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "cpc", "ctr", "cpa", "roas", "roi", "a/b test", "lead generation", "campaign optimization"],
-    toolTerms: ["google ads", "meta ads", "google analytics", "ga4", "google tag manager", "search console", "hubspot"],
-    suggestedKeywords: ["PPC", "SEO", "SEM", "GA4", "Google Tag Manager", "audience segmentation", "A/B testing", "lead generation", "campaign optimization", "analytics reporting"],
-  },
-  design: {
-    titles: ["designer", "graphic designer", "ui designer", "ux designer", "product designer", "visual designer"],
-    keywords: ["design", "wireframes", "prototypes", "user interface", "user experience", "visual design", "brand assets", "design systems"],
-    strongTerms: ["figma", "adobe creative suite", "photoshop", "illustrator", "wireframes", "prototypes", "ui", "ux", "design system", "mockups"],
-    toolTerms: ["figma", "adobe creative suite", "photoshop", "illustrator", "after effects"],
-    suggestedKeywords: ["Figma", "wireframing", "prototyping", "design systems", "UI design", "UX design", "user flows", "visual design", "Adobe Creative Suite", "mockups"],
-  },
-  education: {
-    titles: ["teacher", "english teacher", "math teacher", "subject teacher", "instructor", "lecturer", "teaching assistant"],
-    keywords: ["lesson planning", "classroom management", "student assessment", "curriculum", "instruction", "student support", "teaching materials"],
-    strongTerms: ["lesson planning", "classroom management", "student assessment", "curriculum development", "instruction", "learning materials", "student progress"],
-    toolTerms: ["excel", "powerpoint", "google classroom", "office"],
-    suggestedKeywords: ["lesson planning", "classroom management", "student assessment", "curriculum development", "learning materials", "student progress tracking", "instruction", "parent communication", "education support", "academic planning"],
-  },
-  healthcare_admin: {
-    titles: ["healthcare administrator", "medical secretary", "medical office assistant", "patient coordinator", "clinic coordinator"],
-    keywords: ["patient scheduling", "medical records", "insurance verification", "ehr", "emr", "clinic operations", "appointment coordination", "hipaa"],
-    strongTerms: ["patient scheduling", "medical records", "insurance verification", "ehr", "emr", "hipaa", "appointment coordination", "patient communication"],
-    toolTerms: ["ehr", "emr", "excel", "office"],
-    suggestedKeywords: ["patient scheduling", "medical records", "insurance verification", "EHR/EMR", "appointment coordination", "HIPAA", "patient communication", "clinic administration", "record maintenance", "front-desk coordination"],
-  },
-  civil_engineering: {
-    titles: ["civil engineer", "site engineer", "construction engineer", "project site engineer"],
-    keywords: ["civil engineering", "site supervision", "construction", "project drawings", "quantity takeoff", "boq", "technical documentation", "autocad", "revit", "primavera p6"],
-    strongTerms: ["autocad", "revit", "primavera p6", "site supervision", "technical drawings", "quantity takeoff", "boq", "construction documentation", "inspection"],
-    toolTerms: ["autocad", "revit", "primavera p6", "excel"],
-    suggestedKeywords: ["AutoCAD", "Revit", "Primavera P6", "site supervision", "quantity takeoff", "BOQ", "technical documentation", "drawing review", "progress tracking", "construction coordination"],
-  },
-  mechanical_engineering: {
-    titles: ["mechanical engineer", "design engineer", "maintenance engineer", "production engineer"],
-    keywords: ["mechanical design", "technical drawings", "solidworks", "autocad", "equipment maintenance", "production support", "technical documentation", "quality checks"],
-    strongTerms: ["solidworks", "autocad", "technical drawings", "equipment maintenance", "preventive maintenance", "production support", "quality checks", "root cause analysis"],
-    toolTerms: ["solidworks", "autocad", "excel", "erp"],
-    suggestedKeywords: ["SolidWorks", "AutoCAD", "technical drawings", "preventive maintenance", "equipment inspection", "production support", "quality checks", "technical documentation", "root cause analysis", "maintenance planning"],
-  },
-  administrative: {
-    titles: ["administrative assistant", "office assistant", "admin assistant"],
-    keywords: ["administrative support", "calendar management", "scheduling", "meeting coordination", "document preparation", "filing", "data entry", "record keeping", "office support"],
-    strongTerms: ["calendar management", "scheduling", "meeting coordination", "document preparation", "filing", "data entry", "record keeping", "office operations"],
-    toolTerms: ["office", "excel", "powerpoint", "google sheets"],
-    suggestedKeywords: ["document management", "calendar coordination", "meeting scheduling", "record maintenance", "office administration", "internal communication", "task coordination", "data entry accuracy", "time management", "administrative reporting"],
-  },
-  generic: {
-    titles: [],
-    keywords: [],
-    strongTerms: ["reporting", "documentation", "coordination", "analysis", "communication", "scheduling", "records", "tracking", "support"],
-    toolTerms: ["excel", "office", "google sheets", "powerpoint"],
-    suggestedKeywords: ["documentation", "cross-functional collaboration", "process tracking", "stakeholder communication", "task coordination", "problem-solving", "time management", "reporting", "data tracking", "record maintenance"],
-  },
-};
-
-function getRolePackAllTerms(pack = {}) {
-  return uniqueTrimmedStrings([
-    ...(pack.titles || []),
-    ...(pack.keywords || []),
-    ...(pack.strongTerms || []),
-    ...(pack.toolTerms || []),
-    ...(pack.suggestedKeywords || []),
-  ]);
-}
-
-const ALL_ROLE_TERMS = uniqueTrimmedStrings(
-  Object.values(ROLE_PACKS).flatMap((p) => getRolePackAllTerms(p))
-);
-
-const HARD_FACT_TERMS = uniqueTrimmedStrings([
-  "google ads", "meta ads", "google analytics", "ga4", "google tag manager", "gtm", "seo", "sem", "ppc", "hubspot", "salesforce", "crm", "zendesk", "freshdesk", "help desk", "jira", "confluence", "tableau", "power bi", "looker studio", "excel", "google sheets", "powerpoint", "sql", "python", "javascript", "typescript", "react", "node.js", "java", "c sharp", "aws", "azure", "gcp", "docker", "kubernetes", "git", "ci/cd", "rest api", "microservices", "unit testing", "integration testing", "selenium", "cypress", "postman", "figma", "adobe creative suite", "photoshop", "illustrator", "autocad", "solidworks", "revit", "primavera p6", "sap", "sap mm", "sap fico", "oracle", "quickbooks", "netsuite", "erp", "ifrs", "gaap", "accounts payable", "accounts receivable", "payroll", "forecasting", "variance analysis", "budgeting", "audit", "reconciliation", "workday", "greenhouse", "ats", "agile", "scrum", "kanban", "lean", "six sigma", "pmp", "csm", "psm", "etl", "data modeling", "ehr", "emr", "hipaa", "patient scheduling", "insurance verification", "inventory management", "warehouse management", "procurement", "sourcing", "vendor management", "csat", "nps", "qbr", "a/b test", "remarketing", "retargeting", "lead generation", "audience segmentation", "boq"
-]);
-
-const EN_WEAK_REWRITE_START_RE = /^(?:actively\s+)?(?:helped|assisted|supported|contributed|participated|aided)\b/i;
-const EN_UNSUPPORTED_IMPACT_RE = /\b(drive measurable results|resulting in|increased conversion rates|qualified leads|competitive positioning|data-driven decision-making|stronger market presence|better campaign outcomes|improved follow-up|deliver(?:ed|ing)? exceptional service|enhance(?:d|s|ing)? client relationships|increase(?:d|ing)? participation rates|boost(?:ed|ing)? customer loyalty|enhance(?:d|s|ing)? service satisfaction|improve(?:d|s|ing)? operational efficiency|reduced costs|generated revenue|improved retention|optimized performance|accelerated delivery)\b/i;
-const ENGLISH_CORPORATE_FLUFF_RE = /\b(dynamic|robust|seamless|impactful|high-impact|comprehensive|various|overall|strategic initiatives|in-depth data analysis|for consistency|for team accessibility|to ensure data accuracy|to ensure accuracy and relevance|to streamline communication efforts|to support informed marketing strategies|to enhance engagement|to optimize user experience|operational excellence|decision-making|stakeholder alignment|value-driven|best-in-class|synergy|world-class|transformational|game-changing|visionary)\b/i;
-const FILLER_RE = /\b(dynamic|results-driven|passionate|motivated|hardworking|detail-oriented|dedicated|proactive|seamless|robust|comprehensive|impactful|strategic thinker|team player|solution-oriented|highly organized|go-getter|self-starter|learning-focused)\b/i;
-const STRONG_ACTION_RE = /\b(yönettim|yürüttüm|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|takip ettim|düzenledim|gerçekleştirdim|izledim|optimize ettim|tasarladım|planladım|uyarladım|sundum|denetledim|doğruladım|uzlaştırdım|işledim|eğitim verdim|değerlendirdim|engineered|built|developed|designed|implemented|integrated|tested|debugged|validated|automated|configured|deployed|maintained|optimized|planned|executed|created|responded|resolved|documented|scheduled|reviewed|updated|monitored|processed|reconciled|screened|analyzed|reported|tracked|managed|delivered|verified|produced|prepared|mapped|facilitated|taught|assessed|inspected|coordinated|collaborated|communicated|organized|compiled|addressed|guided)\b/i;
-const WEAK_START_RE = /^(helped|helps|assisted|assists|supported|supports|worked on|contributed to|participated in|involved in|handled|tasked with|responsible for|duties included|yardımcı oldum|destek verdim|destek oldum|görev aldım|ilgilen(dim|di)|bulundum|çalıştım|yaptım)\b/i;
-
-function inferSeniority(text = "") {
-  const s = normalizeCompareText(text);
-
-  if (/\b(chief|vp|vice president|director|head of|department head|general manager)\b/i.test(s)) {
-    return "leadership";
-  }
-  if (/\b(principal|staff engineer|lead|manager|team lead|supervisor)\b/i.test(s)) {
-    return "manager_or_lead";
-  }
-  if (/\b(senior|sr\.?|kidemli|uzman)\b/i.test(s)) {
-    return "senior";
-  }
-  if (/\b(intern|stajyer|junior|jr\.?|assistant|associate|trainee|entry level)\b/i.test(s)) {
-    return "junior";
-  }
-
-  return "mid";
-}
-
 function getSkillsLines(cv = "") {
   const lines = getNonEmptyLines(cv);
   const out = [];
@@ -661,11 +1433,23 @@ function getSkillsLines(cv = "") {
   return out.filter(Boolean);
 }
 
+function extractHeaderBlock(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const header = [];
+
+  for (const line of lines) {
+    if (isSectionHeader(line)) break;
+    header.push(line);
+  }
+
+  return header.slice(0, 6);
+}
+
 function extractExperienceTitles(cv = "") {
   const lines = getNonEmptyLines(cv);
   const titles = [];
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (
       /\|\s*.*(\d{4}|Present|Günümüz|Current|Devam)/i.test(line) ||
@@ -681,247 +1465,310 @@ function extractExperienceTitles(cv = "") {
   return titles;
 }
 
-function inferRoleProfile(cv = "", jd = "") {
-  const combined = `${cv || ""}\n${jd || ""}`;
-  const combinedNorm = canonicalizeTerm(combined);
-  const titleText = `${extractHeaderBlock(cv).join(" ")} ${extractExperienceTitles(cv).join(" ")}`.trim();
-  const summaryText = extractSummaryLines(cv).join(" ");
-  const skillsText = getSkillsLines(cv).join(" ");
-  const bulletsText = getBulletLines(cv).join(" ");
-  const isCvOnly = !String(jd || "").trim();
+function verifySession(req) {
+  const appSecret = process.env.APP_SECRET;
+  if (!appSecret) return false;
 
-  const scored = Object.entries(ROLE_PACKS)
+  const cookie = req.headers.cookie || "";
+  const m = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
+  if (!m) return false;
+
+  const token = decodeURIComponent(m[1]);
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+
+  const [data, sig] = parts;
+  const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
+  if (sig !== expected) return false;
+
+  try {
+    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
+    const payload = JSON.parse(payloadJson);
+    if (!payload?.exp || Date.now() > payload.exp) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+async function ensureMinDelay(startedAt, minMs) {
+  const elapsed = Date.now() - startedAt;
+  const remain = minMs - elapsed;
+  if (remain > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remain));
+  }
+}
+
+function normalizeSeniority(value = "") {
+  const s = String(value || "mid").trim().toLowerCase();
+  if (VALID_SENIORITY.has(s)) return s;
+  if (/intern|staj/i.test(s)) return "intern";
+  if (/junior|jr/i.test(s)) return "junior";
+  if (/associate/i.test(s)) return "associate";
+  if (/senior|sr|uzman|k[ıi]demli/i.test(s)) return "senior";
+  if (/lead/i.test(s)) return "lead";
+  if (/manager|supervisor/i.test(s)) return "manager";
+  if (/director|head/i.test(s)) return "director";
+  if (/executive|vp|chief|c-level/i.test(s)) return "executive";
+  return "mid";
+}
+
+function normalizeTone(value = "") {
+  const s = String(value || "clean").trim().toLowerCase();
+  return VALID_TONES.has(s) ? s : "clean";
+}
+
+function normalizeRoleFamily(value = "") {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  if (VALID_ROLE_FAMILIES.has(raw)) return raw;
+
+  const aliases = {
+    software: "software_engineering",
+    engineering_software: "software_engineering",
+    test: "qa",
+    analytics: "data",
+    bi: "data",
+    project_management: "project",
+    business_analyst: "business_analysis",
+    customer_service: "customer_support",
+    support: "customer_support",
+    supply_chain: "procurement_supply_chain",
+    logistics: "procurement_supply_chain",
+    procurement: "procurement_supply_chain",
+    finance: "finance_accounting",
+    accounting: "finance_accounting",
+    hr: "hr_recruiting",
+    recruiting: "hr_recruiting",
+    admin: "administration",
+    healthcare_admin: "healthcare_administration",
+    legal: "legal_compliance",
+    compliance: "legal_compliance",
+  };
+
+  return aliases[raw] || "";
+}
+
+function looksLikeAcronym(term = "") {
+  const raw = String(term || "").trim();
+  return ACRONYM_RE.test(raw) || /^[A-Z0-9/+.-]{2,10}$/.test(raw);
+}
+
+function isLikelyToolOrPlatform(term = "") {
+  const norm = canonicalizeTerm(term);
+  return HARD_FACT_TERMS.some((x) => canonicalizeTerm(x) === norm);
+}
+
+function cleanListItem(term = "") {
+  return String(term || "")
+    .replace(/^[-•·‣▪▫◦*\d.)\s]+/, "")
+    .replace(/[,:;]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractTermSignals(text = "") {
+  const norm = canonicalizeTerm(text);
+  return HARD_FACT_TERMS.filter((term) => containsCanonicalTermInNormalizedText(norm, term));
+}
+
+function getAllFamilyTerms(familyKey = "generic") {
+  const family = ROLE_FAMILIES[familyKey] || ROLE_FAMILIES.generic;
+  return uniqueTrimmedStrings([
+    ...(family.titles || []),
+    ...(family.aliases || []),
+    ...(family.keywords || []),
+    ...(family.strongTerms || []),
+    ...(family.toolTerms || []),
+    ...(family.linkedinKeywords || []),
+    ...(family.recruiterTerms || []),
+  ]);
+}
+
+function inferRoleFamilyFromText(text = "") {
+  const scored = Object.entries(ROLE_FAMILIES)
     .filter(([key]) => key !== "generic")
-    .map(([key, pack]) => {
-      const titleHits = countTermHits(titleText, pack.titles || []);
-      const keywordHits = countTermHits(combinedNorm, pack.keywords || []);
-      const strongHits = countTermHits(combinedNorm, pack.strongTerms || []);
-      const toolHits = countTermHits(combinedNorm, pack.toolTerms || []);
-      const summaryHits = countTermHits(summaryText, [...(pack.titles || []), ...(pack.keywords || []), ...(pack.strongTerms || [])]);
-      const skillsHits = countTermHits(skillsText, [...(pack.toolTerms || []), ...(pack.strongTerms || [])]);
-      const bulletHits = countTermHits(bulletsText, [...(pack.keywords || []), ...(pack.strongTerms || [])]);
-
-      const score = titleHits * 8 + skillsHits * 5 + strongHits * 4 + toolHits * 4 + keywordHits * 3 + summaryHits * 3 + bulletHits * 2;
-
-      return { key, score, titleHits, keywordHits, strongHits, toolHits, summaryHits, skillsHits, bulletHits };
+    .map(([key, family]) => {
+      const score =
+        countTermHits(text, family.aliases || []) * 8 +
+        countTermHits(text, family.titles || []) * 7 +
+        countTermHits(text, family.keywords || []) * 4 +
+        countTermHits(text, family.strongTerms || []) * 5 +
+        countTermHits(text, family.toolTerms || []) * 5 +
+        countTermHits(text, family.linkedinKeywords || []) * 3;
+      return { key, score };
     })
-    .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  let roleGroups = ["generic"];
+  if (!scored.length || scored[0].score <= 0) return "generic";
+  return scored[0].key;
+}
 
-  if (scored.length) {
-    const top = scored[0].score;
-    roleGroups = [];
+function inferRoleProfile({ cv = "", jd = "", targetRole = "", roleFamily = "" } = {}) {
+  const safeCv = String(cv || "");
+  const safeJd = String(jd || "");
+  const safeTargetRole = String(targetRole || "");
+  const combined = `${safeCv}\n${safeJd}\n${safeTargetRole}`.trim();
 
-    for (const item of scored) {
-      if (!roleGroups.length) {
-        roleGroups.push(item.key);
-        continue;
-      }
+  const forcedFamily = normalizeRoleFamily(roleFamily);
+  const inferredCvFamily = inferRoleFamilyFromText(`${extractHeaderBlock(safeCv).join(" ")} ${extractExperienceTitles(safeCv).join(" ")} ${getSkillsLines(safeCv).join(" ")} ${getBulletLines(safeCv).join(" ")} ${extractSummaryLines(safeCv).join(" ")}`);
+  const inferredTargetFamily = inferRoleFamilyFromText(`${safeTargetRole}\n${safeJd}`);
+  const primaryFamily = forcedFamily || inferredCvFamily || inferredTargetFamily || "generic";
+  const secondaryFamily = forcedFamily ? (inferredCvFamily !== forcedFamily ? inferredCvFamily : inferredTargetFamily) : inferredTargetFamily;
+  const family = ROLE_FAMILIES[primaryFamily] || ROLE_FAMILIES.generic;
+  const normalizedText = canonicalizeTerm(combined);
 
-      if (isCvOnly && roleGroups.length >= 2) break;
-      if (!isCvOnly && roleGroups.length >= 3) break;
+  const familySignals = uniqueTrimmedStrings(getAllFamilyTerms(primaryFamily)).filter((term) =>
+    containsCanonicalTermInNormalizedText(normalizedText, term)
+  );
 
-      const shouldInclude = isCvOnly
-        ? item.score >= Math.max(10, top - 4) || item.titleHits >= 1 || item.skillsHits >= 2 || item.toolHits >= 2 || item.strongHits >= 3
-        : item.score >= Math.max(8, top - 6) || item.titleHits >= 1 || item.skillsHits >= 2 || item.toolHits >= 2 || item.strongHits >= 2 || item.summaryHits >= 2;
-
-      if (shouldInclude) roleGroups.push(item.key);
-    }
-
-    if (!roleGroups.length) roleGroups = ["generic"];
-  }
-
-  const primaryRole = roleGroups[0] || "generic";
-  const seniority = inferSeniority(`${titleText}\n${combined}`);
-  const selectedPacks = roleGroups.map((k) => ROLE_PACKS[k]).filter(Boolean);
-
-  const domainSignals = uniqueTrimmedStrings(
-    selectedPacks.flatMap((pack) => [
-      ...(pack.strongTerms || []),
-      ...(pack.toolTerms || []),
-      ...(pack.keywords || []),
-    ])
-  )
-    .filter((term) => containsCanonicalTermInNormalizedText(combinedNorm, term))
-    .slice(0, 16);
+  const explicitTools = uniqueByNormalizedStrings(extractTermSignals(combined));
+  const titleSignals = uniqueByNormalizedStrings([
+    ...extractExperienceTitles(safeCv),
+    ...extractHeaderBlock(safeCv),
+  ]).filter((line) => countTermHits(line, family.aliases || []) > 0 || countTermHits(line, family.titles || []) > 0);
 
   return {
-    roleGroups,
-    primaryRole,
-    secondaryRoles: roleGroups.slice(1),
-    seniority,
-    domainSignals,
-    scoredRoles: scored.slice(0, 6),
+    roleFamily: primaryFamily,
+    secondaryFamily: secondaryFamily && secondaryFamily !== primaryFamily ? secondaryFamily : "",
+    family,
+    targetRole: safeTargetRole,
+    inferredSeniority: normalizeSeniority(`${safeTargetRole} ${extractHeaderBlock(safeCv).join(" ")} ${extractExperienceTitles(safeCv).join(" ")}`),
+    familySignals: familySignals.slice(0, 18),
+    explicitTools: explicitTools.slice(0, 20),
+    titleSignals: titleSignals.slice(0, 8),
   };
 }
 
-function ensureRoleProfile(roleInput, cv = "", jd = "") {
-  if (roleInput && typeof roleInput === "object" && !Array.isArray(roleInput) && Array.isArray(roleInput.roleGroups)) {
-    return roleInput;
-  }
+function buildRoleContextText({ cv = "", jd = "", meta = {}, roleProfile }) {
+  const profile = roleProfile || inferRoleProfile({
+    cv,
+    jd,
+    targetRole: meta?.target_role || "",
+    roleFamily: meta?.role_family || "",
+  });
 
-  const roleGroups = Array.isArray(roleInput) && roleInput.length ? roleInput : inferRoleProfile(cv, jd).roleGroups;
-
-  return {
-    roleGroups,
-    primaryRole: roleGroups[0] || "generic",
-    secondaryRoles: roleGroups.slice(1),
-    seniority: inferSeniority(`${cv}\n${jd}`),
-    domainSignals: [],
-    scoredRoles: [],
-  };
-}
-
-function getRolePacks(roleInput = [], cv = "", jd = "") {
-  const profile = ensureRoleProfile(roleInput, cv, jd);
-  const packs = (profile.roleGroups || ["generic"]).map((k) => ROLE_PACKS[k]).filter(Boolean);
-  return packs.length ? packs : [ROLE_PACKS.generic];
-}
-
-function buildLinkedInSystem(outLang) {
-  return `
-CRITICAL RULES (must follow):
-- Do NOT invent or assume ANY numbers, percentages, time periods, client names, revenue, KPIs, team size, budget, or results.
-- Only use metrics, tools, platforms, and facts explicitly present in the resume and optional job description.
-- If a bullet has no measurable metric, rewrite it using: scope + actions + tools + context + neutral outcome wording WITHOUT numbers.
-- Never write “increased by X%”, “grew by X”, “reduced by X%”, “saved $X”, “managed $X budget”, “served X clients”, “led X people” unless those exact facts appear in the input text.
-- If unsure, prefer neutral phrasing with no numbers.
-- If the input contains a number, keep it exact; do not round up/down or change it.
-- Do NOT invent employers, titles, degrees, dates, certifications, or metrics.
-- Do NOT replace generic platform language with a specific platform unless it is explicitly present.
-- Headlines must be recruiter-friendly, search-aware, and natural.
-- About sections must sound premium, grounded, and LinkedIn-ready.
-- Experience fixes must be materially stronger than the source, not shallow one-word swaps.
-- Return ONLY valid JSON. No markdown. No extra text.
-- All output VALUES MUST be written ONLY in ${outLang}. Do not mix languages.
-`.trim();
-}
-
-function buildLinkedInRoleContextText({ cv = "", jd = "", targetRole = "", seniority = "mid", industry = "", location = "", tone = "clean", roleProfile }) {
-  const profile = ensureRoleProfile(roleProfile, cv, jd);
-  const packs = getRolePacks(profile, cv, jd);
-  const titles = uniqueTrimmedStrings([
-    targetRole,
-    ...packs.flatMap((p) => p.titles || []),
-  ]).slice(0, 8);
-
-  const terms = uniqueTrimmedStrings([
-    ...(profile.domainSignals || []),
-    ...packs.flatMap((p) => [...(p.strongTerms || []), ...(p.toolTerms || []), ...(p.keywords || [])]),
-  ])
-    .filter((term) => containsCanonicalTermInNormalizedText(canonicalizeTerm(`${cv}\n${jd}\n${targetRole}\n${industry}`), term))
-    .slice(0, 16);
-
+  const family = ROLE_FAMILIES[profile.roleFamily] || ROLE_FAMILIES.generic;
   return [
-    `- primary_role: ${profile.primaryRole}`,
-    `- secondary_roles: ${(profile.secondaryRoles || []).join(", ") || "(none)"}`,
-    `- candidate_titles: ${titles.join(", ") || "(none)"}`,
-    `- seniority: ${seniority}`,
-    `- target_role: ${targetRole || "(not provided)"}`,
-    `- industry: ${industry || "(not provided)"}`,
-    `- location: ${location || "(not provided)"}`,
-    `- tone: ${tone}`,
-    `- detected_terms: ${terms.join(", ") || "(none)"}`,
+    `- role_family_hard_constraint: ${profile.roleFamily}`,
+    `- secondary_family_signal: ${profile.secondaryFamily || "(none)"}`,
+    `- target_role_soft_guidance: ${String(meta?.target_role || "").trim() || "(none)"}`,
+    `- seniority: ${normalizeSeniority(meta?.seniority || profile.inferredSeniority || "mid")}`,
+    `- industry: ${String(meta?.industry || "").trim() || "(none)"}`,
+    `- location: ${String(meta?.location || "").trim() || "(none)"}`,
+    `- tone: ${normalizeTone(meta?.tone || "clean")}`,
+    `- candidate_title_signals: ${profile.titleSignals.join(", ") || "(none)"}`,
+    `- role_family_titles: ${(family.titles || []).join(", ") || "(none)"}`,
+    `- role_family_signals_found: ${profile.familySignals.join(", ") || "(none)"}`,
+    `- explicit_supported_tools_terms: ${profile.explicitTools.join(", ") || "(none)"}`,
   ].join("\n");
 }
 
-function buildLinkedInPreviewPrompt({ cv, jd, outLang, liTargetRole, liSeniority, liIndustry, liLocation, liTone, roleProfile }) {
+function buildLinkedInSystem(outLang = "English") {
   return `
-Return JSON in this exact schema:
-
-{
-  "headlines": [{"label": string, "text": string}],
-  "about": { "short": string },
-  "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[] },
-  "recruiter": { "keywords": string[] }
-}
-
-RULES:
-- Output VALUES must be in ${outLang} (proper nouns/tools can stay).
-- headlines: exactly 1 item.
-- about.short: 600-900 chars, punchy, no emojis.
-- experience_fix: up to 1 item. Choose only a sentence where a clearly better rewrite is possible.
-- skills.top: 7-10 items.
-- recruiter.keywords: 5-8 items.
-- No extra keys. Return ONLY valid JSON.
-
-TARGETING META:
-${buildLinkedInRoleContextText({
-    cv,
-    jd,
-    targetRole: liTargetRole,
-    seniority: liSeniority,
-    industry: liIndustry,
-    location: liLocation,
-    tone: liTone,
-    roleProfile,
-  })}
-
-RESUME:
-${cv}
-
-TARGET ROLE / JOB (optional):
-${jd || liTargetRole || "(none)"}
+CRITICAL RULES:
+- You are writing LinkedIn optimization output only.
+- All output values must be written only in ${outLang}. Proper nouns and platform names may stay as-is.
+- NEVER invent metrics, percentages, KPIs, budgets, clients, team size, headcount, revenue, results, leadership, ownership, certifications, employers, dates, tools, systems, or platforms.
+- Use only facts explicitly supported by the resume, optional JD, and provided metadata.
+- role_family is a HARD CONSTRAINT. Stay inside that family. Do not drift into another profession.
+- target_role is SOFT GUIDANCE. It can shape positioning, but cannot overwrite the real profile with unsupported claims.
+- Headlines must stay inside the chosen role family, sound natural, and avoid keyword spam.
+- About sections must describe the candidate, not the writing strategy. Never mention LinkedIn strategy, recruiter-safe wording, search-awareness, profile positioning, or internal writing logic.
+- Experience fixes must only rewrite genuinely weak or improvable bullets. The rewrite must be materially better, not a one-word swap.
+- Do not use fluffy or exaggerated wording. Avoid meta language, corporate fluff, and fake polish.
+- If source evidence is thin, prefer conservative wording.
+- Return ONLY valid JSON. No markdown. No commentary.
 `.trim();
 }
 
-function buildLinkedInFullPrompt({ cv, jd, outLang, liTargetRole, liSeniority, liIndustry, liLocation, liTone, roleProfile }) {
+function buildPreviewPrompt({ cv, jd, outLang, meta, roleProfile }) {
   return `
 Return JSON in this exact schema:
-
 {
   "headlines": [{"label": string, "text": string}],
-  "about": { "short": string, "normal": string, "bold": string },
+  "about": {"short": string},
   "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[], "tools": string[], "industry": string[] },
-  "recruiter": { "keywords": string[], "boolean": string }
+  "skills": {"top": string[]},
+  "recruiter": {"keywords": string[]}
 }
 
-QUALITY RULES:
-- Output VALUES must be in ${outLang}. Do not mix languages.
-- Do NOT invent employers, titles, dates, degrees, or metrics.
-- If resume has no numbers, improve bullets without guessing numbers.
-- Headline max 220 chars each. No emojis.
-- about.short: 500-800 chars.
-- about.normal: 900-1400 chars.
-- about.bold: 900-1400 chars.
-- headlines: exactly 5 items with labels Search, Impact, Niche, Leadership, Clean.
-- experience_fix: 4-6 items maximum, only if there are real, materially stronger rewrites.
-- skills.top: 12-18
-- skills.tools: 8-16
-- skills.industry: 12-20
-- recruiter.keywords: 10-20
-- recruiter.boolean: a single boolean string using OR groups + a few AND terms.
-- Return ONLY valid JSON. No extra keys.
+REQUIREMENTS:
+- headlines: exactly 1 item.
+- about.short: one complete LinkedIn-ready summary, concise and natural.
+- experience_fix: 0-1 items only, and only if there is a genuine improvement opportunity.
+- skills.top: 6-10 grounded items.
+- recruiter.keywords: 5-8 grounded items.
+- Keep output conservative, truthful, and role-family aligned.
+- Never include meta-writing language.
+- Never invent tools, systems, or titles.
 
-TARGETING META:
-${buildLinkedInRoleContextText({
-    cv,
-    jd,
-    targetRole: liTargetRole,
-    seniority: liSeniority,
-    industry: liIndustry,
-    location: liLocation,
-    tone: liTone,
-    roleProfile,
-  })}
+TARGETING CONTEXT:
+${buildRoleContextText({ cv, jd, meta, roleProfile })}
 
 RESUME:
 ${cv}
 
-TARGET ROLE / JOB (optional):
-${jd || liTargetRole || "(none)"}
+OPTIONAL JOB DESCRIPTION / TARGET ROLE CONTEXT:
+${jd || meta?.target_role || "(none)"}
+`.trim();
+}
+
+function buildFullPrompt({ cv, jd, outLang, meta, roleProfile }) {
+  return `
+Return JSON in this exact schema:
+{
+  "headlines": [{"label": string, "text": string}],
+  "about": {"short": string, "normal": string, "bold": string},
+  "experience_fix": [{"before": string, "after": string, "why": string}],
+  "skills": {"top": string[], "tools": string[], "industry": string[]},
+  "recruiter": {"keywords": string[], "boolean": string}
+}
+
+REQUIREMENTS:
+- headlines: exactly 5 items with these labels only: Search, Impact, Niche, Leadership, Clean.
+- Each headline must stay inside the chosen role family and must not invent a different profession.
+- about.short, about.normal, about.bold must sound like real candidate summaries, not writing strategy commentary.
+- about.bold may be stronger in tone, but must still stay truthful and role-accurate.
+- experience_fix: return 4-6 items only when there are real, grounded, materially stronger rewrites.
+- Reject shallow rewrites.
+- skills.top: 10-16 grounded items.
+- skills.tools: 6-14 grounded items.
+- skills.industry: 8-16 grounded items.
+- recruiter.keywords: 8-16 grounded items tightly aligned to role_family and target_role.
+- recruiter.boolean: concise, recruiter-usable, family-aligned, and free of unrelated roles.
+- Never include meta-writing language.
+- Never invent tools, systems, or titles.
+- Never let target_role overpower role_family.
+
+TARGETING CONTEXT:
+${buildRoleContextText({ cv, jd, meta, roleProfile })}
+
+RESUME:
+${cv}
+
+OPTIONAL JOB DESCRIPTION / TARGET ROLE CONTEXT:
+${jd || meta?.target_role || "(none)"}
 `.trim();
 }
 
 function isGpt5Model(model = "") {
-  return /^gpt-5/i.test(String(model).trim());
+  return /^gpt-5/i.test(String(model || "").trim());
 }
 
-function buildOpenAIPayload({ model, messages, reasoningEffort = null, temperature = null, maxCompletionTokens = 1800 }) {
+function buildOpenAIPayload({
+  model,
+  messages,
+  reasoningEffort = null,
+  temperature = null,
+  maxCompletionTokens = 1800,
+}) {
   const body = {
     model,
     response_format: { type: "json_object" },
@@ -978,26 +1825,56 @@ function safeJsonParse(text) {
 
 function buildAttempts({ model, isPreview, passType, maxCompletionTokens }) {
   if (!isGpt5Model(model)) {
-    return [{ reasoningEffort: null, temperature: isPreview ? 0.2 : 0.25, maxCompletionTokens }];
+    return [
+      {
+        reasoningEffort: null,
+        temperature: isPreview ? 0.2 : 0.25,
+        maxCompletionTokens,
+      },
+    ];
   }
 
   if (passType === "repair") {
     return [
-      { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 2400) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 3000) },
+      {
+        reasoningEffort: "low",
+        temperature: null,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 2600),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 3200),
+      },
     ];
   }
 
   if (isPreview) {
     return [
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1100) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1500) },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1200),
+      },
+      {
+        reasoningEffort: "none",
+        temperature: 0.2,
+        maxCompletionTokens: Math.max(maxCompletionTokens, 1600),
+      },
     ];
   }
 
   return [
-    { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 1800) },
-    { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2600) },
+    {
+      reasoningEffort: "low",
+      temperature: null,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2200),
+    },
+    {
+      reasoningEffort: "none",
+      temperature: 0.2,
+      maxCompletionTokens: Math.max(maxCompletionTokens, 2800),
+    },
   ];
 }
 
@@ -1015,7 +1892,15 @@ async function fetchWithTimeout(url, options, timeoutMs = 65000) {
   }
 }
 
-async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = false, passType = "main", maxCompletionTokens = 1800 }) {
+async function callOpenAIJson({
+  apiKey,
+  model,
+  system,
+  userPrompt,
+  isPreview = false,
+  passType = "main",
+  maxCompletionTokens = 1800,
+}) {
   const attempts = buildAttempts({ model, isPreview, passType, maxCompletionTokens });
   let lastError = null;
 
@@ -1046,6 +1931,7 @@ async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = f
       );
 
       const raw = await openaiRes.text();
+
       if (!openaiRes.ok) {
         const err = new Error("OpenAI error");
         err.status = openaiRes.status;
@@ -1099,35 +1985,43 @@ async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = f
   throw err;
 }
 
-function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
-  const orig = String(originalText || "");
-  const opt = String(candidateText || "");
-  return EN_UNSUPPORTED_IMPACT_RE.test(opt) && !EN_UNSUPPORTED_IMPACT_RE.test(orig);
-}
-
-function scoreWeakSentence(sentence = "") {
+function scoreSentenceStrength(sentence = "", roleProfile) {
   const s = String(sentence || "").trim();
-  if (!s) return { isWeak: false, weakScore: 0, strongScore: 0 };
+  if (!s) return { weakScore: 0, strongScore: 0, isWeak: false };
 
+  const familyTerms = getAllFamilyTerms(roleProfile?.roleFamily || "generic");
   let weakScore = 0;
   let strongScore = 0;
 
   if (WEAK_START_RE.test(s)) weakScore += 4;
   if (!STRONG_ACTION_RE.test(s)) weakScore += 1;
   if (countWords(s) <= 6) weakScore += 2;
-  if (countTermHits(s, HARD_FACT_TERMS) > 0) strongScore += 2;
-  if (countTermHits(s, ALL_ROLE_TERMS) > 1) strongScore += 2;
+  if (FLUFF_RE.test(s)) weakScore += 1;
+
+  if (countTermHits(s, familyTerms) > 1) strongScore += 2;
+  if (extractTermSignals(s).length > 0) strongScore += 2;
   if (/\b\d+(?:[.,]\d+)?%?\b/.test(s)) strongScore += 2;
   if (STRONG_ACTION_RE.test(s)) strongScore += 2;
+  if (countWords(s) >= 8 && countWords(s) <= 22) strongScore += 1;
 
   return {
-    isWeak: weakScore >= 4 && strongScore <= 3,
     weakScore,
     strongScore,
+    isWeak: weakScore >= 4 && strongScore <= 3,
   };
 }
 
-function buildLocalExperienceRewrite(source = "", roleProfile) {
+function extractWeakCandidates(cv = "", roleProfile) {
+  const bullets = getBulletLines(cv)
+    .map((sentence) => ({ sentence, score: scoreSentenceStrength(sentence, roleProfile) }))
+    .filter((item) => item.score.isWeak)
+    .sort((a, b) => b.score.weakScore - a.score.weakScore || a.score.strongScore - b.score.strongScore)
+    .map((item) => item.sentence);
+
+  return uniqueByNormalizedStrings(bullets).slice(0, 8);
+}
+
+function buildRoleAnchoredRewrite(source = "", roleProfile) {
   const sentence = String(source || "").trim();
   if (!sentence) return "";
 
@@ -1159,38 +2053,92 @@ function buildLocalExperienceRewrite(source = "", roleProfile) {
 
   if (!matched || !remainder) return "";
 
-  const primaryRole = ensureRoleProfile(roleProfile).primaryRole;
+  const family = roleProfile?.roleFamily || "generic";
   let verb = "Coordinated";
 
-  if (/(email|live chat|customer|client|request|inquir)/i.test(sentence)) verb = "Responded to";
-  else if (/(report|dashboard|summary)/i.test(sentence)) verb = "Prepared";
-  else if (/(schedule|calendar|meeting|travel)/i.test(sentence)) verb = "Coordinated";
-  else if (/(document|record|file|log|note)/i.test(sentence)) verb = "Maintained";
-  else if (/(ticket|case|issue|escalat|follow-?up)/i.test(sentence)) verb = "Coordinated";
-  else if (/(analysis|audit|review|reconciliation|validation)/i.test(sentence)) verb = "Reviewed";
-  else if (/(api|backend|frontend|database|feature|deployment|code)/i.test(sentence)) verb = "Implemented";
-  else if (/(design|wireframe|prototype|visual)/i.test(sentence)) verb = "Designed";
-  else if (/(lesson|classroom|student|curriculum)/i.test(sentence)) verb = "Delivered";
-  else if (/(patient|appointment|medical|insurance)/i.test(sentence)) verb = "Coordinated";
-  else if (primaryRole === "marketing") verb = "Coordinated";
-  else if (primaryRole === "finance") verb = "Prepared";
+  if (/(email|live chat|customer|client|request|inquir|ticket|case|issue|escalat|follow-?up)/i.test(sentence)) {
+    verb = family === "customer_support" ? "Handled" : "Coordinated";
+  } else if (/(report|dashboard|summary|analysis|reconciliation|audit|review|validation)/i.test(sentence)) {
+    verb = "Prepared";
+  } else if (/(document|record|file|log|note|documentation)/i.test(sentence)) {
+    verb = "Maintained";
+  } else if (/(schedule|calendar|meeting|travel|appointment)/i.test(sentence)) {
+    verb = "Coordinated";
+  } else if (/(api|backend|frontend|database|feature|deployment|code)/i.test(sentence)) {
+    verb = "Implemented";
+  } else if (/(lesson|classroom|student|curriculum)/i.test(sentence)) {
+    verb = "Delivered";
+  } else if (/(patient|medical|insurance|clinic)/i.test(sentence)) {
+    verb = "Coordinated";
+  } else if (/(shipment|inventory|vendor|purchase order|rfq|procurement|logistics)/i.test(sentence)) {
+    verb = "Tracked";
+  } else if (/(campaign|ads|content|seo|sem|social media)/i.test(sentence)) {
+    verb = "Managed";
+  }
 
   const rewrite = `${verb} ${lowerFirst(remainder)}`.replace(/\s+/g, " ").trim();
   if (!rewrite) return "";
-  if (EN_WEAK_REWRITE_START_RE.test(rewrite)) return "";
+  if (WEAK_REWRITE_START_RE.test(rewrite)) return "";
   if (canonicalizeTerm(rewrite) === canonicalizeTerm(sentence)) return "";
-  if (hasUnsupportedImpactClaims(sentence, rewrite)) return "";
+  if (jaccardSimilarity(sentence, rewrite) >= 0.9) return "";
+  if (UNSUPPORTED_IMPACT_RE.test(rewrite) && !UNSUPPORTED_IMPACT_RE.test(sentence)) return "";
   return `${rewrite}${ending}`;
 }
 
-function extractWeakCandidates(cv = "") {
-  const bullets = getBulletLines(cv);
-  return bullets
-    .map((sentence) => ({ sentence, profile: scoreWeakSentence(sentence) }))
-    .filter((x) => x.profile.isWeak)
-    .sort((a, b) => b.profile.weakScore - a.profile.weakScore || a.profile.strongScore - b.profile.strongScore)
-    .map((x) => x.sentence)
-    .slice(0, 8);
+function getAllowedTermsSet({ cv = "", jd = "", roleProfile, meta = {} }) {
+  const profile = roleProfile;
+  const family = ROLE_FAMILIES[profile?.roleFamily || "generic"] || ROLE_FAMILIES.generic;
+  const text = `${cv}\n${jd}\n${meta?.target_role || ""}\n${meta?.industry || ""}`;
+  const explicit = uniqueTrimmedStrings([
+    ...extractTermSignals(text),
+    ...profile.explicitTools,
+    ...profile.familySignals,
+    ...profile.titleSignals,
+  ]);
+
+  const familySupported = uniqueTrimmedStrings([
+    ...(family.keywords || []),
+    ...(family.strongTerms || []),
+    ...(family.linkedinKeywords || []),
+    ...(family.recruiterTerms || []),
+  ]).filter((term) => containsCanonicalTermInNormalizedText(canonicalizeTerm(text), term));
+
+  return new Set(uniqueTrimmedStrings([...explicit, ...familySupported]).map(canonicalizeTerm));
+}
+
+function isSupportedTerm(term = "", allowedSet = new Set(), roleProfile) {
+  const norm = canonicalizeTerm(term);
+  if (!norm) return false;
+  if (allowedSet.has(norm)) return true;
+
+  const familyTerms = getAllFamilyTerms(roleProfile?.roleFamily || "generic").map(canonicalizeTerm);
+  if (!isLikelyToolOrPlatform(term) && familyTerms.includes(norm)) return true;
+  return false;
+}
+
+function headlineLooksValid(text = "", context) {
+  const value = clampText(text, 220);
+  if (!value) return false;
+  if (META_LANGUAGE_RE.test(value) || FLUFF_RE.test(value)) return false;
+
+  const norm = canonicalizeTerm(value);
+  const deny = TITLE_DENYLIST_BY_FAMILY[context.roleProfile.roleFamily] || [];
+  if (deny.some((x) => containsCanonicalTermInNormalizedText(norm, x))) return false;
+
+  if (context.roleProfile.roleFamily !== "generic") {
+    const familyTerms = getAllFamilyTerms(context.roleProfile.roleFamily);
+    if (countTermHits(value, familyTerms) <= 0 && countTermHits(value, context.roleProfile.titleSignals) <= 0 && countTermHits(value, [context.meta.target_role || ""]) <= 0) {
+      return false;
+    }
+  }
+
+  if (context.meta.role_family && context.roleProfile.roleFamily !== "generic" && GENERIC_ROLE_DRIFT_RE.test(value)) {
+    const familyRecruiterTerms = (ROLE_FAMILIES[context.roleProfile.roleFamily]?.recruiterTerms || []).map(canonicalizeTerm);
+    const hit = familyRecruiterTerms.some((term) => containsCanonicalTermInNormalizedText(norm, term));
+    if (!hit) return false;
+  }
+
+  return true;
 }
 
 function normalizeHeadlineLabel(label = "", index = 0, isPreview = false) {
@@ -1200,25 +2148,25 @@ function normalizeHeadlineLabel(label = "", index = 0, isPreview = false) {
   return labels.includes(clean) ? clean : labels[index] || labels[labels.length - 1];
 }
 
-function buildFallbackHeadlines({ roleProfile, targetRole = "", seniority = "mid", industry = "", location = "", isPreview = false }) {
-  const profile = ensureRoleProfile(roleProfile);
-  const packs = getRolePacks(profile);
-  const primaryPack = packs[0] || ROLE_PACKS.generic;
-  const roleTitle = targetRole || primaryPack.titles?.[0] || capitalizeFirst(profile.primaryRole.replace(/_/g, " "));
-  const coreTerms = uniqueTrimmedStrings([...(primaryPack.toolTerms || []), ...(primaryPack.strongTerms || [])]).slice(0, 6);
-  const seniorityText = seniority && seniority !== "mid" ? `${capitalizeFirst(seniority)} ` : "";
-  const locationText = location ? ` | ${location}` : "";
-  const industryText = industry ? ` | ${industry}` : "";
+function buildFallbackHeadlines(context) {
+  const family = ROLE_FAMILIES[context.roleProfile.roleFamily] || ROLE_FAMILIES.generic;
+  const targetRole = String(context.meta.target_role || "").trim();
+  const mainTitle = targetRole || context.roleProfile.titleSignals[0] || family.titles[0] || "Professional";
+  const terms = uniqueTrimmedStrings([
+    ...context.roleProfile.familySignals,
+    ...(family.linkedinKeywords || []),
+    ...(family.strongTerms || []),
+  ]).slice(0, 8);
 
   const items = [
-    { label: "Search", text: `${seniorityText}${capitalizeFirst(roleTitle)}${coreTerms[0] ? ` | ${coreTerms[0]}` : ""}${coreTerms[1] ? ` | ${coreTerms[1]}` : ""}`.trim() },
-    { label: "Impact", text: `${capitalizeFirst(roleTitle)}${industryText}${coreTerms[2] ? ` | ${coreTerms[2]}` : ""}`.trim() },
-    { label: "Niche", text: `${capitalizeFirst(roleTitle)}${coreTerms[3] ? ` | ${coreTerms[3]}` : coreTerms[0] ? ` | ${coreTerms[0]}` : ""}`.trim() },
-    { label: "Leadership", text: `${capitalizeFirst(roleTitle)} | ${["lead","manager","director","executive"].includes(seniority) ? "Cross-Functional Leadership" : "Cross-Functional Collaboration"}${industryText}`.trim() },
-    { label: "Clean", text: `${capitalizeFirst(roleTitle)}${industryText}${locationText}${coreTerms[4] ? ` | ${coreTerms[4]}` : ""}`.trim() },
+    { label: "Search", text: `${mainTitle}${terms[0] ? ` | ${terms[0]}` : ""}${terms[1] ? `, ${terms[1]}` : ""}` },
+    { label: "Impact", text: `${mainTitle}${terms[2] ? ` | ${terms[2]}` : terms[0] ? ` | ${terms[0]}` : ""}` },
+    { label: "Niche", text: `${mainTitle}${terms[3] ? ` | ${terms[3]}` : ""}${terms[4] ? ` | ${terms[4]}` : ""}` },
+    { label: "Leadership", text: `${mainTitle} | ${["lead", "manager", "director", "executive"].includes(context.meta.seniority) ? "Team Coordination" : "Cross-Functional Collaboration"}` },
+    { label: "Clean", text: `${mainTitle}${context.meta.industry ? ` | ${context.meta.industry}` : terms[5] ? ` | ${terms[5]}` : ""}` },
   ];
 
-  return isPreview ? items.slice(0, 1) : items;
+  return items.filter((item) => headlineLooksValid(item.text, context)).slice(0, context.isPreview ? 1 : 5);
 }
 
 function normalizeHeadlines(rawHeadlines, context) {
@@ -1227,28 +2175,27 @@ function normalizeHeadlines(rawHeadlines, context) {
       label: normalizeHeadlineLabel(item?.label, idx, context.isPreview),
       text: clampText(item?.text, 220),
     }))
-    .filter((item) => item.text && !ENGLISH_CORPORATE_FLUFF_RE.test(item.text));
+    .filter((item) => item.text && headlineLooksValid(item.text, context));
 
   const out = [];
   const seenText = new Set();
   const seenLabel = new Set();
 
   for (const item of items) {
-    const textKey = canonicalizeTerm(item.text);
-    if (!textKey || seenText.has(textKey)) continue;
+    const key = canonicalizeTerm(item.text);
+    if (!key || seenText.has(key)) continue;
     if (!context.isPreview && seenLabel.has(item.label)) continue;
-    seenText.add(textKey);
+    seenText.add(key);
     seenLabel.add(item.label);
     out.push(item);
   }
 
-  const fallback = buildFallbackHeadlines(context);
-  for (const item of fallback) {
+  for (const item of buildFallbackHeadlines(context)) {
     if (out.length >= (context.isPreview ? 1 : 5)) break;
-    const textKey = canonicalizeTerm(item.text);
-    if (seenText.has(textKey)) continue;
+    const key = canonicalizeTerm(item.text);
+    if (!key || seenText.has(key)) continue;
     if (!context.isPreview && seenLabel.has(item.label)) continue;
-    seenText.add(textKey);
+    seenText.add(key);
     seenLabel.add(item.label);
     out.push(item);
   }
@@ -1257,45 +2204,74 @@ function normalizeHeadlines(rawHeadlines, context) {
 }
 
 function buildFallbackAbout(context) {
-  const profile = ensureRoleProfile(context.roleProfile, context.cv, context.jd);
-  const packs = getRolePacks(profile, context.cv, context.jd);
-  const primaryPack = packs[0] || ROLE_PACKS.generic;
-  const roleTitle = context.targetRole || primaryPack.titles?.[0] || capitalizeFirst(profile.primaryRole.replace(/_/g, " "));
-  const terms = uniqueTrimmedStrings([...(profile.domainSignals || []), ...(primaryPack.strongTerms || []), ...(primaryPack.toolTerms || [])]).slice(0, 8);
-  const summaryLine = extractSummaryLines(context.cv)[0] || "";
+  const family = ROLE_FAMILIES[context.roleProfile.roleFamily] || ROLE_FAMILIES.generic;
+  const title = String(context.meta.target_role || "").trim() || context.roleProfile.titleSignals[0] || family.titles[0] || "Professional";
+  const terms = uniqueTrimmedStrings([
+    ...context.roleProfile.familySignals,
+    ...(family.linkedinKeywords || []),
+    ...(family.strongTerms || []),
+  ]).slice(0, 6);
+  const summary = extractSummaryLines(context.cv)[0] || "";
 
-  if (context.languageLabel === "Turkish") {
-    const base = `Ben ${roleTitle} odağında çalışan bir profesyonelim. Deneyimim ${terms.slice(0, 3).join(", ") || "iş süreçleri, koordinasyon ve uygulama"} alanlarında şekilleniyor. ${summaryLine ? `${clampText(summaryLine, 180)} ` : ""}Profilimde gerçek deneyimi daha net, daha güçlü ve recruiter dostu bir dille anlatmayı hedefliyorum.`;
-    const normal = `${base} Çalışma tarzım düzenli takip, role uygun terminoloji ve profesyonel iletişim üzerine kuruludur. ${terms.slice(3, 6).length ? `Öne çıkan alanlarım arasında ${terms.slice(3, 6).join(", ")} bulunuyor. ` : ""}`.trim();
-    const bold = `${normal} Amacım deneyimi abartmadan, daha görünür, daha seçici ve daha ikna edici bir profesyonel profil sunmaktır.`.trim();
-    return { short: clampText(base, 850), normal: clampText(normal, 1400), bold: clampText(bold, 1400) };
+  if (context.outLang === "Turkish") {
+    const base = `${title} odağında çalışan bir profesyonelim. Deneyimim ${terms.slice(0, 3).join(", ") || "rol odaklı süreçler, koordinasyon ve uygulama"} alanlarında şekilleniyor.${summary ? ` ${clampText(summary, 180)}` : ""}`.trim();
+    const normal = `${base} Çalışma tarzım düzenli takip, açık iletişim ve deneyimi olduğu gibi yansıtan profesyonel bir yaklaşım üzerine kuruludur.${terms.slice(3, 5).length ? ` Öne çıkan alanlarım arasında ${terms.slice(3, 5).join(", ")} yer alır.` : ""}`.trim();
+    const bold = `${normal} Profilimde deneyimi abartmadan, daha net ve daha güçlü bir dille sunmaya odaklanıyorum.`.trim();
+    return {
+      short: clampText(base, 850),
+      normal: clampText(normal, 1400),
+      bold: clampText(bold, 1400),
+    };
   }
 
-  const intro = `I am a ${context.seniority !== "mid" ? `${context.seniority} ` : ""}${roleTitle} focused on ${terms.slice(0, 3).join(", ") || "clear execution, structured communication, and role-relevant delivery"}.`;
-  const toneLine = context.tone === "bold"
-    ? "I position my work with stronger emphasis while keeping the language factual and grounded."
-    : context.tone === "confident"
-    ? "I use confident positioning while keeping the language professional and fully truthful."
-    : "I use clean, recruiter-safe language that reflects the real scope of my work.";
-  const short = `${intro} ${summaryLine ? `${clampText(summaryLine, 180)} ` : ""}${toneLine}`.replace(/\s+/g, " ").trim();
-  const normal = `${short} On LinkedIn, I aim to present experience in a way that is search-aware, role-specific, and easy for recruiters to understand quickly. I focus on strong wording, clear context, and grounded positioning without exaggerating ownership, results, or scale.`.replace(/\s+/g, " ").trim();
-  const bold = `${normal} The goal is not to sound louder than the work itself, but to make the work more visible, more readable, and more compelling to the right audience.`.replace(/\s+/g, " ").trim();
-  return { short: clampText(short, 850), normal: clampText(normal, 1400), bold: clampText(bold, 1400) };
+  const short = `${summary ? `${clampText(summary, 180)} ` : ""}I work in ${lowerFirst(title)}-aligned roles with experience in ${terms.slice(0, 3).join(", ") || "structured execution, coordination, and documentation"}. My background reflects practical work, steady follow-through, and clear communication within the scope of the roles I have held.`.replace(/\s+/g, " ").trim();
+  const normal = `${short} My work style is grounded in consistency, role-appropriate communication, and reliable execution. ${terms.slice(3, 5).length ? `Additional areas of focus include ${terms.slice(3, 5).join(", ")}.` : ""}`.replace(/\s+/g, " ").trim();
+  const bold = `${normal} I present my experience with a clear, direct tone while keeping the language accurate and fully supported by the work itself.`.replace(/\s+/g, " ").trim();
+
+  return {
+    short: clampText(short, 850),
+    normal: clampText(normal, 1400),
+    bold: clampText(bold, 1400),
+  };
 }
 
-function normalizeAbout(rawAbout, context) {
-  const fallback = buildFallbackAbout(context);
-  let short = clampText(rawAbout?.short, 900) || fallback.short;
-  let normal = context.isPreview ? "" : clampText(rawAbout?.normal, 1500) || fallback.normal;
-  let bold = context.isPreview ? "" : clampText(rawAbout?.bold, 1500) || fallback.bold;
+function sanitizeAboutText(text = "") {
+  let out = clampText(text, 1500);
+  out = out.replace(/\bOn LinkedIn,?\b[^.]*\.?/gi, " ");
+  out = out.replace(/\bI use clean recruiter-safe language\b[^.]*\.?/gi, " ");
+  out = out.replace(/\bThe goal is not to sound louder\b[^.]*\.?/gi, " ");
+  out = out.replace(/\bI aim to\b[^.]*LinkedIn[^.]*\.?/gi, " ");
+  out = out.replace(/\s+/g, " ").trim();
+  return out;
+}
 
-  if (ENGLISH_CORPORATE_FLUFF_RE.test(short)) short = fallback.short;
+function aboutLooksValid(text = "") {
+  const value = sanitizeAboutText(text);
+  if (!value) return false;
+  if (META_LANGUAGE_RE.test(value)) return false;
+  if (FLUFF_RE.test(value)) return false;
+  if (UNSUPPORTED_IMPACT_RE.test(value)) return false;
+  if (value.length < 120) return false;
+  return true;
+}
+
+function normalizeAbout(rawAbout = {}, context) {
+  const fallback = buildFallbackAbout(context);
+  let short = sanitizeAboutText(rawAbout?.short) || fallback.short;
+  let normal = context.isPreview ? "" : sanitizeAboutText(rawAbout?.normal) || fallback.normal;
+  let bold = context.isPreview ? "" : sanitizeAboutText(rawAbout?.bold) || fallback.bold;
+
+  if (!aboutLooksValid(short)) short = fallback.short;
   if (!context.isPreview) {
-    if (ENGLISH_CORPORATE_FLUFF_RE.test(normal)) normal = fallback.normal;
-    if (ENGLISH_CORPORATE_FLUFF_RE.test(bold)) bold = fallback.bold;
+    if (!aboutLooksValid(normal)) normal = fallback.normal;
+    if (!aboutLooksValid(bold)) bold = fallback.bold;
   }
 
-  return { short, normal, bold };
+  return {
+    short: clampText(short, 900),
+    normal: context.isPreview ? "" : clampText(normal, 1500),
+    bold: context.isPreview ? "" : clampText(bold, 1500),
+  };
 }
 
 function closestSourceLine(candidate = "", sourceLines = []) {
@@ -1316,218 +2292,327 @@ function closestSourceLine(candidate = "", sourceLines = []) {
     }
   }
 
-  return bestScore >= 0.72 ? best : "";
+  return bestScore >= 0.7 ? best : "";
 }
 
-function isValidExperienceFix(item, context) {
+function fixesImprovementScore(before = "", after = "") {
+  const beforeScore = scoreSentenceStrength(before, null);
+  const afterScore = scoreSentenceStrength(after, null);
+  let improvement = 0;
+
+  if (countWords(after) > countWords(before)) improvement += 1;
+  if (STRONG_ACTION_RE.test(after) && !STRONG_ACTION_RE.test(before)) improvement += 1;
+  if (extractTermSignals(after).length > extractTermSignals(before).length) improvement += 1;
+  if (jaccardSimilarity(before, after) < 0.82) improvement += 1;
+  if (afterScore.strongScore > beforeScore.strongScore) improvement += 1;
+  if (afterScore.weakScore < beforeScore.weakScore) improvement += 1;
+
+  return improvement;
+}
+
+function fixLooksValid(item, context) {
   const before = String(item?.before || "").trim();
   const after = String(item?.after || "").trim();
   const why = String(item?.why || "").trim();
-  if (!before || !after) return false;
+  if (!before || !after || !why) return false;
   if (canonicalizeTerm(before) === canonicalizeTerm(after)) return false;
-  if (EN_WEAK_REWRITE_START_RE.test(after)) return false;
-  if (jaccardSimilarity(before, after) >= 0.9) return false;
-  if (hasUnsupportedImpactClaims(before, after)) return false;
-  if (ENGLISH_CORPORATE_FLUFF_RE.test(after) && !ENGLISH_CORPORATE_FLUFF_RE.test(before)) return false;
-  if (countWords(why) < 3) return false;
+  if (WEAK_REWRITE_START_RE.test(after)) return false;
+  if (META_LANGUAGE_RE.test(after) || META_LANGUAGE_RE.test(why)) return false;
+  if (FLUFF_RE.test(after) || FLUFF_RE.test(why)) return false;
+  if (UNSUPPORTED_IMPACT_RE.test(after) && !UNSUPPORTED_IMPACT_RE.test(before)) return false;
+  if (jaccardSimilarity(before, after) >= 0.88) return false;
+  if (fixesImprovementScore(before, after) < 2) return false;
+
+  const beforeFamilyHits = countTermHits(before, getAllFamilyTerms(context.roleProfile.roleFamily));
+  const afterFamilyHits = countTermHits(after, getAllFamilyTerms(context.roleProfile.roleFamily));
+  if (beforeFamilyHits > 0 && afterFamilyHits === 0) return false;
+
+  const deny = TITLE_DENYLIST_BY_FAMILY[context.roleProfile.roleFamily] || [];
+  if (deny.some((x) => containsCanonicalTermInNormalizedText(canonicalizeTerm(after), x))) return false;
+
   return true;
 }
 
-function normalizeExperienceFixes(rawFixes, context) {
-  const sourceLines = uniqueByNormalizedStrings([...extractWeakCandidates(context.cv), ...getBulletLines(context.cv)]);
+function normalizeExperienceFixes(rawFixes = [], context) {
+  const sourceLines = uniqueByNormalizedStrings([...extractWeakCandidates(context.cv, context.roleProfile), ...getBulletLines(context.cv)]);
   const out = [];
   const seen = new Set();
 
   for (const item of Array.isArray(rawFixes) ? rawFixes : []) {
-    const candidateBefore = clampText(item?.before, 280);
+    const candidateBefore = clampText(item?.before, 320);
     const before = closestSourceLine(candidateBefore, sourceLines) || candidateBefore;
-    const after = clampText(item?.after, 280);
-    const why = clampText(item?.why, 160) || "Stronger action, clearer scope, and better recruiter readability.";
+    const after = clampText(item?.after, 320);
+    const why = clampText(item?.why, 160) || "Clearer wording and stronger recruiter readability.";
     const key = `${canonicalizeTerm(before)}__${canonicalizeTerm(after)}`;
     if (!before || !after || seen.has(key)) continue;
     const entry = { before, after, why };
-    if (!isValidExperienceFix(entry, context)) continue;
+    if (!fixLooksValid(entry, context)) continue;
     seen.add(key);
     out.push(entry);
   }
 
-  const weakCandidates = extractWeakCandidates(context.cv);
-  const needed = context.isPreview ? 1 : Math.min(6, Math.max(4, weakCandidates.length >= 4 ? 4 : weakCandidates.length));
-  if (out.length < needed) {
+  const weakCandidates = extractWeakCandidates(context.cv, context.roleProfile);
+  const desiredMin = context.isPreview ? 0 : Math.min(4, weakCandidates.length);
+
+  if (out.length < desiredMin || (context.isPreview && out.length < 1 && weakCandidates.length > 0)) {
     for (const source of weakCandidates) {
-      const after = buildLocalExperienceRewrite(source, context.roleProfile);
+      const after = buildRoleAnchoredRewrite(source, context.roleProfile);
       const entry = {
         before: source,
         after,
-        why: "Stronger action, clearer scope, and better recruiter readability.",
+        why: "Clearer action, sharper scope, and more direct recruiter readability.",
       };
       const key = `${canonicalizeTerm(entry.before)}__${canonicalizeTerm(entry.after)}`;
       if (!entry.after || seen.has(key)) continue;
-      if (!isValidExperienceFix(entry, context)) continue;
+      if (!fixLooksValid(entry, context)) continue;
       seen.add(key);
       out.push(entry);
-      if (out.length >= (context.isPreview ? 2 : 6)) break;
+      if (out.length >= (context.isPreview ? 1 : 6)) break;
     }
   }
 
-  return out.slice(0, context.isPreview ? 2 : 6);
+  return out.slice(0, context.isPreview ? 1 : 6);
+}
+
+function arrayFilterSupported(arr = [], context, options = {}) {
+  const { max = 12, allowFamilyGeneric = true, includeTargetRole = false } = options;
+  const allowedSet = getAllowedTermsSet({ cv: context.cv, jd: context.jd, roleProfile: context.roleProfile, meta: context.meta });
+  const family = ROLE_FAMILIES[context.roleProfile.roleFamily] || ROLE_FAMILIES.generic;
+  const extraFamilyTerms = allowFamilyGeneric
+    ? uniqueTrimmedStrings([
+        ...(family.linkedinKeywords || []),
+        ...(family.recruiterTerms || []),
+        ...(family.keywords || []),
+        ...(family.strongTerms || []),
+      ])
+    : [];
+
+  const pool = uniqueByNormalizedStrings([
+    ...(Array.isArray(arr) ? arr : []).map(cleanListItem),
+    ...(includeTargetRole && context.meta.target_role ? [context.meta.target_role] : []),
+    ...context.roleProfile.familySignals,
+    ...context.roleProfile.explicitTools,
+    ...extraFamilyTerms,
+  ]);
+
+  const out = [];
+  const seen = new Set();
+
+  for (const term of pool) {
+    const clean = cleanListItem(term);
+    const norm = canonicalizeTerm(clean);
+    if (!clean || !norm || seen.has(norm)) continue;
+    if (META_LANGUAGE_RE.test(clean) || FLUFF_RE.test(clean) || UNSUPPORTED_IMPACT_RE.test(clean)) continue;
+    if (context.roleProfile.roleFamily !== "generic") {
+      const deny = TITLE_DENYLIST_BY_FAMILY[context.roleProfile.roleFamily] || [];
+      if (deny.some((x) => containsCanonicalTermInNormalizedText(norm, x))) continue;
+    }
+    if (!isSupportedTerm(clean, allowedSet, context.roleProfile)) {
+      if (isLikelyToolOrPlatform(clean) || looksLikeAcronym(clean)) continue;
+      if (countTermHits(clean, getAllFamilyTerms(context.roleProfile.roleFamily)) <= 0) continue;
+    }
+    seen.add(norm);
+    out.push(clean);
+    if (out.length >= max) break;
+  }
+
+  return out;
 }
 
 function buildFallbackSkills(context) {
-  const profile = ensureRoleProfile(context.roleProfile, context.cv, context.jd);
-  const packs = getRolePacks(profile, context.cv, context.jd);
-  const primaryPack = packs[0] || ROLE_PACKS.generic;
-  const detected = uniqueTrimmedStrings([...(profile.domainSignals || []), ...getSkillsLines(context.cv), ...extractHeaderBlock(context.cv)]);
+  const family = ROLE_FAMILIES[context.roleProfile.roleFamily] || ROLE_FAMILIES.generic;
+  const top = arrayFilterSupported(
+    [
+      ...getSkillsLines(context.cv),
+      ...context.roleProfile.familySignals,
+      ...(family.linkedinKeywords || []),
+      ...(family.keywords || []),
+    ],
+    context,
+    { max: context.isPreview ? 8 : 16, includeTargetRole: false }
+  );
 
-  const tools = uniqueByNormalizedStrings([
-    ...detected.filter((term) => HARD_FACT_TERMS.some((x) => canonicalizeTerm(x) === canonicalizeTerm(term)) || (primaryPack.toolTerms || []).some((x) => canonicalizeTerm(x) === canonicalizeTerm(term))),
-    ...(primaryPack.toolTerms || []),
-  ]).slice(0, context.isPreview ? 5 : 14);
+  const tools = arrayFilterSupported(
+    [
+      ...context.roleProfile.explicitTools,
+      ...(family.toolTerms || []),
+    ],
+    context,
+    { max: context.isPreview ? 5 : 14, allowFamilyGeneric: false }
+  );
 
-  const industry = uniqueByNormalizedStrings([
-    ...detected.filter((term) => (primaryPack.keywords || []).some((x) => canonicalizeTerm(x) === canonicalizeTerm(term)) || (primaryPack.strongTerms || []).some((x) => canonicalizeTerm(x) === canonicalizeTerm(term))),
-    ...(primaryPack.keywords || []),
-    ...(primaryPack.strongTerms || []),
-  ]).slice(0, context.isPreview ? 5 : 16);
-
-  const top = uniqueByNormalizedStrings([
-    ...detected,
-    ...(primaryPack.suggestedKeywords || []),
-    ...industry,
-  ]).slice(0, context.isPreview ? 8 : 16);
+  const industry = arrayFilterSupported(
+    [
+      ...context.roleProfile.familySignals,
+      ...(family.linkedinKeywords || []),
+      ...(family.recruiterTerms || []),
+    ],
+    context,
+    { max: context.isPreview ? 5 : 16 }
+  );
 
   return { top, tools, industry };
 }
 
-function normalizeSkillArray(arr = [], maxItems = 12) {
-  return uniqueByNormalizedStrings((Array.isArray(arr) ? arr : []).map((x) => clampText(x, 80)).filter(Boolean)).slice(0, maxItems);
-}
-
-function normalizeSkills(rawSkills, context) {
+function normalizeSkills(rawSkills = {}, context) {
   const fallback = buildFallbackSkills(context);
-  const top = uniqueByNormalizedStrings([
-    ...normalizeSkillArray(rawSkills?.top, context.isPreview ? 8 : 16),
-    ...fallback.top,
-  ]).slice(0, context.isPreview ? 8 : 16);
-
-  const tools = uniqueByNormalizedStrings([
-    ...normalizeSkillArray(rawSkills?.tools, context.isPreview ? 5 : 14),
-    ...fallback.tools,
-  ]).slice(0, context.isPreview ? 5 : 14);
-
-  const industry = uniqueByNormalizedStrings([
-    ...normalizeSkillArray(rawSkills?.industry, context.isPreview ? 5 : 16),
-    ...fallback.industry,
-  ]).slice(0, context.isPreview ? 5 : 16);
-
+  const top = arrayFilterSupported(rawSkills?.top || fallback.top, context, { max: context.isPreview ? 8 : 16 });
+  const tools = arrayFilterSupported(rawSkills?.tools || fallback.tools, context, { max: context.isPreview ? 5 : 14, allowFamilyGeneric: false });
+  const industry = arrayFilterSupported(rawSkills?.industry || fallback.industry, context, { max: context.isPreview ? 5 : 16 });
   return { top, tools, industry };
 }
 
-function buildBooleanString({ roleProfile, targetRole = "", location = "", skills }) {
-  const profile = ensureRoleProfile(roleProfile);
-  const packs = getRolePacks(profile);
-  const primaryPack = packs[0] || ROLE_PACKS.generic;
-  const titles = uniqueTrimmedStrings([targetRole, ...(primaryPack.titles || [])]).slice(0, 4).map((x) => `"${x}"`);
-  const terms = uniqueTrimmedStrings([...(skills?.top || []), ...(primaryPack.suggestedKeywords || []), ...(profile.domainSignals || [])]).slice(0, 5).map((x) => (x.includes(" ") ? `"${x}"` : x));
-  const tools = uniqueTrimmedStrings([...(skills?.tools || []), ...(primaryPack.toolTerms || [])]).slice(0, 4).map((x) => (x.includes(" ") ? `"${x}"` : x));
-
-  const groups = [];
-  if (titles.length) groups.push(`(${titles.join(" OR ")})`);
-  if (terms.length) groups.push(`(${terms.join(" OR ")})`);
-  if (tools.length) groups.push(`(${tools.join(" OR ")})`);
-
-  let out = groups.join(" AND ");
-  if (location) out += out ? ` AND ("${location}")` : `("${location}")`;
-  return clampText(out, 320);
+function buildFallbackRecruiterKeywords(context, skills) {
+  const family = ROLE_FAMILIES[context.roleProfile.roleFamily] || ROLE_FAMILIES.generic;
+  return arrayFilterSupported(
+    [
+      ...(family.recruiterTerms || []),
+      ...(context.meta.target_role ? [context.meta.target_role] : []),
+      ...(skills.top || []),
+      ...(skills.industry || []),
+    ],
+    context,
+    { max: context.isPreview ? 6 : 16, includeTargetRole: true }
+  );
 }
 
-function normalizeRecruiter(rawRecruiter, context, skills) {
-  const profile = ensureRoleProfile(context.roleProfile, context.cv, context.jd);
-  const packs = getRolePacks(profile, context.cv, context.jd);
-  const primaryPack = packs[0] || ROLE_PACKS.generic;
+function buildBooleanString(context, skills) {
+  const family = ROLE_FAMILIES[context.roleProfile.roleFamily] || ROLE_FAMILIES.generic;
+  const titlePool = arrayFilterSupported(
+    [
+      ...(context.meta.target_role ? [context.meta.target_role] : []),
+      ...(family.recruiterTerms || []),
+      ...(family.titles || []),
+      ...context.roleProfile.titleSignals,
+    ],
+    context,
+    { max: 4, includeTargetRole: true }
+  );
 
-  const keywords = uniqueByNormalizedStrings([
-    ...normalizeSkillArray(rawRecruiter?.keywords, context.isPreview ? 6 : 16),
-    ...(skills?.top || []),
-    ...(skills?.tools || []),
-    ...(primaryPack.suggestedKeywords || []),
-    ...(profile.domainSignals || []),
+  const keywordPool = arrayFilterSupported(
+    [
+      ...(skills.top || []),
+      ...(skills.industry || []),
+      ...context.roleProfile.familySignals,
+    ],
+    context,
+    { max: 5 }
+  );
+
+  const toolPool = arrayFilterSupported(skills.tools || [], context, { max: 4, allowFamilyGeneric: false });
+
+  const q = (s) => (String(s).includes(" ") ? `"${s}"` : s);
+  const parts = [];
+  if (titlePool.length) parts.push(`(${titlePool.map(q).join(" OR ")})`);
+  if (keywordPool.length) parts.push(`(${keywordPool.map(q).join(" OR ")})`);
+  if (toolPool.length) parts.push(`(${toolPool.map(q).join(" OR ")})`);
+  if (context.meta.location) parts.push(`("${context.meta.location}")`);
+  return clampText(parts.join(" AND "), 360);
+}
+
+function normalizeRecruiter(rawRecruiter = {}, context, skills) {
+  const keywords = arrayFilterSupported(rawRecruiter?.keywords || [], context, {
+    max: context.isPreview ? 6 : 16,
+    includeTargetRole: true,
+  });
+  const mergedKeywords = uniqueByNormalizedStrings([
+    ...keywords,
+    ...buildFallbackRecruiterKeywords(context, skills),
   ]).slice(0, context.isPreview ? 6 : 16);
 
-  let booleanSearch = clampText(rawRecruiter?.boolean, 360);
-  if (!booleanSearch || booleanSearch.length < 20 || ENGLISH_CORPORATE_FLUFF_RE.test(booleanSearch)) {
-    booleanSearch = buildBooleanString({
-      roleProfile: profile,
-      targetRole: context.targetRole,
-      location: context.location,
-      skills,
-    });
+  let booleanValue = clampText(rawRecruiter?.boolean, 360);
+  if (
+    !booleanValue ||
+    booleanValue.length < 18 ||
+    META_LANGUAGE_RE.test(booleanValue) ||
+    FLUFF_RE.test(booleanValue) ||
+    (TITLE_DENYLIST_BY_FAMILY[context.roleProfile.roleFamily] || []).some((x) => containsCanonicalTermInNormalizedText(canonicalizeTerm(booleanValue), x))
+  ) {
+    booleanValue = buildBooleanString(context, skills);
   }
 
   return {
-    keywords,
-    boolean: booleanSearch,
+    keywords: mergedKeywords,
+    boolean: booleanValue,
   };
 }
 
-function normalizeLinkedInOutput(raw, context) {
+function normalizeLinkedInOutput(raw = {}, context) {
   const headlines = normalizeHeadlines(raw?.headlines, context);
   const about = normalizeAbout(raw?.about || {}, context);
-  const experience_fix = normalizeExperienceFixes(raw?.experience_fix, context);
+  const experience_fix = normalizeExperienceFixes(raw?.experience_fix || [], context);
   const skills = normalizeSkills(raw?.skills || {}, context);
   const recruiter = normalizeRecruiter(raw?.recruiter || {}, context, skills);
   return { headlines, about, experience_fix, skills, recruiter };
 }
 
-function detectLinkedInIssues(output, context) {
+function detectOutputIssues(output, context) {
   const issues = [];
-  if (!Array.isArray(output.headlines) || !output.headlines.length) issues.push("No usable headlines were generated.");
-  if (!context.isPreview && output.headlines.length < 5) issues.push("Fewer than 5 headline options were generated.");
+  if (!Array.isArray(output.headlines) || !output.headlines.length) {
+    issues.push("No usable headlines were generated.");
+  } else if (!context.isPreview && output.headlines.length < 5) {
+    issues.push("Fewer than 5 valid headlines were generated.");
+  }
+
   if (!output.about?.short) issues.push("Short About section is missing.");
-  if (!context.isPreview && (!output.about?.normal || !output.about?.bold)) issues.push("Full About section set is incomplete.");
-  if (extractWeakCandidates(context.cv).length >= 2 && (!Array.isArray(output.experience_fix) || !output.experience_fix.length)) issues.push("Experience fixes are missing despite clear rewrite opportunities.");
-  if (!Array.isArray(output.skills?.top) || !output.skills.top.length) issues.push("Top skills output is too thin.");
+  if (!context.isPreview && (!output.about?.normal || !output.about?.bold)) {
+    issues.push("Full About section set is incomplete.");
+  }
+
+  if (META_LANGUAGE_RE.test(JSON.stringify(output.about || {}))) {
+    issues.push("About section still contains meta-writing language.");
+  }
+
+  const weakCandidates = extractWeakCandidates(context.cv, context.roleProfile);
+  if (!context.isPreview && weakCandidates.length >= 4 && (!Array.isArray(output.experience_fix) || output.experience_fix.length < 3)) {
+    issues.push("Experience fix kit is too thin for the number of weak bullets in the resume.");
+  }
+
+  if (!Array.isArray(output.skills?.top) || !output.skills.top.length) issues.push("Top skills are missing.");
   if (!Array.isArray(output.recruiter?.keywords) || !output.recruiter.keywords.length) issues.push("Recruiter keywords are missing.");
-  if (!context.isPreview && (!output.recruiter?.boolean || output.recruiter.boolean.length < 20)) issues.push("Recruiter boolean search is weak or missing.");
-  return issues;
+  if (!context.isPreview && (!output.recruiter?.boolean || output.recruiter.boolean.length < 20)) {
+    issues.push("Recruiter boolean string is weak or missing.");
+  }
+
+  for (const headline of output.headlines || []) {
+    if (!headlineLooksValid(headline.text, context)) {
+      issues.push("At least one headline drifts outside the allowed role family.");
+      break;
+    }
+  }
+
+  return uniqueTrimmedStrings(issues).slice(0, 8);
 }
 
-function buildLinkedInRepairPrompt({ currentOutput, issues, cv, jd, outLang, liTargetRole, liSeniority, liIndustry, liLocation, liTone, roleProfile }) {
+function buildRepairPrompt({ currentOutput, issues, cv, jd, outLang, meta, roleProfile }) {
   return `
 Return JSON in this exact schema:
-
 {
   "headlines": [{"label": string, "text": string}],
-  "about": { "short": string, "normal": string, "bold": string },
+  "about": {"short": string, "normal": string, "bold": string},
   "experience_fix": [{"before": string, "after": string, "why": string}],
-  "skills": { "top": string[], "tools": string[], "industry": string[] },
-  "recruiter": { "keywords": string[], "boolean": string }
+  "skills": {"top": string[], "tools": string[], "industry": string[]},
+  "recruiter": {"keywords": string[], "boolean": string}
 }
 
 TASK:
-Repair the LinkedIn optimization output so it becomes cleaner, stronger, more recruiter-ready, and fully truthful.
+Repair the LinkedIn optimization output so it becomes cleaner, more role-accurate, more truthful, and more recruiter-usable.
 
 ISSUES TO FIX:
 ${issues.map((issue, idx) => `${idx + 1}. ${issue}`).join("\n")}
 
 RULES:
 - Keep all output values in ${outLang}.
-- Do NOT invent metrics, tools, outcomes, certifications, leadership ownership, or business impact.
-- Replace weak or shallow experience rewrites with materially stronger ones.
-- Remove artificial headline or About wording.
-- Keep the boolean string realistic and readable.
+- Stay inside the hard role_family constraint.
+- Remove any meta-writing language.
+- Remove any role drift, unsupported tools, unsupported impact, or fake positioning.
+- Keep headlines concise and family-aligned.
+- Keep About sections natural and candidate-focused.
+- Keep experience fixes materially stronger, but fully truthful.
+- Keep recruiter keywords and boolean string tightly aligned to role_family and target_role.
 
-TARGETING META:
-${buildLinkedInRoleContextText({
-    cv,
-    jd,
-    targetRole: liTargetRole,
-    seniority: liSeniority,
-    industry: liIndustry,
-    location: liLocation,
-    tone: liTone,
-    roleProfile,
-  })}
+TARGETING CONTEXT:
+${buildRoleContextText({ cv, jd, meta, roleProfile })}
 
 CURRENT OUTPUT TO REPAIR:
 ${JSON.stringify(currentOutput)}
@@ -1535,14 +2620,13 @@ ${JSON.stringify(currentOutput)}
 RESUME:
 ${cv}
 
-TARGET ROLE / JOB (optional):
-${jd || liTargetRole || "(none)"}
+OPTIONAL JOB DESCRIPTION / TARGET ROLE CONTEXT:
+${jd || meta?.target_role || "(none)"}
 `.trim();
 }
 
-function buildFinalLinkedInResponse(normalized, isPreview) {
+function buildFinalResponse(normalized, isPreview) {
   if (!isPreview) return normalized;
-
   return {
     headlines: normalized.headlines.slice(0, 1),
     about: { short: String(normalized.about?.short || "") },
@@ -1571,15 +2655,6 @@ export default async function handler(req, res) {
     const requestedPreview = !!preview;
     const isPreview = requestedPreview || !sessionOk;
 
-    console.log("LINKEDIN DEBUG", {
-  host: req.headers.host,
-  hasCookie: /resumeai_session=/.test(req.headers.cookie || ""),
-  cookieRaw: req.headers.cookie || "",
-  requestedPreview: !!preview,
-  sessionOk,
-  isPreview
-});
-
     const ip = getClientIp(req);
     const limiter = isPreview ? rlPreview : rlFull;
     const { success, reset } = await limiter.limit(ip);
@@ -1604,13 +2679,38 @@ export default async function handler(req, res) {
     const model = process.env.OPENAI_LINKEDIN_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
     const langCode = typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : "en";
     const outLang = LANG_MAP[langCode] || "English";
-    const liMeta = linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
-    const liTargetRole = String(liMeta.target_role || "").trim();
-    const liSeniority = normalizeSeniority(liMeta.seniority || "mid");
-    const liIndustry = String(liMeta.industry || "").trim();
-    const liLocation = String(liMeta.location || "").trim();
-    const liTone = normalizeTone(liMeta.tone || "clean");
-    const roleProfile = inferRoleProfile(String(cv || ""), String(jd || ""));
+
+    const rawMeta = linkedin_meta && typeof linkedin_meta === "object" ? linkedin_meta : {};
+    const meta = {
+      role_family: normalizeRoleFamily(rawMeta.role_family || ""),
+      target_role: String(rawMeta.target_role || "").trim(),
+      seniority: normalizeSeniority(rawMeta.seniority || "mid"),
+      industry: String(rawMeta.industry || "").trim(),
+      location: String(rawMeta.location || "").trim(),
+      tone: normalizeTone(rawMeta.tone || "clean"),
+    };
+
+    const safeCv = String(cv || "");
+    const safeJd = String(jd || "");
+    const roleProfile = inferRoleProfile({
+      cv: safeCv,
+      jd: safeJd,
+      targetRole: meta.target_role,
+      roleFamily: meta.role_family,
+    });
+
+    const context = {
+      cv: safeCv,
+      jd: safeJd,
+      isPreview,
+      outLang,
+      roleProfile,
+      meta: {
+        ...meta,
+        role_family: roleProfile.roleFamily,
+        seniority: meta.seniority || roleProfile.inferredSeniority || "mid",
+      },
+    };
 
     let raw;
     try {
@@ -1619,31 +2719,11 @@ export default async function handler(req, res) {
         model,
         system: buildLinkedInSystem(outLang),
         userPrompt: isPreview
-          ? buildLinkedInPreviewPrompt({
-              cv: String(cv || ""),
-              jd: String(jd || ""),
-              outLang,
-              liTargetRole,
-              liSeniority,
-              liIndustry,
-              liLocation,
-              liTone,
-              roleProfile,
-            })
-          : buildLinkedInFullPrompt({
-              cv: String(cv || ""),
-              jd: String(jd || ""),
-              outLang,
-              liTargetRole,
-              liSeniority,
-              liIndustry,
-              liLocation,
-              liTone,
-              roleProfile,
-            }),
+          ? buildPreviewPrompt({ cv: safeCv, jd: safeJd, outLang, meta: context.meta, roleProfile })
+          : buildFullPrompt({ cv: safeCv, jd: safeJd, outLang, meta: context.meta, roleProfile }),
         isPreview,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1300 : 2400,
+        maxCompletionTokens: isPreview ? 1300 : 2600,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -1653,21 +2733,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const context = {
-      cv: String(cv || ""),
-      jd: String(jd || ""),
-      isPreview,
-      languageLabel: outLang,
-      roleProfile,
-      targetRole: liTargetRole,
-      seniority: liSeniority,
-      industry: liIndustry,
-      location: liLocation,
-      tone: liTone,
-    };
-
     let normalized = normalizeLinkedInOutput(raw, context);
-    let issues = detectLinkedInIssues(normalized, context);
+    const issues = detectOutputIssues(normalized, context);
 
     if (issues.length) {
       try {
@@ -1675,27 +2742,23 @@ export default async function handler(req, res) {
           apiKey,
           model,
           system: buildLinkedInSystem(outLang),
-          userPrompt: buildLinkedInRepairPrompt({
+          userPrompt: buildRepairPrompt({
             currentOutput: normalized,
             issues,
-            cv: String(cv || ""),
-            jd: String(jd || ""),
+            cv: safeCv,
+            jd: safeJd,
             outLang,
-            liTargetRole,
-            liSeniority,
-            liIndustry,
-            liLocation,
-            liTone,
+            meta: context.meta,
             roleProfile,
           }),
           isPreview,
           passType: "repair",
-          maxCompletionTokens: isPreview ? 1500 : 2600,
+          maxCompletionTokens: isPreview ? 1600 : 3000,
         });
 
         normalized = normalizeLinkedInOutput(repaired, context);
       } catch {
-        // keep normalized main output if repair fails
+        // Keep initial normalized output if repair fails.
       }
     }
 
@@ -1703,7 +2766,7 @@ export default async function handler(req, res) {
       await ensureMinDelay(startedAt, 15000);
     }
 
-    return res.status(200).json(buildFinalLinkedInResponse(normalized, isPreview));
+    return res.status(200).json(buildFinalResponse(normalized, isPreview));
   } catch (err) {
     return res.status(500).json({
       error: "Server error",
