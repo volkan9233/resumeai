@@ -1571,6 +1571,15 @@ export default async function handler(req, res) {
     const requestedPreview = !!preview;
     const isPreview = requestedPreview || !sessionOk;
 
+    console.log("LINKEDIN DEBUG", {
+  host: req.headers.host,
+  hasCookie: /resumeai_session=/.test(req.headers.cookie || ""),
+  cookieRaw: req.headers.cookie || "",
+  requestedPreview: !!preview,
+  sessionOk,
+  isPreview
+});
+
     const ip = getClientIp(req);
     const limiter = isPreview ? rlPreview : rlFull;
     const { success, reset } = await limiter.limit(ip);
