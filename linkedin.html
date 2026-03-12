@@ -1267,19 +1267,18 @@ if (!targetRole) {
 
   localStorage.setItem("resumeai_li_meta", JSON.stringify(meta));
 
-  const r = await fetch("/api/analyze", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    credentials: "include",
-    body: JSON.stringify({
-      cv: resume,
-      jd: job,
-      preview: isPreview,
-      lang,
-      mode: "linkedin",
-      linkedin_meta: meta
-    })
-  });
+  const r = await fetch("/api/linkedin", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  credentials: "include",
+  body: JSON.stringify({
+    cv: resume,
+    jd: job,
+    preview: isPreview,
+    lang,
+    linkedin_meta: meta
+  })
+});
 
     const raw = await r.text();
     let data = {};
