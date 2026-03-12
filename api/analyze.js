@@ -2073,17 +2073,112 @@ function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview })
       ? "- Score the resume against the job description without inventing alignment."
       : "- Infer likely role family, seniority, and recruiter-facing terminology from the resume itself.",
     missingRules,
-    "- Prioritize tools, platforms, methods, certifications, domain phrases, responsibility patterns, and seniority signals over filler.",
-    weakRules,
-    "- Only select lines that are genuinely vague, generic, duty-only, shallow, or support-heavy.",
-    "- Do not flag already-strong technical or functional bullets that already contain concrete tools, platforms, process detail, or domain terminology unless the rewrite is clearly and materially stronger.",
-    "- Both sentence and rewrite must stay truthful and materially better.",
-    summaryRule,
-    "- Do not add extra keys. Do not add optimized_cv.",
-    "\nROLE CONTEXT:",
-    roleContextText,
-    hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
-    englishStyleBlock ? `\n${englishStyleBlock}` : "",
+"- Prioritize tools, platforms, methods, certifications, domain phrases, responsibility patterns, and seniority signals over filler.",
+weakRules,
+"- Only select lines that are genuinely vague, generic, duty-only, shallow, or support-heavy.",
+"- Do not flag already-strong technical or functional bullets that already contain concrete tools, platforms, process detail, or domain terminology unless the rewrite is clearly and materially stronger.",
+
+"WEAK REWRITE QUALITY GATE (VERY IMPORTANT)",
+"- Do not treat every polish opportunity as a weak phrase.",
+"- A sentence should be selected as weak only if it is genuinely vague, generic, support-heavy, duty-only, shallow, or low-signal.",
+"- A rewrite that is only more formal is NOT enough; it must be materially stronger.",
+"- A weak sentence rewrite is acceptable only if it creates a meaningful upgrade.",
+"- Reject the rewrite if it only sounds slightly more formal.",
+"- A rewrite must improve at least 2 of these: action strength, task clarity, scope definition, role-specific terminology, process or workflow context, recruiter readability.",
+
+"REJECT THE REWRITE IF ANY OF THESE HAPPEN:",
+"- only 1-2 words changed",
+"- the sentence meaning is almost the same",
+"- it only swaps one weak verb for another",
+"- it becomes more generic than the original",
+"- it adds filler wording without adding clarity",
+"- it adds fake impact, fake ownership, fake tools, fake metrics, or fake business results",
+"- it uses awkward or unnatural phrasing",
+"- it keeps weak or support-style wording at the start",
+"- it sounds more corporate but not actually more informative",
+
+"BAD weak rewrite patterns to reject:",
+"- helped -> assisted",
+"- supported -> contributed",
+"- worked on -> participated in",
+"- handled -> managed",
+"- responsible for -> oversaw",
+"- Reject these when the sentence remains essentially the same.",
+
+"- Also reject awkward constructions such as maintained tasks, performed administrative finance tasks, supported accurate processing, or improved customer satisfaction unless the original text explicitly supports that claim.",
+
+"GOOD weak rewrites should usually do this:",
+"- replace weak openings with a stronger truthful action",
+"- preserve the original job level",
+"- preserve role-specific language",
+"- add real workflow or process context already implied by the source",
+"- make the sentence more concrete without inventing facts",
+
+"TRUTHFULNESS RULE:",
+"- Do not invent numbers, KPIs, percentages, savings, budgets, team size, ownership level, leadership, business impact, platforms or tools not explicitly present, or compliance claims not supported by the source.",
+
+"ROLE-SPECIFIC RULE:",
+"- Keep the language native to the job family.",
+"- Finance should sound like finance.",
+"- Procurement should sound like procurement.",
+"- Software should sound technical.",
+"- HR should sound HR-specific.",
+"- Do not convert specialized work into generic business language.",
+
+"MINIMUM DISTANCE RULE:",
+"- If the rewritten sentence has very high lexical overlap with the original and does not materially improve specificity or clarity, reject it.",
+
+"DO NOT FORCE WEAK SENTENCES:",
+"- If a sentence is already reasonably strong, do not include it in weak_sentences.",
+"- Only return sentences that clearly deserve rewriting.",
+
+"PREFERRED WEAK SENTENCE PRIORITY:",
+"- 1. bullets starting with helped, supported, assisted, worked on, or responsible for",
+"- 2. duty-only bullets with low detail",
+"- 3. summary lines with generic filler wording",
+"- 4. bullets missing real task context despite being role-relevant",
+
+"QUALITY STANDARD FOR APPROVAL:",
+"- A rewrite should feel like a recruiter would immediately say: yes, this is sharper, clearer, and more professional.",
+"- Not: this is basically the same sentence with nicer wording.",
+
+"EXAMPLES OF GOOD DIRECTION:",
+"- Weak: Helped with account reconciliations and balance checks across several ledgers.",
+"- Better: Performed account reconciliations and reviewed balance checks across multiple ledgers.",
+"- Weak: Supported purchase order creation and document checks in SAP.",
+"- Better: Processed purchase orders and verified procurement documents using SAP.",
+"- Weak: Assisted with tracking outstanding payments and following up when needed.",
+"- Better: Monitored outstanding payments and coordinated follow-ups on pending balances.",
+
+"EXAMPLES OF BAD DIRECTION:",
+"- Bad: Helped with account reconciliations -> Assisted with account reconciliations.",
+"- Bad: Worked on internal purchasing records -> Maintained internal purchasing records and documentation tasks.",
+"- Bad: Helped with invoice checks -> Reviewed invoices and performed administrative finance tasks to support accurate processing.",
+
+"FINAL FILTER:",
+"- Before returning any weak_sentences item, ask:",
+"- Is this rewrite clearly stronger?",
+"- Is it more specific?",
+"- Is it more recruiter-friendly?",
+"- Is it still fully truthful?",
+"- Does it avoid fake impact and awkward wording?",
+"- If any answer is no, do not return that item.",
+
+"WEAK SENTENCE OUTPUT COUNT RULE",
+"- Do not force maximum count.",
+"- Return only genuinely strong rewrite opportunities.",
+"- Target behavior: usually 5 to 10 items.",
+"- Minimum 4 if the resume clearly contains many weak bullets.",
+"- Maximum 12.",
+"- If the resume is already fairly strong, return fewer.",
+
+"- Both sentence and rewrite must stay truthful and materially better.",
+summaryRule,
+"- Do not add extra keys. Do not add optimized_cv.",
+"\nROLE CONTEXT:",
+roleContextText,
+hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
+englishStyleBlock ? `\n${englishStyleBlock}` : "",
     `\nRESUME:\n${cv}`,
     hasJD ? `\nJOB DESCRIPTION:\n${jd}` : "",
   ].filter(Boolean).join("\n");
@@ -2142,7 +2237,7 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
-  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
+  const englishStyleBlock = outLang === "English" ? build(roleProfile, cv, jd) : "";
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   return [
     `Return JSON in this exact schema:\n\n{\n  "optimized_cv": string\n}`,
