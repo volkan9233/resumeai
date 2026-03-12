@@ -50,13 +50,12 @@ const HEADING_SETS = {
 };
 
 const HEADER_SECTION_RE = /^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|CORE SUMMARY|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|EDUCATION|LANGUAGES|CERTIFICATIONS|LICENSES|PROJECTS|ADDITIONAL INFORMATION|AWARDS|ACHIEVEMENTS|PROFESYONEL ÖZET|ÖZET|PROFİL|DENEYİM|İŞ DENEYİMİ|YETKİNLİKLER|YETENEKLER|BECERİLER|EĞİTİM|DİLLER|BİLDİĞİ DİLLER|SERTİFİKALAR|PROJELER|EK BİLGİLER)$/i;
-
 const BULLET_RE = /^[-•·‣▪▫◦*]\s+/;
 
 const GENERIC_SUMMARY_RE = /^(experienced|results[- ]driven|motivated|detail[- ]oriented|hardworking|dedicated|dynamic|versatile|organized|responsible|experienced professional|deneyimli|sonuç odaklı|motivasyonu yüksek|detay odaklı|çalışkan|disiplinli|öğrenmeye açık|sorumluluk sahibi)\b/i;
 const WEAK_VERB_RE = /\b(helped|helps|assisted|assists|supported|supports|worked on|responsible for|contributed to|participated in|involved in|handled|tasked with|duties included|provided support|yardımcı oldum|destek oldum|destek verdim|görev aldım|ilgilen(dim|di)|çalıştım|yaptım|sorumluydum|takip ettim|katıldım)\b/i;
 const WEAK_START_RE = /^(helped|helps|assisted|assists|supported|supports|worked on|responsible for|contributed to|participated in|involved in|handled|tasked with|duties included|provided support|yardımcı oldum|destek oldum|destek verdim|görev aldım|ilgilen(dim|di)|çalıştım|yaptım|sorumluydum)\b/i;
-const STRONG_ACTION_RE = /\b(built|developed|designed|implemented|integrated|tested|debugged|optimized|deployed|maintained|automated|configured|analyzed|reported|tracked|prepared|reviewed|reconciled|processed|scheduled|coordinated|organized|documented|validated|monitored|delivered|created|managed|planned|mapped|executed|screened|taught|assessed|inspected|responded|resolved|guided|engineered|modeled|implemented|yönettim|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|izledim|optimize ettim|tasarladım|planladım|sundum|denetledim|doğruladım|uzlaştırdım|işledim|değerlendirdim)\b/i;
+const STRONG_ACTION_RE = /\b(built|developed|designed|implemented|integrated|tested|debugged|optimized|deployed|maintained|automated|configured|analyzed|reported|tracked|prepared|reviewed|reconciled|processed|scheduled|coordinated|organized|documented|validated|monitored|delivered|created|managed|planned|mapped|executed|screened|taught|assessed|inspected|responded|resolved|guided|engineered|modeled|yönettim|koordine ettim|hazırladım|analiz ettim|raporladım|geliştirdim|oluşturdum|uyguladım|organize ettim|izledim|optimize ettim|tasarladım|planladım|sundum|denetledim|doğruladım|uzlaştırdım|işledim|değerlendirdim)\b/i;
 const LOW_VALUE_KEYWORD_RE = /\b(communication|teamwork|hardworking|motivated|detail[- ]oriented|problem solving|leadership|microsoft office|ms office|computer skills|organizasyon|iletişim|takım çalışması|motivasyon|çözüm odaklı|detay odaklı|uyumlu|çalışkan|analysis|support|management|beceri|yetenek|deneyim)\b/i;
 const JD_CUE_RE = /\b(requirements|required|must have|nice to have|preferred|responsibilities|qualification|qualifications|experience with|knowledge of|proficient in|aranan nitelikler|gerekli|tercihen|yetkinlikler|sorumluluklar|beklentiler)\b/i;
 const ACRONYM_RE = /\b[A-Z]{2,}(?:\/[A-Z]{2,})?\b/;
@@ -104,7 +103,7 @@ const ROLE_TAXONOMY = {
     safeSupportVerbs: ["reported", "tracked", "validated", "prepared", "maintained"],
   },
   product_project: {
-    titles: ["product manager", "product owner", "associate product manager", "technical product manager", "project manager", "project coordinator", "program manager", "project coordinator"],
+    titles: ["product manager", "product owner", "associate product manager", "technical product manager", "project manager", "project coordinator", "program manager"],
     signals: ["roadmap", "backlog", "user stories", "requirements gathering", "acceptance criteria", "stakeholder communication", "release planning", "jira", "confluence", "agile", "scrum", "timeline", "deliverables", "milestones", "risk tracking"],
     keywords: ["product roadmap", "backlog prioritization", "requirements gathering", "user stories", "acceptance criteria", "release planning", "stakeholder communication", "timeline management", "deliverable coordination", "risk tracking"],
     verbs: ["defined", "prioritized", "coordinated", "planned", "aligned", "tracked", "facilitated", "documented"],
@@ -210,6 +209,20 @@ const ROLE_TAXONOMY = {
   },
 };
 
+function uniqueTrimmedStrings(arr = []) {
+  return Array.from(
+    new Set(
+      (Array.isArray(arr) ? arr : [])
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function escapeRegex(str = "") {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const HARD_FACT_TERMS = uniqueTrimmedStrings([
   "google ads", "meta ads", "google analytics", "ga4", "google tag manager", "seo", "sem", "ppc", "hubspot", "salesforce", "crm",
   "zendesk", "freshdesk", "jira", "confluence", "tableau", "power bi", "looker studio", "excel", "google sheets", "powerpoint",
@@ -227,25 +240,7 @@ const BRAND_TERMS = new Set([
   "jira", "confluence", "tableau", "power bi", "looker studio", "react", "node.js", "aws", "azure", "gcp", "docker", "kubernetes",
   "selenium", "cypress", "postman", "figma", "adobe creative suite", "photoshop", "illustrator", "autocad", "solidworks", "revit",
   "primavera p6", "sap", "oracle", "quickbooks", "netsuite", "workday", "greenhouse",
-].map(canonicalizeTerm));
-
-const ALL_ROLE_TERMS = uniqueTrimmedStrings(
-  Object.values(ROLE_TAXONOMY).flatMap((role) => [...(role.titles || []), ...(role.signals || []), ...(role.keywords || [])])
-);
-
-function uniqueTrimmedStrings(arr = []) {
-  return Array.from(
-    new Set(
-      (Array.isArray(arr) ? arr : [])
-        .map((x) => String(x || "").trim())
-        .filter(Boolean)
-    )
-  );
-}
-
-function escapeRegex(str = "") {
-  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+].map((x) => canonicalizeTerm(x)));
 
 function normalizeSpace(str = "") {
   return String(str || "")
@@ -327,9 +322,7 @@ function containsCanonicalTermInText(text = "", term = "") {
 
 function countTermHits(text = "", terms = []) {
   const hay = canonicalizeTerm(text);
-  return uniqueTrimmedStrings(terms).reduce((sum, term) => {
-    return sum + (containsCanonicalTermInText(hay, term) ? 1 : 0);
-  }, 0);
+  return uniqueTrimmedStrings(terms).reduce((sum, term) => sum + (containsCanonicalTermInText(hay, term) ? 1 : 0), 0);
 }
 
 function countOccurrencesNormalized(text = "", term = "") {
@@ -404,6 +397,15 @@ function lowerFirst(str = "") {
   return s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 }
 
+function cleanKeywordCandidate(term = "") {
+  return String(term || "")
+    .replace(/\r/g, " ")
+    .replace(/^[-•·‣▪▫◦*0-9.)\s]+/, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[,;:]+|[,;:]+$/g, "")
+    .trim();
+}
+
 function isSectionHeader(line = "") {
   return HEADER_SECTION_RE.test(String(line || "").trim());
 }
@@ -412,6 +414,7 @@ function extractSummaryLines(cv = "") {
   const lines = getNonEmptyLines(cv);
   const out = [];
   let inSummary = false;
+
   for (const line of lines) {
     if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) {
       inSummary = true;
@@ -427,6 +430,7 @@ function extractSummaryLines(cv = "") {
       );
     }
   }
+
   return out;
 }
 
@@ -484,69 +488,19 @@ function extractExperienceTitles(cv = "") {
   return titles;
 }
 
-function normalizeOptimizedHeadings(text = "", outLang = "English") {
-  const headings = HEADING_SETS[outLang] || HEADING_SETS.English;
-  return normalizeSpace(String(text || ""))
-    .replace(/^PROFILE$/gim, headings.summary)
-    .replace(/^CORE SUMMARY$/gim, headings.summary)
-    .replace(/^SUMMARY$/gim, headings.summary)
-    .replace(/^WORK EXPERIENCE$/gim, headings.experience)
-    .replace(/^PROFESSIONAL EXPERIENCE$/gim, headings.experience)
-    .replace(/^(CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES)$/gim, headings.skills)
-    .replace(/^LICENSES$/gim, headings.certifications)
-    .replace(/^BİLDİĞİ DİLLER$/gim, headings.languages)
-    .replace(/^YETENEKLER$/gim, headings.skills)
-    .replace(/^BECERİLER$/gim, headings.skills)
-    .replace(/^PROFİL$/gim, headings.summary)
-    .replace(/^İŞ DENEYİMİ$/gim, headings.experience)
-    .trim();
-}
-
-function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
-  const originalHeader = extractHeaderBlock(originalCv);
-  if (!originalHeader.length) return normalizeSpace(optimizedCv);
-  const lines = normalizeSpace(optimizedCv).split("\n");
-  const sectionIdx = lines.findIndex((line) => isSectionHeader(line));
-  if (sectionIdx === -1) return normalizeSpace(optimizedCv);
-  const body = lines.slice(sectionIdx).join("\n").trim();
-  return `${originalHeader.join("\n")}\n\n${body}`.trim();
-}
-
-function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
-  const originalTitles = extractExperienceTitles(originalCv);
-  if (!originalTitles.length) return normalizeSpace(optimizedCv);
-  const lines = normalizeSpace(optimizedCv).split("\n");
-  let titleIndex = 0;
-  for (let i = 1; i < lines.length; i += 1) {
-    const line = String(lines[i] || "").trim();
-    if (/\|\s*.*(\d{4}|Present|Current|Günümüz|Devam)/i.test(line) || /(\d{4}).*(Present|Current|Günümüz|Devam)/i.test(line)) {
-      let j = i - 1;
-      while (j >= 0 && !String(lines[j] || "").trim()) j -= 1;
-      if (j >= 0 && titleIndex < originalTitles.length) {
-        lines[j] = originalTitles[titleIndex];
-        titleIndex += 1;
-      }
+function getSkillsLines(cv = "") {
+  const lines = getNonEmptyLines(cv);
+  const out = [];
+  let inSkills = false;
+  for (const line of lines) {
+    if (/(SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
+      inSkills = true;
+      continue;
     }
+    if (inSkills && isSectionHeader(line)) break;
+    if (inSkills) out.push(line.replace(BULLET_RE, "").trim());
   }
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-function forceSafeResume(originalCv = "", optimizedCv = "", outLang = "English") {
-  let out = normalizeOptimizedHeadings(optimizedCv, outLang);
-  out = replaceHeaderBlock(originalCv, out);
-  out = restoreExperienceTitles(originalCv, out);
-  out = normalizeOptimizedHeadings(out, outLang);
-  return out.trim();
-}
-
-function countUnchangedBullets(originalCv = "", optimizedCv = "") {
-  const orig = getBulletLines(originalCv).map(canonicalizeTerm).filter(Boolean);
-  const optSet = new Set(getBulletLines(optimizedCv).map(canonicalizeTerm).filter(Boolean));
-  let same = 0;
-  for (const item of orig) {
-    if (optSet.has(item)) same += 1;
-  }
-  return { same, total: orig.length };
+  return out.filter(Boolean);
 }
 
 function looksLikeAcronym(term = "") {
@@ -560,15 +514,6 @@ function looksLikeCertification(term = "") {
 
 function isBrandedOrVendorSpecific(term = "") {
   return BRAND_TERMS.has(canonicalizeTerm(term));
-}
-
-function cleanKeywordCandidate(term = "") {
-  return String(term || "")
-    .replace(/\r/g, " ")
-    .replace(/^[-•·‣▪▫◦*0-9.)\s]+/, "")
-    .replace(/\s+/g, " ")
-    .replace(/^[,;:]+|[,;:]+$/g, "")
-    .trim();
 }
 
 function isLowValueKeyword(term = "") {
@@ -587,6 +532,10 @@ function extractExplicitFactTerms(text = "") {
   return HARD_FACT_TERMS.filter((term, idx, arr) => arr.indexOf(term) === idx && containsCanonicalTermInText(hay, term));
 }
 
+function extractAcronymLikeTerms(text = "") {
+  return uniqueTrimmedStrings((String(text || "").match(/\b[A-Z]{2,}(?:\/[A-Z]{2,})?\b/g) || []).map((x) => x.trim()).filter((x) => x.length <= 12));
+}
+
 function inferSeniority(text = "") {
   const norm = normalizeCompareText(text);
   if (/\b(chief|vp|vice president|director|head of|department head|general manager)\b/i.test(norm)) return "leadership";
@@ -602,6 +551,7 @@ function inferRoleProfile(cv = "", jd = "") {
   const skillsText = getSkillsLines(cv).join(" ");
   const summaryText = extractSummaryLines(cv).join(" ");
   const bulletText = getBulletLines(cv).join(" ");
+
   const scored = Object.entries(ROLE_TAXONOMY)
     .filter(([key]) => key !== "generic")
     .map(([key, role]) => {
@@ -612,7 +562,7 @@ function inferRoleProfile(cv = "", jd = "") {
       const summaryHits = countTermHits(summaryText, [...(role.titles || []), ...(role.signals || []), ...(role.keywords || [])]);
       const bulletHits = countTermHits(bulletText, role.signals || []);
       const score = titleHits * 9 + skillHits * 5 + signalHits * 4 + keywordHits * 3 + summaryHits * 3 + bulletHits * 2;
-      return { key, score, titleHits, skillHits, signalHits, keywordHits, summaryHits, bulletHits };
+      return { key, score, titleHits, skillHits, signalHits };
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
@@ -625,9 +575,9 @@ function inferRoleProfile(cv = "", jd = "") {
 
   const finalGroups = roleGroups.length ? roleGroups : ["generic"];
   const packs = finalGroups.map((key) => ROLE_TAXONOMY[key]).filter(Boolean);
-  const domainSignals = uniqueTrimmedStrings(
-    packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])])
-  ).filter((term) => containsCanonicalTermInText(combined, term)).slice(0, 18);
+  const domainSignals = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])]))
+    .filter((term) => containsCanonicalTermInText(combined, term))
+    .slice(0, 18);
 
   return {
     roleGroups: finalGroups,
@@ -635,14 +585,11 @@ function inferRoleProfile(cv = "", jd = "") {
     secondaryRoles: finalGroups.slice(1),
     seniority: inferSeniority(`${titleText}\n${combined}`),
     domainSignals,
-    scoredRoles: scored.slice(0, 6),
   };
 }
 
 function ensureRoleProfile(roleInput, cv = "", jd = "") {
-  if (roleInput && typeof roleInput === "object" && Array.isArray(roleInput.roleGroups)) {
-    return roleInput;
-  }
+  if (roleInput && typeof roleInput === "object" && Array.isArray(roleInput.roleGroups)) return roleInput;
   return inferRoleProfile(cv, jd);
 }
 
@@ -652,24 +599,9 @@ function getRolePacks(roleInput, cv = "", jd = "") {
   return packs.length ? packs : [ROLE_TAXONOMY.generic];
 }
 
-function getSkillsLines(cv = "") {
-  const lines = getNonEmptyLines(cv);
-  const out = [];
-  let inSkills = false;
-  for (const line of lines) {
-    if (/(SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(line)) {
-      inSkills = true;
-      continue;
-    }
-    if (inSkills && isSectionHeader(line)) break;
-    if (inSkills) out.push(line.replace(BULLET_RE, "").trim());
-  }
-  return out.filter(Boolean);
-}
-
 function getRoleSuggestedKeywords(roleInput, cv = "", jd = "") {
   const profile = ensureRoleProfile(roleInput, cv, jd);
-  const packs = getRolePacks(profile);
+  const packs = getRolePacks(profile, cv, jd);
   let out = uniqueTrimmedStrings(packs.flatMap((role) => role.keywords || []));
   if (profile.seniority === "manager_or_lead" || profile.seniority === "leadership") {
     out = uniqueTrimmedStrings(["stakeholder communication", "cross-functional collaboration", "process improvement", ...out]);
@@ -680,40 +612,9 @@ function getRoleSuggestedKeywords(roleInput, cv = "", jd = "") {
   return out;
 }
 
-function buildRoleContextText(roleInput, cv = "", jd = "") {
-  const profile = ensureRoleProfile(roleInput, cv, jd);
-  const packs = getRolePacks(profile);
-  const suggested = getRoleSuggestedKeywords(profile, cv, jd).slice(0, 12);
-  const verbs = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.verbs || []), ...(role.safeSupportVerbs || [])])).slice(0, 12);
-  return [
-    `- primary_role: ${profile.primaryRole}`,
-    `- secondary_roles: ${(profile.secondaryRoles || []).join(", ") || "(none)"}`,
-    `- seniority_signal: ${profile.seniority || "mid"}`,
-    `- detected_role_signals: ${(profile.domainSignals || []).join(", ") || "(none)"}`,
-    `- likely_keyword_themes: ${suggested.join(", ") || "(none)"}`,
-    `- preferred_truthful_verbs: ${verbs.join(", ") || "coordinated, prepared, tracked, maintained"}`,
-  ].join("\n");
-}
-
-function buildRoleWritingBlock(roleInput, cv = "", jd = "") {
-  const profile = ensureRoleProfile(roleInput, cv, jd);
-  const packs = getRolePacks(profile);
-  const verbs = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.verbs || []), ...(role.safeSupportVerbs || [])])).slice(0, 20);
-  return [
-    "ROLE WRITING RULES:",
-    `- Primary role family: ${profile.primaryRole}`,
-    `- Seniority signal: ${profile.seniority}`,
-    `- Prefer truthful verbs such as: ${verbs.join(", ") || "coordinated, prepared, tracked, maintained"}`,
-    "- Preserve the native terminology of the profession.",
-    "- Do not convert technical, finance, healthcare, education, legal, or engineering bullets into generic business language.",
-    "- If the original is support-level work, keep it support-level but sharper and more specific.",
-    "- Do not invent leadership, ownership, tools, metrics, scale, or business outcomes.",
-  ].join("\n");
-}
-
 function looksLikeToolOrMethod(term = "", roleInput, cv = "", jd = "") {
   const profile = ensureRoleProfile(roleInput, cv, jd);
-  const packs = getRolePacks(profile);
+  const packs = getRolePacks(profile, cv, jd);
   const pool = uniqueTrimmedStrings([
     ...HARD_FACT_TERMS,
     ...packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])]),
@@ -732,8 +633,35 @@ function isSafeCvOnlySuggestedTerm(term = "", roleInput, cv = "") {
   return roleThemes.some((item) => canonicalizeTerm(item) === norm || canonicalizeTerm(item).includes(norm) || norm.includes(canonicalizeTerm(item))) || looksLikeCertification(term);
 }
 
-function extractAcronymLikeTerms(text = "") {
-  return uniqueTrimmedStrings((String(text || "").match(/\b[A-Z]{2,}(?:\/[A-Z]{2,})?\b/g) || []).map((x) => x.trim()).filter((x) => x.length <= 12));
+function buildRoleContextText(roleInput, cv = "", jd = "") {
+  const profile = ensureRoleProfile(roleInput, cv, jd);
+  const packs = getRolePacks(profile, cv, jd);
+  const suggested = getRoleSuggestedKeywords(profile, cv, jd).slice(0, 12);
+  const verbs = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.verbs || []), ...(role.safeSupportVerbs || [])])).slice(0, 12);
+  return [
+    `- primary_role: ${profile.primaryRole}`,
+    `- secondary_roles: ${(profile.secondaryRoles || []).join(", ") || "(none)"}`,
+    `- seniority_signal: ${profile.seniority || "mid"}`,
+    `- detected_role_signals: ${(profile.domainSignals || []).join(", ") || "(none)"}`,
+    `- likely_keyword_themes: ${suggested.join(", ") || "(none)"}`,
+    `- preferred_truthful_verbs: ${verbs.join(", ") || "coordinated, prepared, tracked, maintained"}`,
+  ].join("\n");
+}
+
+function buildRoleWritingBlock(roleInput, cv = "", jd = "") {
+  const profile = ensureRoleProfile(roleInput, cv, jd);
+  const packs = getRolePacks(profile, cv, jd);
+  const verbs = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.verbs || []), ...(role.safeSupportVerbs || [])])).slice(0, 20);
+  return [
+    "ROLE WRITING RULES:",
+    `- Primary role family: ${profile.primaryRole}`,
+    `- Seniority signal: ${profile.seniority}`,
+    `- Prefer truthful verbs such as: ${verbs.join(", ") || "coordinated, prepared, tracked, maintained"}`,
+    "- Preserve the native terminology of the profession.",
+    "- Do not convert technical, finance, healthcare, education, legal, or engineering bullets into generic business language.",
+    "- If the original is support-level work, keep it support-level but sharper and more specific.",
+    "- Do not invent leadership, ownership, tools, metrics, scale, or business outcomes.",
+  ].join("\n");
 }
 
 function extractSkillLikeNgrams(text = "") {
@@ -794,8 +722,8 @@ function scoreExtractedTerm(term = "", text = "", roleInput, cv = "", jd = "") {
   const cleaned = cleanKeywordCandidate(term);
   if (!cleaned) return 0;
   let score = 0;
-  const wc = countWords(cleaned);
   const norm = canonicalizeTerm(cleaned);
+  const wc = countWords(cleaned);
   if (isLowValueKeyword(cleaned)) score -= 12;
   if (wc >= 2 && wc <= 4) score += 4;
   else if (looksLikeAcronym(cleaned)) score += 3;
@@ -812,12 +740,14 @@ function extractJdSignalProfile(jd = "", roleInput, cv = "") {
   if (!String(jd || "").trim()) {
     return { ranked: [], tools: [], methodologies: [], certifications: [], responsibilities: [], domains: [], senioritySignals: [] };
   }
+
   const profile = ensureRoleProfile(roleInput, cv, jd);
   const packs = getRolePacks(profile, cv, jd);
   const lexicon = uniqueTrimmedStrings([
     ...HARD_FACT_TERMS,
     ...packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || []), ...(role.titles || [])]),
   ]);
+
   const directMatches = lexicon.filter((term) => containsCanonicalTermInText(jd, term));
   const ngrams = extractSkillLikeNgrams(jd);
   const acronyms = extractAcronymLikeTerms(jd);
@@ -831,6 +761,7 @@ function extractJdSignalProfile(jd = "", roleInput, cv = "") {
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 40);
+
   return {
     ranked,
     tools: ranked.filter((item) => item.category === "tool").slice(0, 10).map((item) => item.term),
@@ -860,11 +791,11 @@ function buildAllowedTermsText(cv = "", jd = "") {
 }
 
 function findUnsupportedTerms(originalCv = "", jd = "", optimizedCv = "") {
-  const allowed = new Set(uniqueTrimmedStrings([...extractExplicitFactTerms(originalCv), ...extractExplicitFactTerms(jd)]).map(canonicalizeTerm));
+  const allowed = new Set(uniqueTrimmedStrings([...extractExplicitFactTerms(originalCv), ...extractExplicitFactTerms(jd)]).map((x) => canonicalizeTerm(x)));
   return uniqueTrimmedStrings(extractExplicitFactTerms(optimizedCv)).filter((term) => !allowed.has(canonicalizeTerm(term)));
 }
 
-function finalizeMissingKeywords(rawKeywords = [], { cv = "", jd = "", roleInput, outLang = "English", hasJD = false, limit = 12 } = {}) {
+function finalizeMissingKeywords(rawKeywords = [], { cv = "", jd = "", roleInput, hasJD = false, limit = 12 } = {}) {
   const profile = ensureRoleProfile(roleInput, cv, jd);
   const cvNorm = canonicalizeTerm(cv);
   const modelTerms = uniqueByNormalizedStrings((Array.isArray(rawKeywords) ? rawKeywords : []).map(cleanKeywordCandidate).filter(Boolean));
@@ -906,6 +837,7 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   const profile = ensureRoleProfile(roleInput, cv, jd);
   const packs = getRolePacks(profile, cv, jd);
   const roleTerms = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])]));
+
   if (!s) {
     return {
       isWeakCandidate: false,
@@ -943,10 +875,7 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   const softActionStart = SOFT_ACTION_START_RE.test(s);
 
   const explicitSpecificity = explicitFacts.length + acronymHits + (hasNumber ? 1 : 0);
-  const hasSpecific =
-    explicitSpecificity > 0 ||
-    roleHits >= 2 ||
-    (strongAction && roleHits >= 1 && hasScopeSignal);
+  const hasSpecific = explicitSpecificity > 0 || roleHits >= 2 || (strongAction && roleHits >= 1 && hasScopeSignal);
 
   let strongScore = 0;
   let weakScore = 0;
@@ -986,35 +915,14 @@ function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
     !clearWeak &&
     (
       weakScore >= 5 ||
-      (
-        weakScore >= 4 &&
-        (startsWeak || hasWeakPhrase || genericTask || !hasSpecific || softActionStart) &&
-        strongScore <= 6
-      ) ||
-      (
-        softActionStart &&
-        !hasSpecific &&
-        roleHits <= 1 &&
-        wc <= 16
-      )
+      (weakScore >= 4 && (startsWeak || hasWeakPhrase || genericTask || !hasSpecific || softActionStart) && strongScore <= 6) ||
+      (softActionStart && !hasSpecific && roleHits <= 1 && wc <= 16)
     );
 
   const isWeakCandidate = clearWeak || moderatelyWeak;
   const candidateTier = clearWeak ? "clear" : moderatelyWeak ? "moderate" : "none";
-  const improvementPotential =
-    Math.max(0, weakScore - Math.floor(strongScore / 2)) +
-    (startsWeak ? 2 : 0) +
-    (genericTask ? 1 : 0) +
-    (!hasSpecific ? 1 : 0);
-
-  const isReasonablyStrong =
-    strongScore >= 6 &&
-    hasSpecific &&
-    !startsWeak &&
-    !hasWeakPhrase &&
-    !genericTask &&
-    wc >= 6 &&
-    wc <= 22;
+  const improvementPotential = Math.max(0, weakScore - Math.floor(strongScore / 2)) + (startsWeak ? 2 : 0) + (genericTask ? 1 : 0) + (!hasSpecific ? 1 : 0);
+  const isReasonablyStrong = strongScore >= 6 && hasSpecific && !startsWeak && !hasWeakPhrase && !genericTask && wc >= 6 && wc <= 22;
 
   return {
     isWeakCandidate,
@@ -1050,47 +958,24 @@ function detectWeakSentenceCandidates(cv = "", roleInput, minCount = 6, maxCount
     .map((item) => {
       const profile = getSentenceSignalProfile(item.sentence, roleInput, cv, "");
       const tierBoost = profile.candidateTier === "clear" ? 50 : profile.candidateTier === "moderate" ? 30 : 0;
-      let rank =
-        item.sectionPriority * 100 +
-        tierBoost +
-        profile.improvementPotential * 3 +
-        (profile.startsWeak ? 8 : 0) +
-        (profile.hasWeakPhrase ? 6 : 0) +
-        (!profile.hasSpecific ? 4 : 0) +
-        (profile.genericTask ? 5 : 0) -
-        profile.strongScore * 2;
-
-      if (/\b(team|support staff|internal service updates|daily tasks|routine communication|general support|various tasks|basic reporting)\b/i.test(item.sentence)) {
-        rank += 4;
-      }
-
+      let rank = item.sectionPriority * 100 + tierBoost + profile.improvementPotential * 3 + (profile.startsWeak ? 8 : 0) + (profile.hasWeakPhrase ? 6 : 0) + (!profile.hasSpecific ? 4 : 0) + (profile.genericTask ? 5 : 0) - profile.strongScore * 2;
+      if (/\b(team|support staff|internal service updates|daily tasks|routine communication|general support|various tasks|basic reporting)\b/i.test(item.sentence)) rank += 4;
       return { ...item, profile, rank };
     })
     .filter((item) => {
       if (item.profile.isReasonablyStrong) return false;
       if (item.profile.clearWeak || item.profile.moderatelyWeak) return true;
-      if (item.sourceType === "experience_bullet") {
-        return item.profile.weakScore >= 3 && (item.profile.startsWeak || item.profile.hasWeakPhrase || item.profile.genericTask || !item.profile.hasSpecific);
-      }
-      if (item.sourceType === "summary_line") {
-        return item.profile.weakScore >= 4 || (item.profile.genericTask && !item.profile.hasSpecific);
-      }
+      if (item.sourceType === "experience_bullet") return item.profile.weakScore >= 3 && (item.profile.startsWeak || item.profile.hasWeakPhrase || item.profile.genericTask || !item.profile.hasSpecific);
+      if (item.sourceType === "summary_line") return item.profile.weakScore >= 4 || (item.profile.genericTask && !item.profile.hasSpecific);
       return item.profile.weakScore >= 5;
     })
     .sort((a, b) => {
       const tierOrder = { clear: 2, moderate: 1, none: 0 };
-      return (
-        b.rank - a.rank ||
-        tierOrder[b.profile.candidateTier] - tierOrder[a.profile.candidateTier] ||
-        b.profile.improvementPotential - a.profile.improvementPotential ||
-        b.profile.weakScore - a.profile.weakScore ||
-        a.profile.strongScore - b.profile.strongScore
-      );
+      return b.rank - a.rank || tierOrder[b.profile.candidateTier] - tierOrder[a.profile.candidateTier] || b.profile.improvementPotential - a.profile.improvementPotential || b.profile.weakScore - a.profile.weakScore || a.profile.strongScore - b.profile.strongScore;
     });
 
   const out = [];
   const seen = new Set();
-
   for (const item of ranked) {
     const key = canonicalizeTerm(item.sentence);
     if (!key || seen.has(key)) continue;
@@ -1156,7 +1041,6 @@ function getTokenDeltaMetrics(source = "", rewrite = "") {
   const rewriteSet = new Set(tokenizeForSimilarity(rewrite));
   const added = [...rewriteSet].filter((token) => !sourceSet.has(token));
   const removed = [...sourceSet].filter((token) => !rewriteSet.has(token));
-
   return {
     added,
     removed,
@@ -1179,64 +1063,31 @@ function hasUnsupportedSpecificityInWeakRewrite(source = "", rewrite = "", cv = 
       ...extractAcronymLikeTerms(source),
       ...extractAcronymLikeTerms(cv),
       ...extractAcronymLikeTerms(jd),
-    ]).map(canonicalizeTerm)
+    ]).map((x) => canonicalizeTerm(x))
   );
 
-  const rewriteTerms = uniqueTrimmedStrings([
-    ...extractExplicitFactTerms(rewrite),
-    ...extractAcronymLikeTerms(rewrite),
-  ]);
-
+  const rewriteTerms = uniqueTrimmedStrings([...extractExplicitFactTerms(rewrite), ...extractAcronymLikeTerms(rewrite)]);
   return rewriteTerms.some((term) => !allowed.has(canonicalizeTerm(term)));
 }
 
 function countMeaningfulRewriteImprovements(source = "", rewrite = "", roleInput, cv = "", jd = "") {
   const sourceProfile = getSentenceSignalProfile(source, roleInput, cv, jd);
   const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
-
   let improvements = 0;
-
   if (!rewriteProfile.startsWeak && sourceProfile.startsWeak) improvements += 1;
-
-  if (
-    rewriteProfile.strongScore >= sourceProfile.strongScore + 2 ||
-    (rewriteProfile.strongAction && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || !sourceProfile.strongAction))
-  ) {
-    improvements += 1;
-  }
-
-  if (
-    (rewriteProfile.hasSpecific && !sourceProfile.hasSpecific) ||
-    rewriteProfile.roleHits > sourceProfile.roleHits ||
-    rewriteProfile.explicitFactsCount > sourceProfile.explicitFactsCount
-  ) {
-    improvements += 1;
-  }
-
-  if (
-    (rewriteProfile.hasScopeSignal && !sourceProfile.hasScopeSignal) ||
-    (
-      rewriteProfile.wordCount >= 6 &&
-      rewriteProfile.wordCount <= 20 &&
-      (sourceProfile.wordCount < 6 || sourceProfile.wordCount > 22)
-    )
-  ) {
-    improvements += 1;
-  }
-
+  if (rewriteProfile.strongScore >= sourceProfile.strongScore + 2 || (rewriteProfile.strongAction && (sourceProfile.startsWeak || sourceProfile.hasWeakPhrase || !sourceProfile.strongAction))) improvements += 1;
+  if ((rewriteProfile.hasSpecific && !sourceProfile.hasSpecific) || rewriteProfile.roleHits > sourceProfile.roleHits || rewriteProfile.explicitFactsCount > sourceProfile.explicitFactsCount) improvements += 1;
+  if ((rewriteProfile.hasScopeSignal && !sourceProfile.hasScopeSignal) || (rewriteProfile.wordCount >= 6 && rewriteProfile.wordCount <= 20 && (sourceProfile.wordCount < 6 || sourceProfile.wordCount > 22))) improvements += 1;
   if (rewriteProfile.weakScore <= sourceProfile.weakScore - 2) improvements += 1;
-
   return improvements;
 }
 
 function rewriteStillFeelsWeak(rewrite = "", roleInput, cv = "", jd = "") {
   const profile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
-
   if (WEAK_REWRITE_START_RE.test(rewrite)) return true;
   if (WEAK_REWRITE_RESIDUAL_RE.test(rewrite)) return true;
   if (profile.startsWeak || profile.hasWeakPhrase) return true;
   if (profile.isWeakCandidate && profile.weakScore >= 5) return true;
-
   return false;
 }
 
@@ -1252,16 +1103,41 @@ function pickRoleAwareRewriteVerb(sentence = "", roleInput, cv = "", jd = "") {
   if (/(testing|qa|defect|bug|test cases?)/i.test(sentence)) return "Executed";
   if (/(backend|api|integration|feature|code|application|system)/i.test(sentence)) return "Implemented";
 
-  const verbs = uniqueTrimmedStrings(
-    packs.flatMap((role) => [...(role.safeSupportVerbs || []), ...(role.verbs || [])])
-  ).filter((verb) => !/^(supported|assisted|helped|contributed|participated|aided)$/i.test(verb));
-
+  const verbs = uniqueTrimmedStrings(packs.flatMap((role) => [...(role.safeSupportVerbs || []), ...(role.verbs || [])])).filter((verb) => !/^(supported|assisted|helped|contributed|participated|aided)$/i.test(verb));
   return capitalizeFirst(verbs[0] || "Coordinated");
+}
+
+function isShallowRewrite(sentence = "", rewrite = "") {
+  const s = String(sentence || "").trim();
+  const r = String(rewrite || "").trim();
+  if (!s || !r) return true;
+  if (canonicalizeTerm(s) === canonicalizeTerm(r)) return true;
+
+  const sim = jaccardSimilarity(s, r);
+  const delta = getTokenDeltaMetrics(s, r);
+  const sourceCore = stripLeadingWeakPhrase(s);
+  const rewriteCore = stripLeadingWeakPhrase(r);
+  const sourceSpecificity = extractExplicitFactTerms(s).length + extractAcronymLikeTerms(s).length;
+  const rewriteSpecificity = extractExplicitFactTerms(r).length + extractAcronymLikeTerms(r).length;
+  const rewriteHasScope = SCOPE_CONTEXT_RE.test(r);
+
+  if (sim >= 0.9) return true;
+  if (WEAK_REWRITE_RESIDUAL_RE.test(r) && WEAK_VERB_RE.test(s)) return true;
+  if (delta.totalDelta <= 1) return true;
+  if (delta.totalDelta <= 2 && !rewriteHasScope && rewriteSpecificity <= sourceSpecificity) return true;
+  if (sourceCore && rewriteCore && jaccardSimilarity(sourceCore, rewriteCore) >= 0.88 && delta.totalDelta <= 3 && !rewriteHasScope && rewriteSpecificity <= sourceSpecificity) return true;
+  if (SOFT_ACTION_START_RE.test(r) && WEAK_START_RE.test(s) && delta.totalDelta <= 2 && !rewriteHasScope && rewriteSpecificity <= sourceSpecificity) return true;
+  return false;
+}
+
+function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
+  const orig = String(originalText || "");
+  const next = String(candidateText || "");
+  return ENGLISH_RISKY_OUTCOME_RE.test(next) && !ENGLISH_RISKY_OUTCOME_RE.test(orig);
 }
 
 function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv = "", jd = "") {
   if (outLang !== "English") return "";
-
   const source = String(sentence || "").trim();
   if (!source) return "";
 
@@ -1269,7 +1145,6 @@ function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv
   if (!(sourceProfile.isWeakCandidate || sourceProfile.weakScore >= 4 || sourceProfile.moderatelyWeak)) return "";
 
   const { body, ending } = splitSentenceEnding(source);
-
   const specials = [
     {
       re: /^supported daily communication with customers regarding (.+)$/i,
@@ -1325,7 +1200,6 @@ function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv
   ];
 
   let rewrite = "";
-
   for (const [re, mapper] of directVerbMaps) {
     const match = stripped.match(re);
     if (match) {
@@ -1336,9 +1210,7 @@ function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv
 
   if (!rewrite) {
     const lead = pickRoleAwareRewriteVerb(source, roleInput, cv, jd);
-    if (!SCOPE_CONTEXT_RE.test(stripped) && sourceProfile.roleHits <= 1 && sourceProfile.explicitFactsCount === 0 && countWords(stripped) <= 3) {
-      return "";
-    }
+    if (!SCOPE_CONTEXT_RE.test(stripped) && sourceProfile.roleHits <= 1 && sourceProfile.explicitFactsCount === 0 && countWords(stripped) <= 3) return "";
     rewrite = `${lead} ${lowerFirst(stripped)}`.replace(/\s+/g, " ").trim();
   }
 
@@ -1358,64 +1230,8 @@ function buildLocalWeakRewrite(sentence = "", roleInput, outLang = "English", cv
     .trim();
 
   if (!rewrite) return "";
-
-  const filtered = filterWeakSentences([{ sentence: source, rewrite: `${rewrite}${ending}` }], {
-    outLang,
-    roleInput,
-    cv,
-    jd,
-  });
-
+  const filtered = filterWeakSentences([{ sentence: source, rewrite: `${rewrite}${ending}` }], { outLang, roleInput, cv, jd });
   return filtered.length ? filtered[0].rewrite : "";
-}
-
-function isShallowRewrite(sentence = "", rewrite = "") {
-  const s = String(sentence || "").trim();
-  const r = String(rewrite || "").trim();
-  if (!s || !r) return true;
-  if (canonicalizeTerm(s) === canonicalizeTerm(r)) return true;
-
-  const sim = jaccardSimilarity(s, r);
-  const delta = getTokenDeltaMetrics(s, r);
-  const sourceCore = stripLeadingWeakPhrase(s);
-  const rewriteCore = stripLeadingWeakPhrase(r);
-  const sourceSpecificity = extractExplicitFactTerms(s).length + extractAcronymLikeTerms(s).length;
-  const rewriteSpecificity = extractExplicitFactTerms(r).length + extractAcronymLikeTerms(r).length;
-  const rewriteHasScope = SCOPE_CONTEXT_RE.test(r);
-
-  if (sim >= 0.9) return true;
-  if (WEAK_REWRITE_RESIDUAL_RE.test(r) && WEAK_VERB_RE.test(s)) return true;
-  if (delta.totalDelta <= 1) return true;
-  if (delta.totalDelta <= 2 && !rewriteHasScope && rewriteSpecificity <= sourceSpecificity) return true;
-
-  if (
-    sourceCore &&
-    rewriteCore &&
-    jaccardSimilarity(sourceCore, rewriteCore) >= 0.88 &&
-    delta.totalDelta <= 3 &&
-    !rewriteHasScope &&
-    rewriteSpecificity <= sourceSpecificity
-  ) {
-    return true;
-  }
-
-  if (
-    SOFT_ACTION_START_RE.test(r) &&
-    WEAK_START_RE.test(s) &&
-    delta.totalDelta <= 2 &&
-    !rewriteHasScope &&
-    rewriteSpecificity <= sourceSpecificity
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function hasUnsupportedImpactClaims(originalText = "", candidateText = "") {
-  const orig = String(originalText || "");
-  const next = String(candidateText || "");
-  return ENGLISH_RISKY_OUTCOME_RE.test(next) && !ENGLISH_RISKY_OUTCOME_RE.test(orig);
 }
 
 function filterWeakSentences(items = [], { outLang = "English", roleInput, cv = "", jd = "" } = {}) {
@@ -1434,14 +1250,7 @@ function filterWeakSentences(items = [], { outLang = "English", roleInput, cv = 
     })
     .filter((item) => {
       if (item.sourceProfile.isReasonablyStrong) return false;
-      return (
-        item.sourceProfile.isWeakCandidate ||
-        item.sourceProfile.weakScore >= 4 ||
-        (
-          item.sourceProfile.weakScore >= 3 &&
-          (item.sourceProfile.startsWeak || item.sourceProfile.hasWeakPhrase || item.sourceProfile.genericTask || !item.sourceProfile.hasSpecific)
-        )
-      );
+      return item.sourceProfile.isWeakCandidate || item.sourceProfile.weakScore >= 4 || (item.sourceProfile.weakScore >= 3 && (item.sourceProfile.startsWeak || item.sourceProfile.hasWeakPhrase || item.sourceProfile.genericTask || !item.sourceProfile.hasSpecific));
     })
     .filter((item) => !isShallowRewrite(item.sentence, item.rewrite))
     .filter((item) => item.improvements >= 2)
@@ -1455,13 +1264,7 @@ function filterWeakSentences(items = [], { outLang = "English", roleInput, cv = 
     })
     .sort((a, b) => {
       const tierOrder = { clear: 2, moderate: 1, none: 0 };
-      return (
-        tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] ||
-        b.improvements - a.improvements ||
-        b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
-        b.sourceProfile.improvementPotential - a.sourceProfile.improvementPotential ||
-        a.rewriteProfile.weakScore - b.rewriteProfile.weakScore
-      );
+      return tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] || b.improvements - a.improvements || b.sourceProfile.weakScore - a.sourceProfile.weakScore || b.sourceProfile.improvementPotential - a.sourceProfile.improvementPotential || a.rewriteProfile.weakScore - b.rewriteProfile.weakScore;
     })
     .slice(0, 12)
     .map(({ sentence, rewrite }) => ({ sentence, rewrite }));
@@ -1476,11 +1279,9 @@ function mergeWeakSentenceSets(primary = [], secondary = [], roleInput, outLang 
     const sentence = String(item?.sentence || "").trim();
     const rewrite = String(item?.rewrite || "").trim();
     if (!sentence || !rewrite) continue;
-
     const key = canonicalizeTerm(sentence);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-
     const filtered = filterWeakSentences([{ sentence, rewrite }], { outLang, roleInput, cv, jd });
     if (filtered.length) out.push(filtered[0]);
     if (out.length >= maxCount) break;
@@ -1525,19 +1326,13 @@ function normalizeBulletUpgrades(items = [], outLang = "English", roleInput, cv 
     const key = `${canonicalizeTerm(source)}__${canonicalizeTerm(rewrite)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-
     out.push({ source, rewrite, reason, sourceProfile, rewriteProfile, improvements });
   }
 
   return out
     .sort((a, b) => {
       const tierOrder = { clear: 2, moderate: 1, none: 0 };
-      return (
-        tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] ||
-        b.improvements - a.improvements ||
-        b.sourceProfile.weakScore - a.sourceProfile.weakScore ||
-        a.rewriteProfile.weakScore - b.rewriteProfile.weakScore
-      );
+      return tierOrder[b.sourceProfile.candidateTier] - tierOrder[a.sourceProfile.candidateTier] || b.improvements - a.improvements || b.sourceProfile.weakScore - a.sourceProfile.weakScore || a.rewriteProfile.weakScore - b.rewriteProfile.weakScore;
     })
     .slice(0, 8)
     .map(({ source, rewrite, reason }) => ({ source, rewrite, reason }));
@@ -1549,8 +1344,9 @@ function buildPriorityRewriteText(bulletUpgrades = []) {
   return items.map((item, idx) => `${idx + 1}. source: ${item.source}\n  stronger rewrite target: ${item.rewrite}${item.reason ? `\n  why: ${item.reason}` : ""}`).join("\n\n");
 }
 
-function buildLocalBulletUpgradeFallback(weakSentences = []) {
-  return (Array.isArray(weakSentences) ? weakSentences : []).map((item) => ({ source: item.sentence, rewrite: item.rewrite, reason: "Stronger action, clearer scope, and better ATS phrasing." })).slice(0, 8);
+function buildLocalBulletUpgradeFallback(weakSentences = [], outLang = "English") {
+  const reason = outLang === "Turkish" ? "Daha güçlü eylem, daha net kapsam ve daha iyi ATS dili." : "Stronger action, clearer scope, and better ATS phrasing.";
+  return (Array.isArray(weakSentences) ? weakSentences : []).map((item) => ({ source: item.sentence, rewrite: item.rewrite, reason })).slice(0, 8);
 }
 
 function applyBulletUpgradesToText(text = "", bulletUpgrades = []) {
@@ -1561,6 +1357,7 @@ function applyBulletUpgradesToText(text = "", bulletUpgrades = []) {
     if (source && rewrite) sourceMap.set(canonicalizeTerm(source), rewrite);
   }
   if (!sourceMap.size) return normalizeSpace(text);
+
   const lines = normalizeSpace(text).split("\n");
   const replaced = lines.map((line) => {
     const bulletMatch = line.match(/^(\s*[-•·‣▪▫◦*]\s+)(.*)$/);
@@ -1575,7 +1372,63 @@ function applyBulletUpgradesToText(text = "", bulletUpgrades = []) {
     const idx = line.indexOf(trimmed);
     return idx >= 0 ? `${line.slice(0, idx)}${rewrite}${line.slice(idx + trimmed.length)}` : rewrite;
   });
+
   return replaced.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function normalizeOptimizedHeadings(text = "", outLang = "English") {
+  const headings = HEADING_SETS[outLang] || HEADING_SETS.English;
+  return normalizeSpace(String(text || ""))
+    .replace(/^PROFILE$/gim, headings.summary)
+    .replace(/^CORE SUMMARY$/gim, headings.summary)
+    .replace(/^SUMMARY$/gim, headings.summary)
+    .replace(/^WORK EXPERIENCE$/gim, headings.experience)
+    .replace(/^PROFESSIONAL EXPERIENCE$/gim, headings.experience)
+    .replace(/^(CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES)$/gim, headings.skills)
+    .replace(/^LICENSES$/gim, headings.certifications)
+    .replace(/^BİLDİĞİ DİLLER$/gim, headings.languages)
+    .replace(/^YETENEKLER$/gim, headings.skills)
+    .replace(/^BECERİLER$/gim, headings.skills)
+    .replace(/^PROFİL$/gim, headings.summary)
+    .replace(/^İŞ DENEYİMİ$/gim, headings.experience)
+    .trim();
+}
+
+function replaceHeaderBlock(originalCv = "", optimizedCv = "") {
+  const originalHeader = extractHeaderBlock(originalCv);
+  if (!originalHeader.length) return normalizeSpace(optimizedCv);
+  const lines = normalizeSpace(optimizedCv).split("\n");
+  const sectionIdx = lines.findIndex((line) => isSectionHeader(line));
+  if (sectionIdx === -1) return normalizeSpace(optimizedCv);
+  const body = lines.slice(sectionIdx).join("\n").trim();
+  return `${originalHeader.join("\n")}\n\n${body}`.trim();
+}
+
+function restoreExperienceTitles(originalCv = "", optimizedCv = "") {
+  const originalTitles = extractExperienceTitles(originalCv);
+  if (!originalTitles.length) return normalizeSpace(optimizedCv);
+  const lines = normalizeSpace(optimizedCv).split("\n");
+  let titleIndex = 0;
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = String(lines[i] || "").trim();
+    if (/\|\s*.*(\d{4}|Present|Current|Günümüz|Devam)/i.test(line) || /(\d{4}).*(Present|Current|Günümüz|Devam)/i.test(line)) {
+      let j = i - 1;
+      while (j >= 0 && !String(lines[j] || "").trim()) j -= 1;
+      if (j >= 0 && titleIndex < originalTitles.length) {
+        lines[j] = originalTitles[titleIndex];
+        titleIndex += 1;
+      }
+    }
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function forceSafeResume(originalCv = "", optimizedCv = "", outLang = "English") {
+  let out = normalizeOptimizedHeadings(optimizedCv, outLang);
+  out = replaceHeaderBlock(originalCv, out);
+  out = restoreExperienceTitles(originalCv, out);
+  out = normalizeOptimizedHeadings(out, outLang);
+  return out.trim();
 }
 
 function applyBulletUpgradesToCv(originalCv = "", optimizedCv = "", bulletUpgrades = [], outLang = "English") {
@@ -1583,6 +1436,16 @@ function applyBulletUpgradesToCv(originalCv = "", optimizedCv = "", bulletUpgrad
   if (!base) return "";
   if (!Array.isArray(bulletUpgrades) || !bulletUpgrades.length) return base;
   return forceSafeResume(originalCv, applyBulletUpgradesToText(base, bulletUpgrades), outLang);
+}
+
+function countUnchangedBullets(originalCv = "", optimizedCv = "") {
+  const orig = getBulletLines(originalCv).map(canonicalizeTerm).filter(Boolean);
+  const optSet = new Set(getBulletLines(optimizedCv).map(canonicalizeTerm).filter(Boolean));
+  let same = 0;
+  for (const item of orig) {
+    if (optSet.has(item)) same += 1;
+  }
+  return { same, total: orig.length };
 }
 
 function getDesiredWeakCount(hasJD = false, candidateCount = 0) {
@@ -1706,6 +1569,7 @@ function computeFinalOptimizedScore(originalCv = "", optimizedCv = "", originalS
   const origNorm = canonicalizeTerm(originalCv);
   const optNorm = canonicalizeTerm(optimizedCv);
   if (!optNorm || origNorm === optNorm) return base;
+
   const roleProfile = inferRoleProfile(originalCv, jd);
   const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd, roleProfile);
   const rawLift = Math.max(0, rescoredOptimized - base);
@@ -1746,7 +1610,7 @@ function getOverlongBulletRatio(cv = "") {
 }
 
 function countPersistingWeakSources(optimizedCv = "", weakSentences = []) {
-  const lines = getNonEmptyLines(optimizedCv).map(canonicalizeTerm);
+  const lines = getNonEmptyLines(optimizedCv).map((x) => canonicalizeTerm(x));
   let hits = 0;
   for (const item of Array.isArray(weakSentences) ? weakSentences : []) {
     const source = canonicalizeTerm(String(item?.sentence || ""));
@@ -1756,52 +1620,34 @@ function countPersistingWeakSources(optimizedCv = "", weakSentences = []) {
   return hits;
 }
 
-function shouldRepairOptimizedCv(originalCv = "", optimizedCv = "", jd = "", outLang = "English", weakSentences = [], roleInput) {
-  const profile = ensureRoleProfile(roleInput, originalCv, jd);
+function shouldRejectOptimizedCv(originalCv = "", optimizedCv = "", jd = "", outLang = "English", weakSentences = [], roleInput) {
   const hasJD = !!String(jd || "").trim();
   if (!optimizedCv || !String(optimizedCv).trim()) return true;
   const origNorm = canonicalizeTerm(originalCv);
   const optNorm = canonicalizeTerm(optimizedCv);
   if (!optNorm || origNorm === optNorm) return true;
+
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
-  if (total > 0 && same / total >= (hasJD ? 0.42 : 0.34)) return true;
+  if (total > 0 && same / total >= (hasJD ? 0.46 : 0.38)) return true;
   if (total > 0 && getBulletLines(optimizedCv).length < Math.max(2, Math.floor(total * 0.7))) return true;
+
+  const profile = ensureRoleProfile(roleInput, originalCv, jd);
   const weakBefore = detectWeakSentenceCandidates(originalCv, profile, 0, 20).length;
   const weakAfter = detectWeakSentenceCandidates(optimizedCv, profile, 0, 20).length;
   if (weakBefore > 0 && weakAfter >= weakBefore) return true;
   if (countPersistingWeakSources(optimizedCv, weakSentences) >= (hasJD ? 2 : 1)) return true;
+  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) return true;
   if (outLang === "English" && countCorporateFluffHits(optimizedCv) >= 2) return true;
   if (outLang === "English" && getOverlongBulletRatio(optimizedCv) > 0.35) return true;
   if (countWeakEnglishRewriteStarts(optimizedCv) >= 2) return true;
-  if (findUnsupportedTerms(originalCv, jd, optimizedCv).length > 0) return true;
   return false;
 }
 
-function getClientIp(req) {
-  const xf = req.headers["x-forwarded-for"];
-  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
-  return req.socket?.remoteAddress || "unknown";
-}
-
-function verifySession(req) {
-  const appSecret = process.env.APP_SECRET;
-  if (!appSecret) return false;
-  const cookie = req.headers.cookie || "";
-  const match = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
-  if (!match) return false;
-  const token = decodeURIComponent(match[1]);
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  const [data, sig] = parts;
-  const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
-  if (sig !== expected) return false;
-  try {
-    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
-    const payload = JSON.parse(payloadJson);
-    return !!payload?.exp && Date.now() <= payload.exp;
-  } catch {
-    return false;
+function chooseModel(isPreview = false) {
+  if (isPreview) {
+    return process.env.OPENAI_MODEL_PREVIEW || process.env.OPENAI_MODEL || "gpt-5-mini";
   }
+  return process.env.OPENAI_MODEL_FULL || process.env.OPENAI_MODEL || "gpt-5-mini";
 }
 
 function isGpt5Model(model = "") {
@@ -1814,52 +1660,40 @@ function buildOpenAIPayload({ model, messages, reasoningEffort = null, temperatu
     response_format: { type: "json_object" },
     messages,
   };
+
   if (isGpt5Model(model)) {
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
-    if (reasoningEffort === "none" && typeof temperature === "number") body.temperature = temperature;
+    if (reasoningEffort === "none" && typeof temperature === "number") {
+      body.temperature = temperature;
+    }
   } else {
     body.max_tokens = maxCompletionTokens;
     if (typeof temperature === "number") body.temperature = temperature;
   }
+
   return body;
 }
 
 function buildAttempts({ model, passType = "main", isPreview = false, maxCompletionTokens = 1800 }) {
   if (!isGpt5Model(model)) {
-    return [{ reasoningEffort: null, temperature: isPreview ? 0.2 : 0.25, maxCompletionTokens }];
+    return [{ reasoningEffort: null, temperature: isPreview ? 0.1 : 0.15, maxCompletionTokens }];
   }
+
   if (passType === "optimize") {
     return [
-      { reasoningEffort: "medium", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 3600) },
-      { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 4400) },
+      { reasoningEffort: "low", temperature: null, maxCompletionTokens },
+      { reasoningEffort: "none", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 300) },
     ];
   }
-  if (passType === "repair") {
-    return [
-      { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 3600) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 4200) },
-    ];
-  }
-  if (passType === "bullet") {
-    return [
-      { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 1600) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2200) },
-    ];
-  }
-  if (isPreview) {
-    return [
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1100) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1500) },
-    ];
-  }
+
   return [
-    { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 1800) },
-    { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2400) },
+    { reasoningEffort: "none", temperature: 0.1, maxCompletionTokens },
+    { reasoningEffort: "none", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 200) },
   ];
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = 65000) {
+async function fetchWithTimeout(url, options, timeoutMs = 45000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -1897,9 +1731,10 @@ function safeJsonParse(text) {
   }
 }
 
-async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = false, passType = "main", maxCompletionTokens = 1800 }) {
+async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = false, passType = "main", maxCompletionTokens = 1800, timeoutMs = 45000 }) {
   const attempts = buildAttempts({ model, passType, isPreview, maxCompletionTokens });
   let lastError = null;
+
   for (const attempt of attempts) {
     try {
       const openaiRes = await fetchWithTimeout(
@@ -1923,7 +1758,7 @@ async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = f
             })
           ),
         },
-        passType === "optimize" || passType === "repair" ? 70000 : 60000
+        timeoutMs
       );
 
       const raw = await openaiRes.text();
@@ -1966,33 +1801,47 @@ async function callOpenAIJson({ apiKey, model, system, userPrompt, isPreview = f
       } else {
         lastError = err;
       }
+
       if (lastError?.status && lastError.status >= 400 && lastError.status < 500 && lastError.status !== 429) {
         throw lastError;
       }
     }
   }
+
   const err = new Error(lastError?.message || "Model did not return usable JSON");
   err.status = lastError?.status || 500;
   err.details = lastError?.details || String(lastError || "Unknown error");
   throw err;
 }
 
+function getAnalysisTokenBudget({ isPreview = false, cv = "", jd = "" }) {
+  const wordCount = countWords(`${cv}\n${jd}`);
+  if (isPreview) return wordCount > 1000 ? 1100 : 900;
+  if (wordCount > 1800) return 2000;
+  if (wordCount > 1200) return 1800;
+  return 1600;
+}
+
+function getOptimizeTokenBudget(cv = "") {
+  const wordCount = countWords(cv);
+  if (wordCount > 1800) return 3400;
+  if (wordCount > 1200) return 3000;
+  if (wordCount > 700) return 2600;
+  return 2200;
+}
+
 function buildAtsSystem(outLang = "English") {
   return [
-    "CRITICAL RULES (must follow):",
-    "- Do NOT invent or assume any numbers, percentages, dates, KPIs, budgets, clients, team size, revenue, ownership level, or outcomes.",
-    "- Only use facts, tools, platforms, processes, and terminology explicitly supported by the resume and optional job description.",
-    "- Weak sentence detection must be selective. Do NOT flag strong lines just because they could be polished.",
-    "- Only flag lines that are genuinely vague, generic, duty-only, support-heavy, shallow, or low-signal.",
-    "- Do NOT produce trivial rewrites where only one word changes.",
-    "- Rewrites must materially improve at least two of these: clarity, specificity, action strength, scope, business context, recruiter readability.",
-    "- If the original sentence is support-level work, keep it truthful and support-level. Do NOT escalate it into leadership or full ownership.",
-    "- Preserve profession-native terminology across technical, operational, finance, healthcare, education, legal, design, and engineering resumes.",
-    "- missing_keywords must prioritize realistic role-relevant tools, methods, certifications, domain phrases, and responsibility patterns.",
-    "- Avoid random filler keywords and soft-skill spam.",
+    "CRITICAL RULES:",
+    "- Use only facts explicitly supported by the resume and optional job description.",
+    "- Never invent numbers, metrics, dates, outcomes, tools, platforms, certifications, ownership, leadership, or business impact.",
+    "- Weak sentence detection must be selective. Flag only genuinely vague, generic, duty-heavy, support-heavy, or low-signal lines.",
+    "- Weak rewrites must be materially better, not one-word swaps.",
+    "- If the source is support-level work, keep it support-level but sharper and clearer.",
+    "- Preserve profession-native wording across technical, operations, finance, HR, healthcare, education, legal, design, and engineering resumes.",
     "- Keep optimized_cv ATS-safe, clean, and parser-friendly.",
-    "- Return only valid JSON. No markdown. No extra text.",
-    `- All output values must be written only in ${outLang}. Do not mix languages.`,
+    "- Return valid JSON only.",
+    `- All output values must be only in ${outLang}.`,
   ].join("\n");
 }
 
@@ -2001,18 +1850,17 @@ function buildEnglishStyleBlock(roleInput, cv = "", jd = "") {
     "ENGLISH WRITING STYLE:",
     "- Write like a strong US resume writer, not marketing copy.",
     "- Prefer concise recruiter-friendly bullets, usually around 9-18 words when possible.",
-    "- Prefer: action + scope + tool/channel/context + neutral purpose.",
-    "- Do not add corporate fluff, vague value statements, or unsupported outcome clauses.",
+    "- Prefer action + scope + tool/channel/context + neutral purpose.",
+    "- Avoid corporate fluff, vague value language, and unsupported outcome clauses.",
     "- Avoid shallow verb swaps such as helped -> assisted or supported -> contributed.",
-    "- Keep already-strong bullets sharp and short.",
     buildRoleWritingBlock(roleInput, cv, jd),
   ].join("\n");
 }
 
-function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview }) {
+function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview, localWeakCandidates = [] }) {
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
-  const baseSchema = hasJD
+  const schema = hasJD
     ? `{
   "component_scores": {
     "role_alignment": number,
@@ -2023,7 +1871,8 @@ function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview })
   },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "summary": string
+  "bullet_upgrades": [{"source": string, "rewrite": string, "reason": string}],
+  "summary_lines": string[]
 }`
     : `{
   "component_scores": {
@@ -2035,104 +1884,46 @@ function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview })
   },
   "missing_keywords": string[],
   "weak_sentences": [{"sentence": string, "rewrite": string}],
-  "summary": string
+  "bullet_upgrades": [{"source": string, "rewrite": string, "reason": string}],
+  "summary_lines": string[]
 }`;
 
   const weakRules = isPreview
-    ? [
-        "- Return up to 2 weak_sentences.",
-        "- Do not force the count.",
-      ].join("\n")
-    : hasJD
-    ? [
-        "- Return 7-12 weak_sentences when genuinely weak examples exist.",
-        "- Prefer weak experience bullets first, then other genuinely weak lines.",
-      ].join("\n")
-    : [
-        "- Return 8-12 weak_sentences when genuinely weak examples exist.",
-        "- If the resume clearly contains many weak or moderately weak bullets, return at least 6 items.",
-      ].join("\n");
+    ? ["- Return up to 2 weak_sentences.", "- Return up to 2 bullet_upgrades."].join("\n")
+    : ["- Return 5-10 weak_sentences when real weak or moderately weak lines exist.", "- Return 3-8 bullet_upgrades only when the rewrite is clearly stronger."].join("\n");
 
-  const missingRules = hasJD
+  const keywordRules = hasJD
     ? isPreview
-      ? "- missing_keywords must contain 5-7 genuinely missing or underrepresented JD-relevant items."
-      : "- missing_keywords must contain 12-20 genuinely missing or underrepresented JD-relevant items."
+      ? "- missing_keywords: 5-7 truly missing or underrepresented JD-relevant items."
+      : "- missing_keywords: 10-16 truly missing or underrepresented JD-relevant items."
     : isPreview
-    ? "- missing_keywords must contain 5-7 role-aware ATS-relevant suggestions based on the resume alone."
-    : "- missing_keywords must contain 10-18 role-aware ATS-relevant suggestions based on the resume alone.";
+    ? "- missing_keywords: 5-7 role-aware ATS suggestions grounded in the resume and role family."
+    : "- missing_keywords: 8-14 role-aware ATS suggestions grounded in the resume and role family.";
 
-  const summaryRule = isPreview
-    ? "- summary must be 4-6 compact bullet-style lines."
-    : "- summary must be 8-12 detailed bullet-style lines.";
+  const summaryRules = isPreview
+    ? "- summary_lines: 4-6 compact lines."
+    : "- summary_lines: 6-10 concise lines.";
+
+  const localWeakText = (Array.isArray(localWeakCandidates) ? localWeakCandidates : []).slice(0, 14).map((item, idx) => `${idx + 1}. ${item}`).join("\n") || "(none)";
 
   return [
-    `Return JSON in this exact schema:\n\n${baseSchema}`,
-    hasJD ? "\nTASK: Perform a job-specific ATS review." : "\nTASK: Perform a general ATS review with no job description.",
+    `Return JSON in this exact schema:\n\n${schema}`,
+    hasJD ? "\nTASK: Perform a job-specific ATS review." : "\nTASK: Perform a general ATS review without a job description.",
     "\nSTRICT REQUIREMENTS:",
-    hasJD
-      ? "- Score the resume against the job description without inventing alignment."
-      : "- Infer likely role family, seniority, and recruiter-facing terminology from the resume itself.",
-    missingRules,
-    "- Prioritize tools, platforms, methods, certifications, domain phrases, responsibility patterns, and seniority signals over filler.",
+    keywordRules,
     weakRules,
-    "- Only select lines that are genuinely vague, generic, duty-only, shallow, or support-heavy.",
-    "- Do not flag already-strong technical or functional bullets that already contain concrete tools, platforms, process detail, or domain terminology unless the rewrite is clearly and materially stronger.",
-    "- Both sentence and rewrite must stay truthful and materially better.",
-    summaryRule,
-    "- Do not add extra keys. Do not add optimized_cv.",
+    summaryRules,
+    "- Prefer experience bullets first for weak sentence selection.",
+    "- Use the provided LOCAL WEAK CANDIDATE POOL first when the lines are truly weak enough.",
+    "- Do not flag already strong bullets just because they can be polished.",
+    "- Both weak sentence rewrites and bullet_upgrades must stay truthful and materially stronger.",
+    "- reason should be short and concrete.",
+    "- Do not add extra keys.",
     "\nROLE CONTEXT:",
     roleContextText,
     hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
+    `\nLOCAL WEAK CANDIDATE POOL:\n${localWeakText}`,
     englishStyleBlock ? `\n${englishStyleBlock}` : "",
-    `\nRESUME:\n${cv}`,
-    hasJD ? `\nJOB DESCRIPTION:\n${jd}` : "",
-  ].filter(Boolean).join("\n");
-}
-
-function buildWeakRewriteFallbackPrompt({ cv, jd, hasJD, candidates, outLang, roleProfile }) {
-  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
-  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
-  const candidateText = (Array.isArray(candidates) ? candidates : []).map((item, idx) => `${idx + 1}. ${item}`).join("\n");
-  return [
-    `Return JSON in this exact schema:\n\n{\n  "weak_sentences": [{"sentence": string, "rewrite": string}]\n}`,
-    "\nTASK:",
-    "Rewrite only the listed weak resume lines into materially stronger ATS-friendly versions.",
-    "\nSTRICT RULES:",
-    "- Rewrite only the provided sentences.",
-    "- Keep all facts truthful.",
-    "- Do not invent tools, metrics, results, ownership, platforms, or outcomes.",
-    "- Preserve profession-native wording.",
-    "- Avoid shallow synonym swaps.",
-    `- Output values only in ${outLang}.`,
-    hasJD ? "- Return 6-12 items when possible." : "- Return 6-12 items when possible.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
-    englishStyleBlock ? `\n${englishStyleBlock}` : "",
-    `\nWEAK CANDIDATES:\n${candidateText || "(none)"}`,
-    `\nRESUME:\n${cv}`,
-    hasJD ? `\nJOB DESCRIPTION:\n${jd}` : "",
-  ].filter(Boolean).join("\n");
-}
-
-function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences, outLang, roleProfile }) {
-  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
-  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
-  const weakText = (Array.isArray(weakSentences) ? weakSentences : []).map((item, idx) => `${idx + 1}. ${String(item?.sentence || "").trim()}`).filter(Boolean).join("\n");
-  return [
-    `Return JSON in this exact schema:\n\n{\n  "bullet_upgrades": [{ "source": string, "rewrite": string, "reason": string }]\n}`,
-    "\nTASK:",
-    "Create premium-quality bullet rewrites only for the provided weak resume sentences.",
-    "\nSTRICT RULES:",
-    "- Rewrite only the listed source sentences.",
-    "- Keep each rewrite truthful, ATS-friendly, and recruiter-ready.",
-    "- Do not invent numbers, results, tools, platforms, budgets, clients, ownership, or impact.",
-    "- If the original is support-level work, keep it support-level but sharper and more specific.",
-    "- Each rewrite must be materially stronger than the source, not a synonym swap.",
-    "- reason must be short and explain what improved.",
-    `- Output values only in ${outLang}.`,
-    "- Return 3-8 items depending on real quality opportunities.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
-    englishStyleBlock ? `\n${englishStyleBlock}` : "",
-    `\nWEAK SOURCE SENTENCES:\n${weakText || "(none)"}`,
     `\nRESUME:\n${cv}`,
     hasJD ? `\nJOB DESCRIPTION:\n${jd}` : "",
   ].filter(Boolean).join("\n");
@@ -2145,7 +1936,7 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   return [
-    `Return JSON in this exact schema:\n\n{\n  "optimized_cv": string\n}`,
+    "Return JSON in this exact schema:\n\n{\n  \"optimized_cv\": string\n}",
     "\nTASK:",
     hasJD ? "Rewrite the resume into a materially stronger ATS-friendly version aligned to the job description." : "Rewrite the resume into a materially stronger ATS-friendly version.",
     "\nSTRICT RULES:",
@@ -2154,10 +1945,10 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
     "- Keep exact dates, employers, titles, education, certifications, and explicit experience durations unchanged.",
     "- Do not invent numbers, tools, platforms, acronyms, KPIs, budgets, achievements, ownership, or outcomes.",
     "- Do not replace generic platform language with specific platforms unless explicitly present in the resume.",
-    "- Treat missing keywords as context only. Never force keywords into the resume unless the underlying work is already supported by the original resume text.",
-    "- Keep already-strong bullets unchanged or only lightly polished.",
-    "- Focus most rewrite effort on weaker summary lines and weaker or support-heavy bullets.",
-    "- If 4 or more weak bullets were identified, materially improve at least 4 of them in the final optimized_cv.",
+    "- Treat missing keywords as context only. Never force them into the resume unless the underlying work is already supported by the original resume.",
+    "- Keep already strong bullets unchanged or lightly polished.",
+    "- Focus rewrite effort on weaker summary lines and weaker or support-heavy bullets.",
+    "- If 4 or more weak bullets were identified, materially improve at least 4 of them.",
     "- Preserve structure and bullet count as much as possible.",
     "- Do not merge multiple bullets into one if that removes detail.",
     "- Use canonical section headings only.",
@@ -2179,51 +1970,92 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
   ].filter(Boolean).join("\n");
 }
 
-function buildRepairPrompt({ cv, jd, hasJD, currentOptimizedCv, summary, missingKeywords, bulletUpgrades, unsupportedTerms = [], outLang, roleProfile }) {
-  const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
-  const allowedTermsText = buildAllowedTermsText(cv, jd);
-  const unsupportedText = Array.isArray(unsupportedTerms) && unsupportedTerms.length ? unsupportedTerms.join(", ") : "(none)";
-  const roleContextText = buildRoleContextText(roleProfile, cv, jd);
-  const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
-  const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
-  return [
-    `Return JSON in this exact schema:\n\n{\n  "optimized_cv": string\n}`,
-    "\nTASK:",
-    "Rewrite the current optimized resume into a stronger and cleaner final version.",
-    "\nSTRICT RULES:",
-    "- Keep the header identity block exactly as written.",
-    "- Keep existing experience titles unchanged.",
-    "- Keep exact dates, employers, titles, degrees, certifications, and explicit years of experience unchanged.",
-    "- Do not invent tools, platforms, acronyms, channels, achievements, ownership, or impact.",
-    "- Remove unsupported additions.",
-    "- Preserve bullet count and structure as much as possible.",
-    "- Use canonical section headings only.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
-    hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
-    `\nALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:\n${allowedTermsText}`,
-    `\nREMOVE THESE UNSUPPORTED TERMS IF PRESENT:\n${unsupportedText}`,
-    `\nPRIORITY REWRITE TARGETS:\n${priorityRewriteText}`,
-    englishStyleBlock ? `\n${englishStyleBlock}` : "",
-    `\nANALYSIS SUMMARY:\n${summary || "(none)"}`,
-    `\nHIGH PRIORITY KEYWORD GAPS (context only, do not force):\n${keywordsText || "(none)"}`,
-    "\nSELF-CHECK BEFORE RETURNING:",
-    "- unsupported terms removed",
-    "- no invented tools/platforms/acronyms",
-    "- no invented outcomes or ownership",
-    "- no unjustified leadership escalation",
-    "- no major bullet loss",
-    `\nRESUME (original):\n${cv}`,
-    hasJD ? `\nJOB DESCRIPTION:\n${jd}` : "",
-    `\nCURRENT OPTIMIZED CV (rewrite this into a stronger final version):\n${currentOptimizedCv}`,
-  ].filter(Boolean).join("\n");
-}
-
 function sanitizeStringInput(value = "", maxChars = 40000) {
   return normalizeSpace(String(value || "").slice(0, maxChars));
 }
 
 function ensureArrayStrings(value, maxItems = 20, maxChars = 120) {
   return uniqueByNormalizedStrings((Array.isArray(value) ? value : []).map((item) => cleanKeywordCandidate(String(item || "").slice(0, maxChars))).filter(Boolean)).slice(0, maxItems);
+}
+
+function normalizeSummaryLines(rawSummary) {
+  if (Array.isArray(rawSummary)) {
+    return rawSummary.map((line) => normalizeSpace(line)).filter(Boolean).slice(0, 10);
+  }
+  if (typeof rawSummary === "string") {
+    return normalizeSpace(rawSummary)
+      .split(/\n+/)
+      .map((line) => line.replace(/^[-•·‣▪▫◦*]\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
+  }
+  return [];
+}
+
+function buildFallbackSummary({ hasJD = false, score = 0, weakCount = 0, keywordCount = 0, roleProfile, outLang = "English" }) {
+  const profile = ensureRoleProfile(roleProfile);
+  const roleName = capitalizeFirst(String(profile.primaryRole || "generic").replace(/_/g, " "));
+
+  if (outLang === "Turkish") {
+    const lines = [
+      `${roleName} odaklı profil için ATS görünürlüğü ${score >= 75 ? "güçlü" : score >= 60 ? "orta" : "geliştirilmeli"} seviyede görünüyor.`,
+      `Öncelik, daha zayıf ve görev odaklı maddeleri daha net eylem ve kapsam diliyle güçlendirmek.`,
+      hasJD ? `İş ilanı uyumunda öne çıkan boşluk sayısı yaklaşık ${keywordCount}.` : `Rol odaklı temel ATS boşluk sayısı yaklaşık ${keywordCount}.`,
+      `Anlamlı şekilde iyileştirilebilecek zayıf cümle sayısı yaklaşık ${weakCount}.`,
+    ];
+    return lines.join("\n");
+  }
+
+  const lines = [
+    `${roleName} profile shows ${score >= 75 ? "strong" : score >= 60 ? "moderate" : "improvable"} ATS readiness overall.`,
+    "Top priority is strengthening weaker, duty-heavy bullets with clearer action and scope.",
+    hasJD ? `Approximate job-specific keyword and terminology gaps identified: ${keywordCount}.` : `Approximate role-aware ATS keyword and terminology gaps identified: ${keywordCount}.`,
+    `Meaningfully improvable weak or moderate lines identified: ${weakCount}.`,
+  ];
+  return lines.join("\n");
+}
+
+function normalizeAnalysisOutput(raw = {}, { cv = "", jd = "", hasJD = false, outLang = "English", roleProfile, isPreview = false } = {}) {
+  const componentScores = raw?.component_scores && typeof raw.component_scores === "object" ? raw.component_scores : {};
+  const deterministicScore = computeDeterministicAtsScore(cv, jd, roleProfile);
+  const modelComponentScore = computeComponentScore(componentScores, hasJD);
+  const atsScore = clampScore(Math.round(deterministicScore * 0.82 + modelComponentScore * 0.18));
+
+  const candidatePool = detectWeakSentenceCandidates(cv, roleProfile, isPreview ? 2 : 6, 12);
+  const desiredWeakCount = getDesiredWeakCount(hasJD, candidatePool.length);
+
+  let weakSentences = filterWeakSentences(Array.isArray(raw?.weak_sentences) ? raw.weak_sentences : [], { outLang, roleInput: roleProfile, cv, jd });
+  if (weakSentences.length < Math.min(isPreview ? 2 : desiredWeakCount, candidatePool.length)) {
+    const localWeak = buildLocalWeakSentenceSet(candidatePool, roleProfile, outLang, cv, jd, isPreview ? 4 : 12);
+    weakSentences = mergeWeakSentenceSets(weakSentences, localWeak, roleProfile, outLang, cv, jd, isPreview ? 4 : 12);
+  }
+
+  let bulletUpgrades = normalizeBulletUpgrades(Array.isArray(raw?.bullet_upgrades) ? raw.bullet_upgrades : [], outLang, roleProfile, cv, jd);
+  if (!bulletUpgrades.length && weakSentences.length) {
+    bulletUpgrades = normalizeBulletUpgrades(buildLocalBulletUpgradeFallback(weakSentences, outLang), outLang, roleProfile, cv, jd);
+  } else if (bulletUpgrades.length < Math.min(4, weakSentences.length)) {
+    bulletUpgrades = normalizeBulletUpgrades([...bulletUpgrades, ...buildLocalBulletUpgradeFallback(weakSentences, outLang)], outLang, roleProfile, cv, jd);
+  }
+
+  const missingKeywords = finalizeMissingKeywords(ensureArrayStrings(raw?.missing_keywords, hasJD ? 20 : 18), {
+    cv,
+    jd,
+    roleInput: roleProfile,
+    hasJD,
+    limit: isPreview ? 7 : hasJD ? 16 : 14,
+  });
+
+  const summaryLines = normalizeSummaryLines(raw?.summary_lines || raw?.summary);
+  const summary = summaryLines.length ? summaryLines.join("\n") : buildFallbackSummary({ hasJD, score: atsScore, weakCount: weakSentences.length, keywordCount: missingKeywords.length, roleProfile, outLang });
+
+  return {
+    ats_score: atsScore,
+    component_scores: componentScores,
+    missing_keywords: missingKeywords,
+    weak_sentences: weakSentences.slice(0, isPreview ? 2 : 12),
+    bullet_upgrades: bulletUpgrades.slice(0, 8),
+    summary,
+  };
 }
 
 function buildPreviewResponse({ normalized, hasJD }) {
@@ -2234,6 +2066,37 @@ function buildPreviewResponse({ normalized, hasJD }) {
     weak_sentences: normalized.weak_sentences.slice(0, 2),
     review_mode: hasJD ? "job_specific" : "general",
   };
+}
+
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (typeof xf === "string" && xf.length) return xf.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function verifySession(req) {
+  const appSecret = process.env.APP_SECRET;
+  if (!appSecret) return false;
+
+  const cookie = req.headers.cookie || "";
+  const match = cookie.match(/(?:^|;\s*)resumeai_session=([^;]+)/);
+  if (!match) return false;
+
+  const token = decodeURIComponent(match[1]);
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+
+  const [data, sig] = parts;
+  const expected = crypto.createHmac("sha256", appSecret).update(data).digest("base64url");
+  if (sig !== expected) return false;
+
+  try {
+    const payloadJson = Buffer.from(data, "base64url").toString("utf8");
+    const payload = JSON.parse(payloadJson);
+    return !!payload?.exp && Date.now() <= payload.exp;
+  } catch {
+    return false;
+  }
 }
 
 export default async function handler(req, res) {
@@ -2261,18 +2124,7 @@ export default async function handler(req, res) {
     const hasJD = !!jd;
     const sessionOk = verifySession(req);
     const isPreview = previewRequested || !sessionOk;
-
-    const previewModel =
-  process.env.OPENAI_MODEL_PREVIEW ||
-  process.env.OPENAI_MODEL ||
-  "gpt-4.1-mini";
-
-const fullModel =
-  process.env.OPENAI_MODEL_FULL ||
-  process.env.OPENAI_MODEL ||
-  "gpt-4.1-mini";
-
-const model = isPreview ? previewModel : fullModel;
+    const model = chooseModel(isPreview);
 
     const ip = getClientIp(req);
     const limiter = isPreview ? rlPreview : rlFull;
@@ -2283,18 +2135,20 @@ const model = isPreview ? previewModel : fullModel;
     }
 
     const roleProfile = inferRoleProfile(cv, jd);
+    const localWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, isPreview ? 2 : 6, 12);
     const systemPrompt = buildAtsSystem(outLang);
 
-    let analysisData;
+    let analysisRaw;
     try {
-      analysisData = await callOpenAIJson({
+      analysisRaw = await callOpenAIJson({
         apiKey,
         model,
         system: systemPrompt,
-        userPrompt: buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview }),
+        userPrompt: buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview, localWeakCandidates }),
         isPreview,
         passType: "main",
-        maxCompletionTokens: isPreview ? 1200 : 2200,
+        maxCompletionTokens: getAnalysisTokenBudget({ isPreview, cv, jd }),
+        timeoutMs: isPreview ? 32000 : 38000,
       });
     } catch (err) {
       return res.status(err?.status || 500).json({
@@ -2304,93 +2158,17 @@ const model = isPreview ? previewModel : fullModel;
       });
     }
 
-    const componentScores = analysisData?.component_scores && typeof analysisData.component_scores === "object" ? analysisData.component_scores : {};
-    const deterministicScore = computeDeterministicAtsScore(cv, jd, roleProfile);
-    const modelComponentScore = computeComponentScore(componentScores, hasJD);
-    const mergedBaseScore = clampScore(Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2));
-
-    let weakSentences = filterWeakSentences(
-      Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : [],
-      { outLang, roleInput: roleProfile, cv, jd }
-    );
-
-    const detectedWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, isPreview ? 2 : 6, 12);
-    const desiredWeakCount = getDesiredWeakCount(hasJD, detectedWeakCandidates.length);
-
-    if (weakSentences.length < Math.min(isPreview ? 2 : desiredWeakCount, detectedWeakCandidates.length)) {
-      try {
-        const fallbackWeakData = await callOpenAIJson({
-          apiKey,
-          model,
-          system: systemPrompt,
-          userPrompt: buildWeakRewriteFallbackPrompt({ cv, jd, hasJD, candidates: detectedWeakCandidates, outLang, roleProfile }),
-          isPreview,
-          passType: "bullet",
-          maxCompletionTokens: isPreview ? 1200 : 1800,
-        });
-        weakSentences = mergeWeakSentenceSets(
-          weakSentences,
-          Array.isArray(fallbackWeakData?.weak_sentences) ? fallbackWeakData.weak_sentences : [],
-          roleProfile,
-          outLang,
-          cv,
-          jd,
-          isPreview ? 4 : 12
-        );
-      } catch {
-        // keep existing weakSentences
-      }
-    }
-
-    if (weakSentences.length < Math.min(isPreview ? 2 : desiredWeakCount, detectedWeakCandidates.length)) {
-      const localWeak = buildLocalWeakSentenceSet(detectedWeakCandidates, roleProfile, outLang, cv, jd, isPreview ? 4 : 12);
-      weakSentences = mergeWeakSentenceSets(weakSentences, localWeak, roleProfile, outLang, cv, jd, isPreview ? 4 : 12);
-    }
-
-    const normalized = {
-      ats_score: mergedBaseScore,
-      component_scores: componentScores,
-      missing_keywords: finalizeMissingKeywords(
-        ensureArrayStrings(analysisData?.missing_keywords, hasJD ? 20 : 18),
-        { cv, jd, roleInput: roleProfile, outLang, hasJD, limit: isPreview ? 7 : hasJD ? 20 : 18 }
-      ),
-      weak_sentences: weakSentences,
-      summary: typeof analysisData?.summary === "string" ? normalizeSpace(analysisData.summary) : "",
-      optimized_cv: "",
-      optimized_ats_score: mergedBaseScore,
-    };
+    const normalized = normalizeAnalysisOutput(analysisRaw, { cv, jd, hasJD, outLang, roleProfile, isPreview });
 
     if (isPreview) {
       return res.status(200).json(buildPreviewResponse({ normalized, hasJD }));
     }
 
-    let bulletUpgrades = [];
-    if (normalized.weak_sentences.length > 0) {
-      try {
-        const bulletData = await callOpenAIJson({
-          apiKey,
-          model,
-          system: systemPrompt,
-          userPrompt: buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences: normalized.weak_sentences, outLang, roleProfile }),
-          isPreview: false,
-          passType: "bullet",
-          maxCompletionTokens: 1700,
-        });
-        bulletUpgrades = normalizeBulletUpgrades(Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : [], outLang, roleProfile, cv, jd);
-      } catch {
-        bulletUpgrades = [];
-      }
-    }
-
-    if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
-      bulletUpgrades = normalizeBulletUpgrades(buildLocalBulletUpgradeFallback(normalized.weak_sentences), outLang, roleProfile, cv, jd);
-    }
-
-    let currentOptimized = "";
-    let unsupportedTerms = [];
+    const localOptimized = applyBulletUpgradesToCv(cv, cv, normalized.bullet_upgrades, outLang);
+    let modelOptimized = "";
 
     try {
-      const optimizeData = await callOpenAIJson({
+      const optimizeRaw = await callOpenAIJson({
         apiKey,
         model,
         system: systemPrompt,
@@ -2400,111 +2178,47 @@ const model = isPreview ? previewModel : fullModel;
           hasJD,
           summary: normalized.summary,
           missingKeywords: normalized.missing_keywords,
-          bulletUpgrades,
+          bulletUpgrades: normalized.bullet_upgrades,
           outLang,
           roleProfile,
         }),
         isPreview: false,
         passType: "optimize",
-        maxCompletionTokens: 3600,
+        maxCompletionTokens: getOptimizeTokenBudget(cv),
+        timeoutMs: 52000,
       });
 
-      if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
-        currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim(), outLang);
-        if (bulletUpgrades.length) {
-          currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades, outLang);
+      if (typeof optimizeRaw?.optimized_cv === "string" && optimizeRaw.optimized_cv.trim()) {
+        modelOptimized = forceSafeResume(cv, optimizeRaw.optimized_cv.trim(), outLang);
+        if (normalized.bullet_upgrades.length) {
+          modelOptimized = applyBulletUpgradesToCv(cv, modelOptimized, normalized.bullet_upgrades, outLang);
         }
-        unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
     } catch {
-      currentOptimized = "";
-      unsupportedTerms = [];
+      modelOptimized = "";
     }
 
-    if (!currentOptimized) {
-      currentOptimized = bulletUpgrades.length ? applyBulletUpgradesToCv(cv, cv, bulletUpgrades, outLang) : forceSafeResume(cv, cv, outLang);
-      unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
+    const modelRejected = shouldRejectOptimizedCv(cv, modelOptimized, jd, outLang, normalized.weak_sentences, roleProfile);
+    const localRejected = shouldRejectOptimizedCv(cv, localOptimized, jd, outLang, normalized.weak_sentences, roleProfile);
+
+    let finalOptimized = "";
+    if (!modelRejected) {
+      finalOptimized = modelOptimized;
+    } else if (!localRejected) {
+      finalOptimized = localOptimized;
+    } else {
+      finalOptimized = forceSafeResume(cv, localOptimized || cv, outLang);
     }
 
-    if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang, normalized.weak_sentences, roleProfile) || unsupportedTerms.length > 0) {
-      try {
-        const repaired = await callOpenAIJson({
-          apiKey,
-          model,
-          system: systemPrompt,
-          userPrompt: buildRepairPrompt({
-            cv,
-            jd,
-            hasJD,
-            currentOptimizedCv: currentOptimized || cv,
-            summary: normalized.summary,
-            missingKeywords: normalized.missing_keywords,
-            bulletUpgrades,
-            unsupportedTerms,
-            outLang,
-            roleProfile,
-          }),
-          isPreview: false,
-          passType: "repair",
-          maxCompletionTokens: 3800,
-        });
-
-        if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
-          currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim(), outLang);
-          if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades, outLang);
-          }
-          unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
-        }
-      } catch {
-        // keep currentOptimized
-      }
-    }
-
-    if (unsupportedTerms.length > 0) {
-      try {
-        const cleaned = await callOpenAIJson({
-          apiKey,
-          model,
-          system: systemPrompt,
-          userPrompt: buildRepairPrompt({
-            cv,
-            jd,
-            hasJD,
-            currentOptimizedCv: currentOptimized || cv,
-            summary: normalized.summary,
-            missingKeywords: normalized.missing_keywords,
-            bulletUpgrades,
-            unsupportedTerms,
-            outLang,
-            roleProfile,
-          }),
-          isPreview: false,
-          passType: "repair",
-          maxCompletionTokens: 3800,
-        });
-
-        if (typeof cleaned?.optimized_cv === "string" && cleaned.optimized_cv.trim()) {
-          currentOptimized = forceSafeResume(cv, cleaned.optimized_cv.trim(), outLang);
-          if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades, outLang);
-          }
-        }
-      } catch {
-        // keep currentOptimized
-      }
-    }
-
-    normalized.optimized_cv = currentOptimized;
-    normalized.optimized_ats_score = computeFinalOptimizedScore(cv, currentOptimized, normalized.ats_score, jd);
+    const optimizedScore = computeFinalOptimizedScore(cv, finalOptimized, normalized.ats_score, jd);
 
     return res.status(200).json({
       ats_score: normalized.ats_score,
-      optimized_ats_score: normalized.optimized_ats_score,
+      optimized_ats_score: optimizedScore,
       component_scores: normalized.component_scores,
       missing_keywords: normalized.missing_keywords,
       weak_sentences: normalized.weak_sentences,
-      optimized_cv: normalized.optimized_cv,
+      optimized_cv: finalOptimized,
       summary: normalized.summary,
       review_mode: hasJD ? "job_specific" : "general",
     });
