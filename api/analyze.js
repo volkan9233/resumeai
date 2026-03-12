@@ -1654,7 +1654,12 @@ function isGpt5Model(model = "") {
   return /^gpt-5/i.test(String(model || "").trim());
 }
 
-function buildOpenAIPayload({ model, messages, reasoningEffort = null, temperature = null, maxCompletionTokens = 1800 }) {
+function buildOpenAIPayload({
+  model,
+  messages,
+  reasoningEffort = null,
+  maxCompletionTokens = 1800,
+}) {
   const body = {
     model,
     response_format: { type: "json_object" },
@@ -1663,33 +1668,64 @@ function buildOpenAIPayload({ model, messages, reasoningEffort = null, temperatu
 
   if (isGpt5Model(model)) {
     body.max_completion_tokens = maxCompletionTokens;
-    if (reasoningEffort) body.reasoning_effort = reasoningEffort;
-    if (typeof temperature === "number") {
-      body.temperature = temperature;
+
+    if (reasoningEffort) {
+      body.reasoning_effort = reasoningEffort;
     }
+
+    // IMPORTANT:
+    // Do NOT send temperature for gpt-5-mini.
+    // This model call expects the default temperature behavior.
   } else {
     body.max_tokens = maxCompletionTokens;
-    if (typeof temperature === "number") body.temperature = temperature;
+    body.temperature = 0.1;
   }
 
   return body;
 }
 
-function buildAttempts({ model, passType = "main", isPreview = false, maxCompletionTokens = 1800 }) {
+function buildAttempts({
+  model,
+  passType = "main",
+  isPreview = false,
+  maxCompletionTokens = 1800,
+}) {
   if (!isGpt5Model(model)) {
-    return [{ reasoningEffort: null, temperature: isPreview ? 0.1 : 0.15, maxCompletionTokens }];
+    return [
+      {
+        reasoningEffort: null,
+        maxCompletionTokens,
+      },
+    ];
   }
+
+  // GPT-5-mini:
+  // - do not use reasoning_effort: "none"
+  // - do not send temperature
+  // keep reasoning low/minimal for speed
 
   if (passType === "optimize") {
     return [
-      { reasoningEffort: "minimal", temperature: 0.1, maxCompletionTokens },
-      { reasoningEffort: "low", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 200) },
+      {
+        reasoningEffort: "minimal",
+        maxCompletionTokens,
+      },
+      {
+        reasoningEffort: "low",
+        maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 200),
+      },
     ];
   }
 
   return [
-    { reasoningEffort: "minimal", temperature: 0.1, maxCompletionTokens },
-    { reasoningEffort: "minimal", temperature: 0.1, maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 150) },
+    {
+      reasoningEffort: "minimal",
+      maxCompletionTokens,
+    },
+    {
+      reasoningEffort: "minimal",
+      maxCompletionTokens: Math.max(maxCompletionTokens, maxCompletionTokens + 150),
+    },
   ];
 }
 async function fetchWithTimeout(url, options, timeoutMs = 45000) {
