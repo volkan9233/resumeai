@@ -1130,7 +1130,10 @@ if (upBtn) upBtn.textContent = t.resumeHelpUpload;
     if (toneMap[key]) b.textContent = toneMap[key];
   });
 
+  setText("#t_roleFamilyLabel", t.roleFamilyLabel);
+
   window.__t = t;
+  renderRoleFamilyOptions();
 }
 applyI18n();
 
