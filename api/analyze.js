@@ -1838,24 +1838,24 @@ function buildAttempts({ model, passType = "main", isPreview = false, maxComplet
   if (passType === "repair") {
     return [
       { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 3600) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 4200) },
+      { reasoningEffort: "minimal", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 4200) },
     ];
   }
   if (passType === "bullet") {
     return [
       { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 1600) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2200) },
+      { reasoningEffort: "minimal", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2200) },
     ];
   }
   if (isPreview) {
     return [
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1100) },
-      { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1500) },
+      { reasoningEffort: "minimal", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1100) },
+      { reasoningEffort: "minimal", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 1500) },
     ];
   }
   return [
     { reasoningEffort: "low", temperature: null, maxCompletionTokens: Math.max(maxCompletionTokens, 1800) },
-    { reasoningEffort: "none", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2400) },
+    { reasoningEffort: "minimal", temperature: 0.2, maxCompletionTokens: Math.max(maxCompletionTokens, 2400) },
   ];
 }
 
