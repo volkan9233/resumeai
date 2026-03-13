@@ -1620,17 +1620,43 @@ function getReadabilityScore(cv = "") {
 function getBulletStrengthScore(cv = "", roleInput, jd = "") {
   const bullets = getBulletLines(cv);
   if (!bullets.length) return 0;
+
   let sum = 0;
+
   for (const bullet of bullets) {
     const profile = getSentenceSignalProfile(bullet, roleInput, cv, jd);
-    let value = 4;
-    value += profile.strongScore * 1.5;
-    value -= profile.weakScore * 1.3;
-    if (profile.hasSpecific) value += 1;
-    sum += Math.max(0, Math.min(12, value));
+    const wc = countWords(bullet);
+
+    let value = 3.5;
+
+    value += profile.strongScore * 1.8;
+    value -= profile.weakScore * 0.95;
+
+    if (profile.hasSpecific) value += 1.4;
+    if (profile.hasScopeSignal) value += 0.8;
+    if (profile.roleHits > 0) value += Math.min(1.8, profile.roleHits * 0.6);
+    if (profile.explicitFactsCount > 0) value += Math.min(1.8, profile.explicitFactsCount * 0.6);
+
+    if (/\b(prepared|processed|reviewed|tracked|updated|recorded|documented|coordinated|monitored|validated|maintained|resolved|responded|scheduled|organized|assembled|verified|collected|delivered|implemented|debugged|tested|integrated|deployed|optimized|analyzed|reconciled|inspected|packed|labeled|picked|received|counted|staged|shipped|follow(?:ed)?\s?up)\b/i.test(bullet)) {
+      value += 1.2;
+    }
+
+    if (/\b(order|shipment|delivery|inventory|stock|warehouse|invoice|report|budget|forecast|variance|account|ledger|reconciliation|documentation|record|customer|ticket|case|schedule|calendar|api|backend|database|query|endpoint|authentication|deployment|bug|test|feature|workflow|process|finance|financial|operations|support|service)\b/i.test(bullet)) {
+      value += 1.0;
+    }
+
+    if (wc >= 5 && wc <= 22) value += 0.8;
+    else if (wc >= 4 && wc <= 28) value += 0.4;
+
+    if (profile.startsWeak) value -= 1.2;
+    if (profile.genericTask && !profile.hasSpecific) value -= 1.0;
+    if (profile.genericSummary) value -= 0.8;
+
+    sum += Math.max(0, Math.min(14, value));
   }
+
   const avg = sum / bullets.length;
-  return Math.max(0, Math.min(40, Math.round((avg / 12) * 40)));
+  return Math.max(0, Math.min(40, Math.round((avg / 14) * 40)));
 }
 
 function getKeywordBreadthScore(cv = "", roleInput, jd = "") {
@@ -1669,17 +1695,30 @@ function getJdAlignmentScore(cv = "", jd = "", roleInput) {
 
 function computeDeterministicAtsScore(cv = "", jd = "", roleInput) {
   const hasJD = !!String(jd || "").trim();
+
   const sectionScore = getSectionPresenceScore(cv);
   const bulletScore = getBulletStrengthScore(cv, roleInput, jd);
   const readabilityScore = getReadabilityScore(cv);
   const keywordScore = getKeywordBreadthScore(cv, roleInput, jd);
   const jdScore = getJdAlignmentScore(cv, jd, roleInput);
+
   let total = 0;
+
   if (hasJD) {
-    total = Math.round((sectionScore / 25) * 20) + Math.round((bulletScore / 40) * 35) + Math.round((readabilityScore / 20) * 20) + Math.round((keywordScore / 15) * 15) + jdScore;
+    total =
+      Math.round((sectionScore / 25) * 16) +
+      Math.round((bulletScore / 40) * 38) +
+      Math.round((readabilityScore / 20) * 18) +
+      Math.round((keywordScore / 15) * 10) +
+      Math.round((jdScore / 10) * 18);
   } else {
-    total = Math.round((sectionScore / 25) * 25) + Math.round((bulletScore / 40) * 40) + Math.round((readabilityScore / 20) * 20) + Math.round((keywordScore / 15) * 15);
+    total =
+      Math.round((sectionScore / 25) * 20) +
+      Math.round((bulletScore / 40) * 42) +
+      Math.round((readabilityScore / 20) * 22) +
+      Math.round((keywordScore / 15) * 16);
   }
+
   return clampScore(total);
 }
 
@@ -1703,31 +1742,62 @@ function computeComponentScore(componentScores = {}, hasJD = false) {
 function computeFinalOptimizedScore(originalCv = "", optimizedCv = "", originalScore = 0, jd = "") {
   const base = clampScore(originalScore);
   if (!originalCv || !optimizedCv) return base;
+
   const origNorm = canonicalizeTerm(originalCv);
   const optNorm = canonicalizeTerm(optimizedCv);
   if (!optNorm || origNorm === optNorm) return base;
+
   const roleProfile = inferRoleProfile(originalCv, jd);
+
   const rescoredOptimized = computeDeterministicAtsScore(optimizedCv, jd, roleProfile);
   const rawLift = Math.max(0, rescoredOptimized - base);
+
   const weakBefore = detectWeakSentenceCandidates(originalCv, roleProfile, 0, 20).length;
   const weakAfter = detectWeakSentenceCandidates(optimizedCv, roleProfile, 0, 20).length;
   const weakGain = Math.max(0, weakBefore - weakAfter);
+
   const { same, total } = countUnchangedBullets(originalCv, optimizedCv);
   const rewriteRatio = total > 0 ? 1 - same / total : 0;
 
-  let lift = 0;
-  lift += rawLift * 0.48;
-  lift += Math.min(5, weakGain) * 1.0;
-  if (rewriteRatio >= 0.7) lift += 3;
-  else if (rewriteRatio >= 0.5) lift += 2;
-  else if (rewriteRatio >= 0.3) lift += 1;
+  const bulletBefore = getBulletStrengthScore(originalCv, roleProfile, jd);
+  const bulletAfter = getBulletStrengthScore(optimizedCv, roleProfile, jd);
+  const bulletGain = Math.max(0, bulletAfter - bulletBefore);
 
-  const meaningfulChange = rawLift > 0 || weakGain > 0 || rewriteRatio >= 0.2;
+  const readabilityBefore = getReadabilityScore(originalCv);
+  const readabilityAfter = getReadabilityScore(optimizedCv);
+  const readabilityGain = Math.max(0, readabilityAfter - readabilityBefore);
+
+  let lift = 0;
+
+  lift += rawLift * 0.72;
+  lift += Math.min(6, weakGain) * 1.35;
+  lift += Math.min(4, bulletGain * 0.28);
+  lift += Math.min(2, readabilityGain * 0.2);
+
+  if (rewriteRatio >= 0.70) lift += 4;
+  else if (rewriteRatio >= 0.50) lift += 3;
+  else if (rewriteRatio >= 0.30) lift += 2;
+  else if (rewriteRatio >= 0.18) lift += 1;
+
+  const meaningfulChange =
+    rawLift > 1 ||
+    weakGain > 0 ||
+    rewriteRatio >= 0.18 ||
+    bulletGain >= 3 ||
+    readabilityGain >= 2;
+
   if (!meaningfulChange) return base;
 
   lift = Math.round(lift);
-  const cap = base < 40 ? 19 : base < 55 ? 16 : base < 70 ? 14 : base < 80 ? 10 : 6;
-  lift = Math.max(3, Math.min(cap, lift));
+
+  const cap =
+    base < 40 ? 22 :
+    base < 55 ? 18 :
+    base < 70 ? 15 :
+    base < 80 ? 12 : 8;
+
+  lift = Math.max(5, Math.min(cap, lift));
+
   return clampScore(base + lift);
 }
 
