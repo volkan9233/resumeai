@@ -1160,9 +1160,6 @@ if (window.ResumeAIProgress) {
     try { data = JSON.parse(rawText); } catch {}
     const reviewMode = data.review_mode || "general";
    
-    if (r.ok && window.ResumeAIProgress) {
-  window.ResumeAIProgress.complete("Analysis completed");
-}
 
     if (!r.ok) {
       if (r.status === 429) {
