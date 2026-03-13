@@ -2273,53 +2273,62 @@ function sendStreamError(res, message, extra = {}) {
 }
 
 export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "POST required" });
+  }
+
+  initEventStream(res);
+  const progress = createProgressSender(res);
+
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "POST required" });
-    }
+    progress(4, "Reading resume...");
 
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const cv = sanitizeStringInput(body.cv || "", 50000);
     const jd = sanitizeStringInput(body.jd || "", 30000);
     const previewRequested = !!body.preview;
-    const langCode = typeof body.lang === "string" && body.lang.trim() ? body.lang.trim().toLowerCase() : "en";
+    const langCode =
+      typeof body.lang === "string" && body.lang.trim()
+        ? body.lang.trim().toLowerCase()
+        : "en";
     const outLang = LANG_MAP[langCode] || "English";
 
     if (!cv) {
-      return res.status(400).json({ error: "cv is required" });
+      return sendStreamError(res, "cv is required");
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: "OPENAI_API_KEY is missing on Vercel" });
+      return sendStreamError(res, "OPENAI_API_KEY is missing on Vercel");
     }
+
+    progress(10, "Checking access and limits...");
 
     const hasJD = !!jd;
     const sessionOk = verifySession(req);
     const isPreview = previewRequested || !sessionOk;
 
-    const previewModel =
-  process.env.OPENAI_MODEL_PREVIEW ||
-  process.env.OPENAI_MODEL ||
-  "gpt-5-mini";
-
-const fullModel =
-  process.env.OPENAI_MODEL_FULL ||
-  process.env.OPENAI_MODEL ||
-  "gpt-5-mini";
-
-const model = isPreview ? previewModel : fullModel;
+    const previewModel = process.env.OPENAI_MODEL_PREVIEW || "gpt-5-mini";
+    const fullModel = process.env.OPENAI_MODEL_FULL || "gpt-5-mini";
+    const model = isPreview ? previewModel : fullModel;
 
     const ip = getClientIp(req);
     const limiter = isPreview ? rlPreview : rlFull;
     const { success, reset } = await limiter.limit(ip);
+
     if (!success) {
       const retrySec = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
-      return res.status(429).json({ error: "Too many requests", retry_after_seconds: retrySec });
+      return sendStreamError(res, "Too many requests", {
+        retry_after_seconds: retrySec,
+      });
     }
+
+    progress(18, "Detecting role profile...");
 
     const roleProfile = inferRoleProfile(cv, jd);
     const systemPrompt = buildAtsSystem(outLang);
+
+    progress(30, "Analyzing ATS score and structure...");
 
     let analysisData;
     try {
@@ -2327,46 +2336,82 @@ const model = isPreview ? previewModel : fullModel;
         apiKey,
         model,
         system: systemPrompt,
-        userPrompt: buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview }),
+        userPrompt: buildAnalysisPrompt({
+          cv,
+          jd,
+          hasJD,
+          outLang,
+          roleProfile,
+          isPreview,
+        }),
         isPreview,
         passType: "main",
         maxCompletionTokens: isPreview ? 1000 : 1800,
       });
     } catch (err) {
-      return res.status(err?.status || 500).json({
-        error: err?.message || "OpenAI error",
-        status: err?.status || 500,
-        details: err?.details || String(err),
-      });
+      return sendStreamError(
+        res,
+        err?.message || "OpenAI error",
+        {
+          status: err?.status || 500,
+          details: err?.details || String(err),
+        }
+      );
     }
 
-    const componentScores = analysisData?.component_scores && typeof analysisData.component_scores === "object" ? analysisData.component_scores : {};
+    progress(45, "Reviewing weak phrases...");
+
+    const componentScores =
+      analysisData?.component_scores && typeof analysisData.component_scores === "object"
+        ? analysisData.component_scores
+        : {};
+
     const deterministicScore = computeDeterministicAtsScore(cv, jd, roleProfile);
     const modelComponentScore = computeComponentScore(componentScores, hasJD);
-    const mergedBaseScore = clampScore(Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2));
+    const mergedBaseScore = clampScore(
+      Math.round(deterministicScore * 0.8 + modelComponentScore * 0.2)
+    );
 
     let weakSentences = filterWeakSentences(
       Array.isArray(analysisData?.weak_sentences) ? analysisData.weak_sentences : [],
       { outLang, roleInput: roleProfile, cv, jd }
     );
 
-    const detectedWeakCandidates = detectWeakSentenceCandidates(cv, roleProfile, isPreview ? 2 : 6, 12);
+    const detectedWeakCandidates = detectWeakSentenceCandidates(
+      cv,
+      roleProfile,
+      isPreview ? 2 : 6,
+      12
+    );
     const desiredWeakCount = getDesiredWeakCount(hasJD, detectedWeakCandidates.length);
 
-    if (weakSentences.length < Math.min(isPreview ? 2 : desiredWeakCount, detectedWeakCandidates.length)) {
+    if (
+      weakSentences.length <
+      Math.min(isPreview ? 2 : desiredWeakCount, detectedWeakCandidates.length)
+    ) {
       try {
         const fallbackWeakData = await callOpenAIJson({
           apiKey,
           model,
           system: systemPrompt,
-          userPrompt: buildWeakRewriteFallbackPrompt({ cv, jd, hasJD, candidates: detectedWeakCandidates, outLang, roleProfile }),
+          userPrompt: buildWeakRewriteFallbackPrompt({
+            cv,
+            jd,
+            hasJD,
+            candidates: detectedWeakCandidates,
+            outLang,
+            roleProfile,
+          }),
           isPreview,
           passType: "bullet",
           maxCompletionTokens: isPreview ? 1200 : 1800,
         });
+
         weakSentences = mergeWeakSentenceSets(
           weakSentences,
-          Array.isArray(fallbackWeakData?.weak_sentences) ? fallbackWeakData.weak_sentences : [],
+          Array.isArray(fallbackWeakData?.weak_sentences)
+            ? fallbackWeakData.weak_sentences
+            : [],
           roleProfile,
           outLang,
           cv,
@@ -2378,27 +2423,68 @@ const model = isPreview ? previewModel : fullModel;
       }
     }
 
-    if (weakSentences.length < Math.min(isPreview ? 2 : desiredWeakCount, detectedWeakCandidates.length)) {
-      const localWeak = buildLocalWeakSentenceSet(detectedWeakCandidates, roleProfile, outLang, cv, jd, isPreview ? 4 : 12);
-      weakSentences = mergeWeakSentenceSets(weakSentences, localWeak, roleProfile, outLang, cv, jd, isPreview ? 4 : 12);
+    if (
+      weakSentences.length <
+      Math.min(isPreview ? 2 : desiredWeakCount, detectedWeakCandidates.length)
+    ) {
+      const localWeak = buildLocalWeakSentenceSet(
+        detectedWeakCandidates,
+        roleProfile,
+        outLang,
+        cv,
+        jd,
+        isPreview ? 4 : 12
+      );
+
+      weakSentences = mergeWeakSentenceSets(
+        weakSentences,
+        localWeak,
+        roleProfile,
+        outLang,
+        cv,
+        jd,
+        isPreview ? 4 : 12
+      );
     }
+
+    progress(58, "Building keyword suggestions...");
 
     const normalized = {
       ats_score: mergedBaseScore,
       component_scores: componentScores,
       missing_keywords: finalizeMissingKeywords(
         ensureArrayStrings(analysisData?.missing_keywords, hasJD ? 20 : 18),
-        { cv, jd, roleInput: roleProfile, outLang, hasJD, limit: isPreview ? 7 : hasJD ? 20 : 18 }
+        {
+          cv,
+          jd,
+          roleInput: roleProfile,
+          outLang,
+          hasJD,
+          limit: isPreview ? 7 : hasJD ? 20 : 18,
+        }
       ),
       weak_sentences: weakSentences,
-      summary: typeof analysisData?.summary === "string" ? normalizeSpace(analysisData.summary) : "",
+      summary:
+        typeof analysisData?.summary === "string"
+          ? normalizeSpace(analysisData.summary)
+          : "",
       optimized_cv: "",
       optimized_ats_score: mergedBaseScore,
     };
 
     if (isPreview) {
-      return res.status(200).json(buildPreviewResponse({ normalized, hasJD }));
+      progress(100, "Completed.");
+
+      sendEvent(
+        res,
+        "result",
+        buildPreviewResponse({ normalized, hasJD })
+      );
+      sendEvent(res, "done", { ok: true });
+      return res.end();
     }
+
+    progress(68, "Generating stronger bullet rewrites...");
 
     let bulletUpgrades = [];
     if (normalized.weak_sentences.length > 0) {
@@ -2407,20 +2493,44 @@ const model = isPreview ? previewModel : fullModel;
           apiKey,
           model,
           system: systemPrompt,
-          userPrompt: buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences: normalized.weak_sentences, outLang, roleProfile }),
+          userPrompt: buildTargetedBulletUpgradePrompt({
+            cv,
+            jd,
+            hasJD,
+            weakSentences: normalized.weak_sentences,
+            outLang,
+            roleProfile,
+          }),
           isPreview: false,
           passType: "bullet",
           maxCompletionTokens: 1400,
         });
-        bulletUpgrades = normalizeBulletUpgrades(Array.isArray(bulletData?.bullet_upgrades) ? bulletData.bullet_upgrades : [], outLang, roleProfile, cv, jd);
+
+        bulletUpgrades = normalizeBulletUpgrades(
+          Array.isArray(bulletData?.bullet_upgrades)
+            ? bulletData.bullet_upgrades
+            : [],
+          outLang,
+          roleProfile,
+          cv,
+          jd
+        );
       } catch {
         bulletUpgrades = [];
       }
     }
 
     if (!bulletUpgrades.length && normalized.weak_sentences.length > 0) {
-      bulletUpgrades = normalizeBulletUpgrades(buildLocalBulletUpgradeFallback(normalized.weak_sentences), outLang, roleProfile, cv, jd);
+      bulletUpgrades = normalizeBulletUpgrades(
+        buildLocalBulletUpgradeFallback(normalized.weak_sentences),
+        outLang,
+        roleProfile,
+        cv,
+        jd
+      );
     }
+
+    progress(80, "Generating optimized resume...");
 
     let currentOptimized = "";
     let unsupportedTerms = [];
@@ -2447,9 +2557,16 @@ const model = isPreview ? previewModel : fullModel;
 
       if (typeof optimizeData?.optimized_cv === "string" && optimizeData.optimized_cv.trim()) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim(), outLang);
+
         if (bulletUpgrades.length) {
-          currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades, outLang);
+          currentOptimized = applyBulletUpgradesToCv(
+            cv,
+            currentOptimized,
+            bulletUpgrades,
+            outLang
+          );
         }
+
         unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
       }
     } catch {
@@ -2458,11 +2575,26 @@ const model = isPreview ? previewModel : fullModel;
     }
 
     if (!currentOptimized) {
-      currentOptimized = bulletUpgrades.length ? applyBulletUpgradesToCv(cv, cv, bulletUpgrades, outLang) : forceSafeResume(cv, cv, outLang);
+      currentOptimized = bulletUpgrades.length
+        ? applyBulletUpgradesToCv(cv, cv, bulletUpgrades, outLang)
+        : forceSafeResume(cv, cv, outLang);
+
       unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
     }
 
-    if (shouldRepairOptimizedCv(cv, currentOptimized, jd, outLang, normalized.weak_sentences, roleProfile) || unsupportedTerms.length > 0) {
+    progress(92, "Running final quality checks...");
+
+    if (
+      shouldRepairOptimizedCv(
+        cv,
+        currentOptimized,
+        jd,
+        outLang,
+        normalized.weak_sentences,
+        roleProfile
+      ) ||
+      unsupportedTerms.length > 0
+    ) {
       try {
         const repaired = await callOpenAIJson({
           apiKey,
@@ -2487,9 +2619,16 @@ const model = isPreview ? previewModel : fullModel;
 
         if (typeof repaired?.optimized_cv === "string" && repaired.optimized_cv.trim()) {
           currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim(), outLang);
+
           if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(cv, currentOptimized, bulletUpgrades, outLang);
+            currentOptimized = applyBulletUpgradesToCv(
+              cv,
+              currentOptimized,
+              bulletUpgrades,
+              outLang
+            );
           }
+
           unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
         }
       } catch {
@@ -2498,9 +2637,16 @@ const model = isPreview ? previewModel : fullModel;
     }
 
     normalized.optimized_cv = currentOptimized;
-    normalized.optimized_ats_score = computeFinalOptimizedScore(cv, currentOptimized, normalized.ats_score, jd);
+    normalized.optimized_ats_score = computeFinalOptimizedScore(
+      cv,
+      currentOptimized,
+      normalized.ats_score,
+      jd
+    );
 
-    return res.status(200).json({
+    progress(100, "Completed.");
+
+    sendEvent(res, "result", {
       ats_score: normalized.ats_score,
       optimized_ats_score: normalized.optimized_ats_score,
       component_scores: normalized.component_scores,
@@ -2510,9 +2656,11 @@ const model = isPreview ? previewModel : fullModel;
       summary: normalized.summary,
       review_mode: hasJD ? "job_specific" : "general",
     });
+
+    sendEvent(res, "done", { ok: true });
+    return res.end();
   } catch (err) {
-    return res.status(500).json({
-      error: "Server error",
+    return sendStreamError(res, "Server error", {
       details: err?.message || String(err),
     });
   }
