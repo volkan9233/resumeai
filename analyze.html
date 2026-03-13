@@ -416,6 +416,16 @@ a.link:hover{ text-decoration:underline; }
     <div class="actions">
   <button id="btn">Analyze</button>
 
+      <div id="analyzeProgressWrap" class="analyze-progress-wrap" hidden>
+  <div class="analyze-progress-top">
+    <span id="analyzeProgressLabel">Starting analysis...</span>
+    <span id="analyzeProgressPercent">0%</span>
+  </div>
+  <div class="analyze-progress-bar">
+    <div id="analyzeProgressFill" class="analyze-progress-fill"></div>
+  </div>
+</div>
+
   <!-- ✅ BURAYA EKLE -->
   <div id="spinner" style="display:none;width:18px;height:18px;border:3px solid rgba(255,255,255,.25);border-top-color:#6366F1;border-radius:999px;animation:spin .8s linear infinite;"></div>
 
