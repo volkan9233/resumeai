@@ -1136,9 +1136,15 @@ const job = tailoringOn ? document.getElementById('job').value.trim() : "";
 }
 
   btn.disabled = true;
-  status.textContent = "";
-  document.getElementById('out').style.display = "none";
-  if (spinner) spinner.style.display = "inline-flex";
+status.textContent = "";
+document.getElementById('out').style.display = "none";
+if (spinner) spinner.style.display = "inline-flex";
+
+if (window.ResumeAIProgress) {
+  window.ResumeAIProgress.start({
+    mode: isPreview ? "preview" : "full"
+  });
+}
 
   try {
     const r = await fetch("/api/analyze", {
@@ -1152,6 +1158,10 @@ const job = tailoringOn ? document.getElementById('job').value.trim() : "";
     let data = {};
     try { data = JSON.parse(rawText); } catch {}
     const reviewMode = data.review_mode || "general";
+   
+    if (r.ok && window.ResumeAIProgress) {
+  window.ResumeAIProgress.complete("Analysis completed");
+}
 
     if (!r.ok) {
       if (r.status === 429) {
