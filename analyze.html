@@ -1317,8 +1317,11 @@ if (isPreview) {
   );
 }
   } catch(e){
-    status.textContent = "Error: " + (e.message || e);
-  } finally{
+  if (window.ResumeAIProgress) {
+    window.ResumeAIProgress.fail("Analysis failed");
+  }
+  status.textContent = "Error: " + (e.message || e);
+} finally{
     btn.disabled = false;
     if (spinner) spinner.style.display = "none";
   }
