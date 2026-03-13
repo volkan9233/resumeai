@@ -1306,6 +1306,13 @@ if (isPreview) {
 
     document.getElementById('out').style.display = "block";
     status.textContent = window.__doneText || "Done.";
+    if (window.ResumeAIProgress) {
+  window.ResumeAIProgress.complete(
+    reviewMode === "job_specific"
+      ? "Job-specific ATS analysis completed"
+      : "General ATS analysis completed"
+  );
+}
   } catch(e){
     status.textContent = "Error: " + (e.message || e);
   } finally{
