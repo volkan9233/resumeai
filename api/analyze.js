@@ -1814,14 +1814,15 @@ function buildOpenAIPayload({ model, messages, reasoningEffort = null, temperatu
     response_format: { type: "json_object" },
     messages,
   };
+
   if (isGpt5Model(model)) {
     body.max_completion_tokens = maxCompletionTokens;
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
-    if (reasoningEffort === "minimal" && typeof temperature === "number") body.temperature = temperature;
   } else {
     body.max_tokens = maxCompletionTokens;
     if (typeof temperature === "number") body.temperature = temperature;
   }
+
   return body;
 }
 
