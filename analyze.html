@@ -1164,6 +1164,9 @@ if (window.ResumeAIProgress) {
     if (!r.ok) {
       if (r.status === 429) {
         const sec = Number(data?.retry_after_seconds || 0);
+        if (window.ResumeAIProgress) {
+  window.ResumeAIProgress.fail("Rate limit reached");
+}
         if (isPreview) {
           const min = Math.max(1, Math.ceil(sec / 60));
           status.textContent = `Preview limit: please wait ${min} minute(s) and try again.`;
