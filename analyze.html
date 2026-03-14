@@ -1141,45 +1141,223 @@ if (s) {
 }
 
 /* =======================
-   run()
+   run() + SSE helpers
 ======================= */
-async function run(){
-    const resume = document.getElementById('resume').value.trim();
+function setProgressUI(percent = 0, label = "") {
+  const wrap = document.getElementById("analyzeProgressWrap");
+  const fill = document.getElementById("analyzeProgressFill");
+  const text = document.getElementById("analyzeProgressLabel");
+  const pct = document.getElementById("analyzeProgressPercent");
+
+  if (wrap) wrap.hidden = false;
+  if (fill) fill.style.width = `${Math.max(0, Math.min(100, Number(percent) || 0))}%`;
+  if (text) text.textContent = label || "";
+  if (pct) pct.textContent = `${Math.max(0, Math.min(100, Math.round(Number(percent) || 0)))}%`;
+}
+
+function resetProgressUI() {
+  setProgressUI(0, "Starting analysis...");
+}
+
+function applyAnalysisResult(data, isPreview) {
+  const reviewMode = data.review_mode || "general";
+
+  const resultModeTitle = document.getElementById("resultModeTitle");
+  const resultModeDesc = document.getElementById("resultModeDesc");
+  const missingTitleEl = document.querySelector(".out .sec h3");
+
+  if (reviewMode === "job_specific") {
+    if (resultModeTitle) resultModeTitle.textContent = window.__resultJobTitle || "Job-Specific ATS Match";
+    if (resultModeDesc) resultModeDesc.textContent = window.__resultJobDesc || "Based on your resume’s alignment with this target job description.";
+    if (missingTitleEl) missingTitleEl.textContent = window.__missingJob || "Missing Keywords for This Job";
+  } else {
+    if (resultModeTitle) resultModeTitle.textContent = window.__resultGeneralTitle || "General ATS Review";
+    if (resultModeDesc) resultModeDesc.textContent = window.__resultGeneralDesc || "Based on resume structure, clarity, and ATS-friendly best practices.";
+    if (missingTitleEl) missingTitleEl.textContent = window.__missingGeneral || "Recommended ATS Keywords";
+  }
+
+  const pill = document.getElementById("scorePill");
+  const baseScore = Number(data.ats_score || 0);
+  const optimizedScore = Number(data.optimized_ats_score || 0);
+
+  const label = reviewMode === "job_specific"
+    ? (window.__scoreLabelJob || "ATS Match Score:")
+    : (window.__scoreLabelGeneral || "ATS Readiness Score:");
+
+  const shownScore = (!isPreview && optimizedScore > 0) ? optimizedScore : baseScore;
+
+  pill.classList.remove("score-low", "score-mid", "score-high");
+  pill.classList.add(
+    shownScore >= 70 ? "score-high" : shownScore >= 45 ? "score-mid" : "score-low"
+  );
+
+  if (!isPreview && optimizedScore > 0) {
+    pill.innerHTML = `
+      <span class="scoreDot"></span>
+      <span>${label}</span>
+      <span style="opacity:.72;font-weight:800;">${baseScore}%</span>
+      <span style="opacity:.78;font-weight:900;">→</span>
+      <span class="scoreValue">${optimizedScore}%</span>
+    `;
+  } else {
+    pill.innerHTML = `
+      <span class="scoreDot"></span>
+      <span>${label}</span>
+      <span class="scoreValue">${baseScore}%</span>
+    `;
+  }
+
+  const missing = document.getElementById("missing");
+  const kwMeta = document.getElementById("kwMeta");
+  const kws = (data.missing_keywords || []).map((x) => String(x || "").trim()).filter(Boolean);
+
+  missing.innerHTML = "";
+  kws.forEach((k) => {
+    const chip = document.createElement("span");
+    chip.className = "kwChip";
+    chip.textContent = k;
+    missing.appendChild(chip);
+  });
+
+  if (kwMeta) {
+    const tpl = reviewMode === "job_specific"
+      ? (window.__kwMetaJob || "{count} missing keywords found")
+      : (window.__kwMetaGeneral || "{count} recommended keywords found");
+
+    kwMeta.textContent = kws.length ? tpl.replace("{count}", String(kws.length)) : "";
+  }
+
+  const weak = document.getElementById("weak");
+  weak.innerHTML = "";
+
+  const ws = Array.isArray(data.weak_sentences) ? data.weak_sentences : [];
+  ws.slice(0, isPreview ? 2 : ws.length).forEach((it) => {
+    if (it && typeof it === "object" && (it.sentence || it.rewrite)) {
+      const before = String(it.sentence || "").trim();
+      const after = String(it.rewrite || "").trim();
+
+      const wrap = document.createElement("div");
+      wrap.className = "weakPair";
+
+      const b = document.createElement("div");
+      b.className = "weakBefore";
+      b.innerHTML = `<div class="weakTag">BEFORE</div><div class="weakText"></div>`;
+      b.querySelector(".weakText").textContent = before || "—";
+
+      const a = document.createElement("div");
+      a.className = "weakAfter";
+      a.innerHTML = `<div class="weakTag">AFTER</div><div class="weakText"></div>`;
+      a.querySelector(".weakText").textContent = after || "—";
+
+      wrap.appendChild(b);
+      wrap.appendChild(a);
+
+      const li = document.createElement("li");
+      li.style.listStyle = "none";
+      li.style.marginLeft = "-18px";
+      li.appendChild(wrap);
+      weak.appendChild(li);
+    } else {
+      const li = document.createElement("li");
+      li.textContent = String(it);
+      weak.appendChild(li);
+    }
+  });
+
+  const optimizedEl = document.getElementById("optimized");
+  if (isPreview) {
+    optimizedEl.innerHTML = `<div class="lock-banner">${window.__optLocked || "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version."}</div>`;
+  } else {
+    optimizedEl.textContent = data.optimized_cv || "";
+  }
+
+  document.getElementById("out").style.display = "block";
+}
+
+async function readSSEStream(response, handlers = {}) {
+  if (!response.ok) {
+    const txt = await response.text().catch(() => "");
+    throw new Error(txt || `Request failed (${response.status})`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, "\n");
+
+    let boundary;
+    while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+      const rawEvent = buffer.slice(0, boundary).trim();
+      buffer = buffer.slice(boundary + 2);
+
+      if (!rawEvent) continue;
+
+      let eventName = "message";
+      const dataLines = [];
+
+      rawEvent.split("\n").forEach((line) => {
+        if (line.startsWith("event:")) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trim());
+        }
+      });
+
+      let payload = {};
+      try {
+        payload = JSON.parse(dataLines.join("\n") || "{}");
+      } catch {
+        payload = {};
+      }
+
+      if (eventName === "progress" && handlers.onProgress) handlers.onProgress(payload);
+      if (eventName === "result" && handlers.onResult) handlers.onResult(payload);
+      if (eventName === "error" && handlers.onError) handlers.onError(payload);
+      if (eventName === "done" && handlers.onDone) handlers.onDone(payload);
+    }
+  }
+}
+
+async function run() {
+  const resume = document.getElementById("resume").value.trim();
   const tailoringOn = !!document.getElementById("tailorToggle")?.checked;
-  const job = tailoringOn ? document.getElementById('job').value.trim() : "";
+  const job = tailoringOn ? document.getElementById("job").value.trim() : "";
   const selectedRole = document.getElementById("targetRole")?.value?.trim() || "";
-  const btn = document.getElementById('btn');
-  const status = document.getElementById('status');
+  const btn = document.getElementById("btn");
+  const status = document.getElementById("status");
   const spinner = document.getElementById("spinner");
 
   const qs = new URLSearchParams(location.search);
   const lang = qs.get("lang") || "en";
-
-  // 🔥 preview server-state driven (forced by ?preview=1 OR locked)
   const isPreview = !!window.__isPreview;
 
-  if(!resume){
-  status.textContent = window.__needBoth || "Please paste your resume.";
-  return;
-}
+  if (!resume) {
+    status.textContent = window.__needBoth || "Please paste your resume.";
+    return;
+  }
 
   btn.disabled = true;
-status.textContent = "";
-document.getElementById('out').style.display = "none";
-if (spinner) spinner.style.display = "inline-flex";
+  status.textContent = "";
+  document.getElementById("out").style.display = "none";
+  if (spinner) spinner.style.display = "inline-flex";
 
-if (window.ResumeAIProgress) {
-  window.ResumeAIProgress.start({
-    mode: isPreview ? "preview" : "full"
-  });
-}
+  resetProgressUI();
 
   try {
-    const r = await fetch("/api/analyze", {
+    let finalResult = null;
+    let streamError = null;
+
+    const response = await fetch("/api/analyze-progress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-            body: JSON.stringify({
+      body: JSON.stringify({
         cv: resume,
         jd: job,
         target_role: selectedRole,
@@ -1188,173 +1366,51 @@ if (window.ResumeAIProgress) {
       })
     });
 
-    const rawText = await r.text();
-    let data = {};
-    try { data = JSON.parse(rawText); } catch {}
-    const reviewMode = data.review_mode || "general";
-   
+    await readSSEStream(response, {
+      onProgress(payload) {
+        setProgressUI(payload.percent || 0, payload.label || "Analyzing...");
+      },
+      onResult(payload) {
+        finalResult = payload;
+      },
+      onError(payload) {
+        streamError = payload || {};
+      },
+      onDone() {}
+    });
 
-    if (!r.ok) {
-      if (r.status === 429) {
-        const sec = Number(data?.retry_after_seconds || 0);
-        if (window.ResumeAIProgress) {
-  window.ResumeAIProgress.fail("Rate limit reached");
-}
+    if (streamError) {
+      if (Number(streamError.retry_after_seconds || 0) > 0) {
+        const sec = Number(streamError.retry_after_seconds || 0);
         if (isPreview) {
           const min = Math.max(1, Math.ceil(sec / 60));
           status.textContent = `Preview limit: please wait ${min} minute(s) and try again.`;
-          return;
         } else {
           status.textContent = `Please wait ${sec}s and try again.`;
-          return;
         }
+      } else {
+        status.textContent = "Error: " + (streamError.message || "Request failed");
       }
-      const msg = data?.details || data?.model_output || data?.error || rawText || "Request failed";
-      throw new Error(msg);
+      setProgressUI(100, "Analysis failed");
+      return;
     }
-    const resultModeTitle = document.getElementById("resultModeTitle");
-const resultModeDesc = document.getElementById("resultModeDesc");
-const missingTitleEl = document.querySelector(".out .sec h3");
 
-if (reviewMode === "job_specific") {
-  if (resultModeTitle) resultModeTitle.textContent = window.__resultJobTitle || "Job-Specific ATS Match";
-  if (resultModeDesc) resultModeDesc.textContent = window.__resultJobDesc || "Based on your resume’s alignment with this target job description.";
-  if (missingTitleEl) missingTitleEl.textContent = window.__missingJob || "Missing Keywords for This Job";
-} else {
-  if (resultModeTitle) resultModeTitle.textContent = window.__resultGeneralTitle || "General ATS Review";
-  if (resultModeDesc) resultModeDesc.textContent = window.__resultGeneralDesc || "Based on resume structure, clarity, and ATS-friendly best practices.";
-  if (missingTitleEl) missingTitleEl.textContent = window.__missingGeneral || "Recommended ATS Keywords";
-}
+    if (!finalResult) {
+      throw new Error("No result received from progress stream.");
+    }
 
-    // SCORE
-   const pill = document.getElementById('scorePill');
-const baseScore = Number(data.ats_score || 0);
-const optimizedScore = Number(data.optimized_ats_score || 0);
-
-const label = reviewMode === "job_specific"
-  ? (window.__scoreLabelJob || "ATS Match Score:")
-  : (window.__scoreLabelGeneral || "ATS Readiness Score:");
-
-const shownScore = (!isPreview && optimizedScore > 0) ? optimizedScore : baseScore;
-
-pill.classList.remove("score-low", "score-mid", "score-high");
-pill.classList.add(
-  shownScore >= 70 ? "score-high" : shownScore >= 45 ? "score-mid" : "score-low"
-);
-
-if (!isPreview && optimizedScore > 0) {
-  pill.innerHTML = `
-    <span class="scoreDot"></span>
-    <span>${label}</span>
-    <span style="opacity:.72;font-weight:800;">${baseScore}%</span>
-    <span style="opacity:.78;font-weight:900;">→</span>
-    <span class="scoreValue">${optimizedScore}%</span>
-  `;
-} else {
-  pill.innerHTML = `
-    <span class="scoreDot"></span>
-    <span>${label}</span>
-    <span class="scoreValue">${baseScore}%</span>
-  `;
-}
-
-    // missing keywords
-    const missing = document.getElementById('missing');
-const kwMeta = document.getElementById('kwMeta');
-
-const kws = (data.missing_keywords || []).map(x => String(x||"").trim()).filter(Boolean);
-
-missing.innerHTML = "";
-kws.forEach(k => {
-  const chip = document.createElement("span");
-  chip.className = "kwChip";
-  chip.textContent = k;
-  missing.appendChild(chip);
-});
-
-// küçük özet
-if (kwMeta) {
-  const tpl = reviewMode === "job_specific"
-    ? (window.__kwMetaJob || "{count} missing keywords found")
-    : (window.__kwMetaGeneral || "{count} recommended keywords found");
-
-  kwMeta.textContent = kws.length ? tpl.replace("{count}", String(kws.length)) : "";
-}
-
-    // weak
-// weak (BEFORE/AFTER kart)
-const weak = document.getElementById('weak');
-weak.innerHTML = "";
-
-// Preview: 1 tane gerçek weak göster, sonra kilit mesajı ekle
-const ws = Array.isArray(data.weak_sentences) ? data.weak_sentences : [];
-
-ws.slice(0, isPreview ? 2 : ws.length).forEach(it => {
-  // Eğer API object dönüyorsa (sentence/rewrite)
-  if (it && typeof it === "object" && (it.sentence || it.rewrite)) {
-    const before = String(it.sentence || "").trim();
-    const after  = String(it.rewrite || "").trim();
-
-    const wrap = document.createElement("div");
-    wrap.className = "weakPair";
-
-    const b = document.createElement("div");
-    b.className = "weakBefore";
-    b.innerHTML = `<div class="weakTag">BEFORE</div><div class="weakText"></div>`;
-    b.querySelector(".weakText").textContent = before || "—";
-
-    const a = document.createElement("div");
-    a.className = "weakAfter";
-    a.innerHTML = `<div class="weakTag">AFTER</div><div class="weakText"></div>`;
-    a.querySelector(".weakText").textContent = after || "—";
-
-    wrap.appendChild(b);
-    wrap.appendChild(a);
-
-    // ul içine div koyuyoruz (görsel için en pratik)
-    // İstersen li yerine doğrudan ekle:
-    const li = document.createElement("li");
-    li.style.listStyle = "none";
-    li.style.marginLeft = "-18px"; // ul padding'i dengelemek için
-    li.appendChild(wrap);
-    weak.appendChild(li);
-
-  } else {
-    // Eski format string geldiyse
-    const li = document.createElement('li');
-    li.textContent = String(it);
-    weak.appendChild(li);
-  }
-});
-
-if (isPreview) {
-  // banner artık başlığın hemen altında gösteriliyor
-}
-
-    // optimized
-    const optimizedEl = document.getElementById('optimized');
-
-if (isPreview) {
-  optimizedEl.innerHTML = `<div class="lock-banner">${window.__optLocked || "🔒 Preview: Optimized resume is locked. Unlock to generate the full ATS-optimized version."}</div>`;
-} else {
-  optimizedEl.textContent = data.optimized_cv || "";
-}
-
-    document.getElementById('out').style.display = "block";
+    applyAnalysisResult(finalResult, isPreview);
     status.textContent = window.__doneText || "Done.";
-    if (window.ResumeAIProgress) {
-  window.ResumeAIProgress.complete(
-    reviewMode === "job_specific"
-      ? "Job-specific ATS analysis completed"
-      : "General ATS analysis completed"
-  );
-}
-  } catch(e){
-  if (window.ResumeAIProgress) {
-    window.ResumeAIProgress.fail("Analysis failed");
-  }
-  status.textContent = "Error: " + (e.message || e);
-} finally{
+    setProgressUI(
+      100,
+      finalResult.review_mode === "job_specific"
+        ? "Job-specific ATS analysis completed"
+        : "General ATS analysis completed"
+    );
+  } catch (e) {
+    status.textContent = "Error: " + (e.message || e);
+    setProgressUI(100, "Analysis failed");
+  } finally {
     btn.disabled = false;
     if (spinner) spinner.style.display = "none";
   }
@@ -1439,14 +1495,15 @@ document.getElementById("copyMissing")?.addEventListener("click", ()=>{
   copyText(items.map(x => "- " + x).join("\n"));
 });
 
-document.getElementById("copyWeak")?.addEventListener("click", ()=>{
-  document.getElementById("copyWeak")?.addEventListener("click", ()=>{
-  const pairs = [...document.querySelectorAll("#weak .weakPair")].map(pair => {
-    const before = pair.querySelector(".weakBefore .weakText")?.textContent?.trim() || "";
-    const after = pair.querySelector(".weakAfter .weakText")?.textContent?.trim() || "";
-    if (!before && !after) return "";
-    return `BEFORE: ${before}\nAFTER: ${after}`;
-  }).filter(Boolean);
+document.getElementById("copyWeak")?.addEventListener("click", () => {
+  const pairs = [...document.querySelectorAll("#weak .weakPair")]
+    .map((pair) => {
+      const before = pair.querySelector(".weakBefore .weakText")?.textContent?.trim() || "";
+      const after = pair.querySelector(".weakAfter .weakText")?.textContent?.trim() || "";
+      if (!before && !after) return "";
+      return `BEFORE: ${before}\nAFTER: ${after}`;
+    })
+    .filter(Boolean);
 
   if (pairs.length) {
     copyText(pairs.join("\n\n"));
@@ -1454,8 +1511,10 @@ document.getElementById("copyWeak")?.addEventListener("click", ()=>{
   }
 
   const items = [...document.querySelectorAll("#weak li")]
-    .map(li=>li.textContent.trim()).filter(Boolean);
-  copyText(items.map(x=>"- " + x).join("\n"));
+    .map((li) => li.textContent.trim())
+    .filter(Boolean);
+
+  copyText(items.map((x) => "- " + x).join("\n"));
 });
 
 document.getElementById("copyOptimized")?.addEventListener("click", ()=>{
