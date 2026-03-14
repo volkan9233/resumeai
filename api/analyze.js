@@ -408,6 +408,38 @@ function isSectionHeader(line = "") {
   return HEADER_SECTION_RE.test(String(line || "").trim());
 }
 
+function isSkillsSectionHeader(line = "") {
+  return /(SKILLS|CORE SKILLS|TECHNICAL SKILLS|COMPETENCIES|YETKİNLİKLER|YETENEKLER|BECERİLER)/i.test(
+    String(line || "").trim()
+  );
+}
+
+function isShortSkillLabel(line = "") {
+  const s = String(line || "").trim();
+  if (!s) return false;
+
+  const wc = countWords(s);
+  if (wc < 1 || wc > 6) return false;
+  if (/[.?!]$/.test(s)) return false;
+  if (/\b\d+(?:[.,]\d+)?%?\b/.test(s)) return false;
+  if (WEAK_VERB_RE.test(s) || STRONG_ACTION_RE.test(s)) return false;
+  if (SCOPE_CONTEXT_RE.test(s)) return false;
+
+  return true;
+}
+
+function isLikelySkillLabel(sentence = "", cv = "") {
+  const s = String(sentence || "").trim();
+  if (!s) return false;
+
+  const skillLines = getSkillsLines(cv);
+  if (skillLines.some((x) => canonicalizeTerm(x) === canonicalizeTerm(s))) {
+    return true;
+  }
+
+  return isShortSkillLabel(s);
+}
+
 function extractSummaryLines(cv = "") {
   const lines = getNonEmptyLines(cv);
   const out = [];
@@ -438,15 +470,23 @@ function extractWeakCandidatePools(cv = "") {
 
   for (const line of lines) {
     if (isSectionHeader(line)) {
-      if (/^(EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|DENEYİM|İŞ DENEYİMİ)$/i.test(line)) section = "experience";
-      else if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) section = "summary";
-      else section = "other";
+      if (/^(EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|DENEYİM|İŞ DENEYİMİ)$/i.test(line)) {
+        section = "experience";
+      } else if (/^(PROFESSIONAL SUMMARY|SUMMARY|PROFILE|PROFESYONEL ÖZET|ÖZET|PROFİL)$/i.test(line)) {
+        section = "summary";
+      } else if (isSkillsSectionHeader(line)) {
+        section = "skills";
+      } else {
+        section = "other";
+      }
       continue;
     }
 
     if (!BULLET_RE.test(line)) continue;
     const bullet = line.replace(BULLET_RE, "").trim();
     if (!bullet) continue;
+
+    if (section === "skills") continue;
 
     if (section === "experience") experienceBullets.push(bullet);
     else otherBullets.push(bullet);
@@ -1091,7 +1131,9 @@ function detectWeakSentenceCandidates(cv = "", roleInput, minCount = 6, maxCount
   const out = [];
   const seen = new Set();
 
-  for (const item of ranked) {
+    for (const item of ranked) {
+    if (isLikelySkillLabel(item.sentence, cv)) continue;
+
     const key = canonicalizeTerm(item.sentence);
     if (!key || seen.has(key)) continue;
     seen.add(key);
@@ -1425,6 +1467,8 @@ function filterWeakSentences(items = [], { outLang = "English", roleInput, cv = 
       rewrite: String(item?.rewrite || item?.after || "").trim(),
     }))
     .filter((item) => item.sentence && item.rewrite)
+    .filter((item) => !isLikelySkillLabel(item.sentence, cv))
+    .filter((item) => !isLikelySkillLabel(item.rewrite, cv))
     .filter((item) => canonicalizeTerm(item.sentence) !== canonicalizeTerm(item.rewrite))
     .map((item) => {
       const sourceProfile = getSentenceSignalProfile(item.sentence, roleInput, cv, jd);
@@ -1509,6 +1553,7 @@ function normalizeBulletUpgrades(items = [], outLang = "English", roleInput, cv 
     const rewrite = String(item?.rewrite || item?.after || "").trim();
     const reason = String(item?.reason || "").trim();
     if (!source || !rewrite) continue;
+    if (isLikelySkillLabel(source, cv)) continue;
 
     const sourceProfile = getSentenceSignalProfile(source, roleInput, cv, jd);
     const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
