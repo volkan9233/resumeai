@@ -2747,15 +2747,17 @@ const roleProfile = buildRoleProfileWithOverride({
     normalized.optimized_ats_score = computeFinalOptimizedScore(cv, currentOptimized, normalized.ats_score, jd);
 
     return res.status(200).json({
-      ats_score: normalized.ats_score,
-      optimized_ats_score: normalized.optimized_ats_score,
-      component_scores: normalized.component_scores,
-      missing_keywords: normalized.missing_keywords,
-      weak_sentences: normalized.weak_sentences,
-      optimized_cv: normalized.optimized_cv,
-      summary: normalized.summary,
-      review_mode: hasJD ? "job_specific" : "general",
-    });
+  ats_score: normalized.ats_score,
+  optimized_ats_score: normalized.optimized_ats_score,
+  component_scores: normalized.component_scores,
+  missing_keywords: normalized.missing_keywords,
+  weak_sentences: normalized.weak_sentences,
+  optimized_cv: normalized.optimized_cv,
+  summary: normalized.summary,
+  review_mode: hasJD ? "job_specific" : "general",
+  detected_role: roleProfile?.primaryRole || "",
+  selected_role: roleProfile?.userSelectedRole || "",
+});
   } catch (err) {
     return res.status(500).json({
       error: "Server error",
