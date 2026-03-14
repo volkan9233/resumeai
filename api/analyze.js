@@ -2390,6 +2390,7 @@ function buildWeakRewriteFallbackPrompt({ cv, jd, hasJD, candidates, outLang, ro
 
 function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences, outLang, roleProfile }) {
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
+  const roleLockBlock = buildRoleLockBlock(roleProfile);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const weakText = (Array.isArray(weakSentences) ? weakSentences : []).map((item, idx) => `${idx + 1}. ${String(item?.sentence || "").trim()}`).filter(Boolean).join("\n");
   return [
@@ -2405,7 +2406,8 @@ function buildTargetedBulletUpgradePrompt({ cv, jd, hasJD, weakSentences, outLan
     "- reason must be short and explain what improved.",
     `- Output values only in ${outLang}.`,
     "- Return 3-8 items depending on real quality opportunities.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
+        `\nROLE CONTEXT:\n${roleContextText}`,
+    roleLockBlock ? `\n${roleLockBlock}` : "",
     englishStyleBlock ? `\n${englishStyleBlock}` : "",
     `\nWEAK SOURCE SENTENCES:\n${weakText || "(none)"}`,
     `\nRESUME:\n${cv}`,
@@ -2417,6 +2419,7 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
   const keywordsText = Array.isArray(missingKeywords) ? missingKeywords.join(", ") : "";
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
+  const roleLockBlock = buildRoleLockBlock(roleProfile);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   return [
@@ -2436,7 +2439,8 @@ function buildOptimizePrompt({ cv, jd, hasJD, summary, missingKeywords, bulletUp
     "- Preserve structure and bullet count as much as possible.",
     "- Do not merge multiple bullets into one if that removes detail.",
     "- Use canonical section headings only.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
+        `\nROLE CONTEXT:\n${roleContextText}`,
+    roleLockBlock ? `\n${roleLockBlock}` : "",
     hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
     `\nALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:\n${allowedTermsText}`,
     `\nPRIORITY REWRITE TARGETS:\n${priorityRewriteText}`,
@@ -2474,7 +2478,8 @@ function buildRepairPrompt({ cv, jd, hasJD, currentOptimizedCv, summary, missing
     "- Remove unsupported additions.",
     "- Preserve bullet count and structure as much as possible.",
     "- Use canonical section headings only.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
+        `\nROLE CONTEXT:\n${roleContextText}`,
+    roleLockBlock ? `\n${roleLockBlock}` : "",
     hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
     `\nALLOWED EXPLICIT TOOLS / PLATFORMS / ACRONYMS:\n${allowedTermsText}`,
     `\nREMOVE THESE UNSUPPORTED TERMS IF PRESENT:\n${unsupportedText}`,
