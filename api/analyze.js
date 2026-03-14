@@ -1056,7 +1056,7 @@ function finalizeMissingKeywords(rawKeywords = [], { cv = "", jd = "", roleInput
     pool = uniqueByNormalizedStrings([...pool, ...getRoleSuggestedKeywords(profile, cv, jd)]).filter((term) => isSafeCvOnlySuggestedTerm(term, profile, cv));
   }
 
-  const scored = uniqueByNormalizedStrings(pool)
+    const scored = uniqueByNormalizedStrings(pool)
     .map((term) => {
       const norm = canonicalizeTerm(term);
       let score = 0;
@@ -1077,7 +1077,23 @@ function finalizeMissingKeywords(rawKeywords = [], { cv = "", jd = "", roleInput
     .filter((item) => item.score > -2)
     .sort((a, b) => b.score - a.score || countWords(b.term) - countWords(a.term));
 
-  return scored.map((item) => item.term).slice(0, limit);
+  const blockedWithoutEvidence = uniqueTrimmedStrings(
+    getRolePacks(profile, cv, jd).flatMap((role) => role.blockedWithoutEvidence || [])
+  );
+
+  const filteredScored = scored.filter((item) => {
+    if (!profile?.roleLocked) return true;
+
+    const isBlocked = blockedWithoutEvidence.some(
+      (term) => canonicalizeTerm(term) === canonicalizeTerm(item.term)
+    );
+
+    if (!isBlocked) return true;
+
+    return containsCanonicalTermInText(cv, item.term) || containsCanonicalTermInText(jd, item.term);
+  });
+
+  return filteredScored.map((item) => item.term).slice(0, limit);
 }
 
 function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
@@ -2441,6 +2457,7 @@ function buildRepairPrompt({ cv, jd, hasJD, currentOptimizedCv, summary, missing
   const allowedTermsText = buildAllowedTermsText(cv, jd);
   const unsupportedText = Array.isArray(unsupportedTerms) && unsupportedTerms.length ? unsupportedTerms.join(", ") : "(none)";
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
+  const roleLockBlock = buildRoleLockBlock(roleProfile);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const priorityRewriteText = buildPriorityRewriteText(bulletUpgrades);
   return [
@@ -2483,13 +2500,15 @@ function ensureArrayStrings(value, maxItems = 20, maxChars = 120) {
   return uniqueByNormalizedStrings((Array.isArray(value) ? value : []).map((item) => cleanKeywordCandidate(String(item || "").slice(0, maxChars))).filter(Boolean)).slice(0, maxItems);
 }
 
-function buildPreviewResponse({ normalized, hasJD }) {
+function buildPreviewResponse({ normalized, hasJD, roleProfile }) {
   return {
     ats_score: normalized.ats_score,
     summary: normalized.summary,
     missing_keywords: normalized.missing_keywords.slice(0, 5),
     weak_sentences: normalized.weak_sentences.slice(0, 2),
     review_mode: hasJD ? "job_specific" : "general",
+    detected_role: roleProfile?.primaryRole || "",
+    selected_role: roleProfile?.userSelectedRole || "",
   };
 }
 
@@ -2500,11 +2519,12 @@ export default async function handler(req, res) {
     }
 
     const body = req.body && typeof req.body === "object" ? req.body : {};
-    const cv = sanitizeStringInput(body.cv || "", 50000);
-    const jd = sanitizeStringInput(body.jd || "", 30000);
-    const previewRequested = !!body.preview;
-    const langCode = typeof body.lang === "string" && body.lang.trim() ? body.lang.trim().toLowerCase() : "en";
-    const outLang = LANG_MAP[langCode] || "English";
+const cv = sanitizeStringInput(body.cv || "", 50000);
+const jd = sanitizeStringInput(body.jd || "", 30000);
+const targetRole = sanitizeStringInput(body.target_role || "", 120);
+const previewRequested = !!body.preview;
+const langCode = typeof body.lang === "string" && body.lang.trim() ? body.lang.trim().toLowerCase() : "en";
+const outLang = LANG_MAP[langCode] || "English";
 
     if (!cv) {
       return res.status(400).json({ error: "cv is required" });
@@ -2539,7 +2559,13 @@ const model = isPreview ? previewModel : fullModel;
       return res.status(429).json({ error: "Too many requests", retry_after_seconds: retrySec });
     }
 
-    const roleProfile = inferRoleProfile(cv, jd);
+    const inferredRoleProfile = inferRoleProfile(cv, jd);
+const roleProfile = buildRoleProfileWithOverride({
+  targetRole,
+  inferredRoleProfile,
+  cv,
+  jd,
+});
     const systemPrompt = buildAtsSystem(outLang);
 
     let analysisData;
@@ -2618,8 +2644,7 @@ const model = isPreview ? previewModel : fullModel;
     };
 
     if (isPreview) {
-      return res.status(200).json(buildPreviewResponse({ normalized, hasJD }));
-    }
+      return res.status(200).json(buildPreviewResponse({ normalized, hasJD, roleProfile }));
 
     let bulletUpgrades = [];
     if (normalized.weak_sentences.length > 0) {
