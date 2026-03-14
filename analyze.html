@@ -1440,6 +1440,19 @@ document.getElementById("copyMissing")?.addEventListener("click", ()=>{
 });
 
 document.getElementById("copyWeak")?.addEventListener("click", ()=>{
+  document.getElementById("copyWeak")?.addEventListener("click", ()=>{
+  const pairs = [...document.querySelectorAll("#weak .weakPair")].map(pair => {
+    const before = pair.querySelector(".weakBefore .weakText")?.textContent?.trim() || "";
+    const after = pair.querySelector(".weakAfter .weakText")?.textContent?.trim() || "";
+    if (!before && !after) return "";
+    return `BEFORE: ${before}\nAFTER: ${after}`;
+  }).filter(Boolean);
+
+  if (pairs.length) {
+    copyText(pairs.join("\n\n"));
+    return;
+  }
+
   const items = [...document.querySelectorAll("#weak li")]
     .map(li=>li.textContent.trim()).filter(Boolean);
   copyText(items.map(x=>"- " + x).join("\n"));
