@@ -145,6 +145,81 @@ const ROLE_TAXONOMY = {
     verbs: ["coordinated", "tracked", "organized", "maintained", "documented", "scheduled", "reported", "monitored"],
     safeSupportVerbs: ["coordinated", "tracked", "organized", "maintained", "documented"],
   },
+    warehouse_operations: {
+    titles: [
+      "warehouse assistant",
+      "warehouse worker",
+      "warehouse operative",
+      "storekeeper",
+      "picker packer",
+      "inventory clerk",
+      "warehouse staff",
+    ],
+    signals: [
+      "warehouse operations",
+      "stock control",
+      "stock counting",
+      "inventory control",
+      "inventory records",
+      "order preparation",
+      "picking",
+      "packing",
+      "labeling",
+      "shipment",
+      "dispatch",
+      "receiving",
+      "putaway",
+      "goods handling",
+      "warehouse safety",
+    ],
+    keywords: [
+      "inventory control",
+      "stock counting",
+      "order preparation",
+      "picking and packing",
+      "packing and labeling",
+      "shipment handling",
+      "dispatch preparation",
+      "receiving",
+      "putaway",
+      "inventory records",
+      "goods handling",
+      "warehouse safety",
+    ],
+    verbs: [
+      "prepared",
+      "picked",
+      "packed",
+      "labeled",
+      "received",
+      "inspected",
+      "updated",
+      "maintained",
+      "organized",
+      "coordinated",
+    ],
+    safeSupportVerbs: [
+      "prepared",
+      "packed",
+      "labeled",
+      "received",
+      "inspected",
+      "updated",
+      "maintained",
+      "organized",
+    ],
+    blockedWithoutEvidence: [
+      "RFQ",
+      "sourcing",
+      "vendor management",
+      "supplier communication",
+      "procurement",
+      "purchase orders",
+      "purchase orders (PO) processing",
+      "ERP systems",
+      "goods receipt (GR) documentation",
+    ],
+  },
   procurement_supply_chain: {
     titles: ["procurement specialist", "purchasing specialist", "buyer", "sourcing specialist", "logistics specialist", "logistics coordinator", "inventory specialist", "warehouse coordinator"],
     signals: ["procurement", "purchasing", "sourcing", "vendor management", "purchase orders", "rfq", "supplier communication", "cost comparison", "inventory management", "shipment tracking", "warehouse operations", "logistics coordination", "stock control", "order fulfillment", "sap", "erp"],
@@ -232,6 +307,29 @@ const BRAND_TERMS = new Set([
 const ALL_ROLE_TERMS = uniqueTrimmedStrings(
   Object.values(ROLE_TAXONOMY).flatMap((role) => [...(role.titles || []), ...(role.signals || []), ...(role.keywords || [])])
 );
+const ROLE_OVERRIDE_MAP = {
+  "warehouse assistant": ["warehouse_operations"],
+  "warehouse worker": ["warehouse_operations"],
+  "warehouse operative": ["warehouse_operations"],
+  "storekeeper": ["warehouse_operations"],
+  "picker packer": ["warehouse_operations"],
+  "inventory clerk": ["warehouse_operations"],
+  "warehouse operations": ["warehouse_operations"],
+
+  "procurement specialist": ["procurement_supply_chain"],
+  "logistics coordinator": ["procurement_supply_chain"],
+
+  "customer support specialist": ["customer_support"],
+  "customer service representative": ["customer_support"],
+
+  "backend engineer": ["software_engineering"],
+  "backend developer": ["software_engineering"],
+  "software engineer": ["software_engineering"],
+
+  "data analyst": ["data_analytics"],
+  "graphic designer": ["design"],
+  "healthcare administrator": ["healthcare_administration"],
+};
 
 function uniqueTrimmedStrings(arr = []) {
   return Array.from(
@@ -690,6 +788,47 @@ function getRolePacks(roleInput, cv = "", jd = "") {
   const profile = ensureRoleProfile(roleInput, cv, jd);
   const packs = (profile.roleGroups || ["generic"]).map((key) => ROLE_TAXONOMY[key]).filter(Boolean);
   return packs.length ? packs : [ROLE_TAXONOMY.generic];
+}
+
+function buildRoleProfileWithOverride({ targetRole = "", inferredRoleProfile = null, cv = "", jd = "" }) {
+  const inferred = inferredRoleProfile || inferRoleProfile(cv, jd);
+  const key = canonicalizeTerm(targetRole);
+
+  if (!key || !ROLE_OVERRIDE_MAP[key]) {
+    return inferred;
+  }
+
+  const forcedGroups = ROLE_OVERRIDE_MAP[key];
+  const packs = forcedGroups.map((group) => ROLE_TAXONOMY[group]).filter(Boolean);
+
+  const domainSignals = uniqueTrimmedStrings(
+    packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])])
+  )
+    .filter((term) => containsCanonicalTermInText(`${cv}\n${jd}`, term))
+    .slice(0, 18);
+
+  return {
+    ...inferred,
+    roleGroups: forcedGroups,
+    primaryRole: forcedGroups[0] || inferred.primaryRole,
+    secondaryRoles: forcedGroups.slice(1),
+    domainSignals: domainSignals.length ? domainSignals : inferred.domainSignals,
+    userSelectedRole: targetRole,
+    roleLocked: true,
+  };
+}
+
+function buildRoleLockBlock(roleProfile) {
+  if (!roleProfile?.roleLocked || !roleProfile?.userSelectedRole) return "";
+
+  return [
+    "USER-SELECTED ROLE LOCK:",
+    `- The selected target role is: ${roleProfile.userSelectedRole}`,
+    "- Treat this as the primary role anchor.",
+    "- Do not drift into adjacent job families unless explicitly supported by the resume or job description.",
+    "- For missing keywords, stay inside the selected role's real ATS vocabulary.",
+    "- Do not inflate warehouse roles into procurement, RFQ, ERP, sourcing, or vendor-management language unless clearly supported.",
+  ].join("\n");
 }
 
 function getSkillsLines(cv = "") {
@@ -2125,8 +2264,9 @@ function buildEnglishStyleBlock(roleInput, cv = "", jd = "") {
   ].join("\n");
 }
 
-function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview }) {
+  function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview }) {
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
+  const roleLockBlock = buildRoleLockBlock(roleProfile);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const baseSchema = hasJD
     ? `{
@@ -2198,6 +2338,7 @@ function buildAnalysisPrompt({ cv, jd, hasJD, outLang, roleProfile, isPreview })
     "- Do not add extra keys. Do not add optimized_cv.",
     "\nROLE CONTEXT:",
     roleContextText,
+    roleLockBlock ? `\n${roleLockBlock}` : "",
     hasJD ? `\nRANKED JD SIGNALS:\n${buildJdSignalText(jd, roleProfile, cv)}` : "",
     englishStyleBlock ? `\n${englishStyleBlock}` : "",
     `\nRESUME:\n${cv}`,
