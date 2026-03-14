@@ -1051,6 +1051,11 @@ setText("#noJobHelp", t.noJobHelp);
 setText("#resumeHelpBtn", t.resumeHelpBtn);
   setText("#tailorLabel", t.tailorLabel);
 setText("#tailorHint", t.tailorHint);
+    setText("#roleHint", t.roleHint || "Target role (optional)");
+  const roleSelect = document.getElementById("targetRole");
+  if (roleSelect && roleSelect.options[0]) {
+    roleSelect.options[0].textContent = t.roleAuto || "Auto-detect role";
+  }
 
   window.__scoreLabel = t.scoreLabel;
   window.__needBoth = t.needBoth;
