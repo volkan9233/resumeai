@@ -1135,9 +1135,10 @@ if (s) {
    run()
 ======================= */
 async function run(){
-  const resume = document.getElementById('resume').value.trim();
-const tailoringOn = !!document.getElementById("tailorToggle")?.checked;
-const job = tailoringOn ? document.getElementById('job').value.trim() : "";
+    const resume = document.getElementById('resume').value.trim();
+  const tailoringOn = !!document.getElementById("tailorToggle")?.checked;
+  const job = tailoringOn ? document.getElementById('job').value.trim() : "";
+  const selectedRole = document.getElementById("targetRole")?.value?.trim() || "";
   const btn = document.getElementById('btn');
   const status = document.getElementById('status');
   const spinner = document.getElementById("spinner");
@@ -1169,7 +1170,13 @@ if (window.ResumeAIProgress) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ cv: resume, jd: job, preview: isPreview, lang })
+            body: JSON.stringify({
+        cv: resume,
+        jd: job,
+        target_role: selectedRole,
+        preview: isPreview,
+        lang
+      })
     });
 
     const rawText = await r.text();
