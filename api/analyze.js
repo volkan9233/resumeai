@@ -2364,6 +2364,7 @@ function buildEnglishStyleBlock(roleInput, cv = "", jd = "") {
 
 function buildWeakRewriteFallbackPrompt({ cv, jd, hasJD, candidates, outLang, roleProfile }) {
   const roleContextText = buildRoleContextText(roleProfile, cv, jd);
+  const roleLockBlock = buildRoleLockBlock(roleProfile);
   const englishStyleBlock = outLang === "English" ? buildEnglishStyleBlock(roleProfile, cv, jd) : "";
   const candidateText = (Array.isArray(candidates) ? candidates : []).map((item, idx) => `${idx + 1}. ${item}`).join("\n");
   return [
@@ -2378,7 +2379,8 @@ function buildWeakRewriteFallbackPrompt({ cv, jd, hasJD, candidates, outLang, ro
     "- Avoid shallow synonym swaps.",
     `- Output values only in ${outLang}.`,
     hasJD ? "- Return 6-12 items when possible." : "- Return 6-12 items when possible.",
-    `\nROLE CONTEXT:\n${roleContextText}`,
+        `\nROLE CONTEXT:\n${roleContextText}`,
+    roleLockBlock ? `\n${roleLockBlock}` : "",
     englishStyleBlock ? `\n${englishStyleBlock}` : "",
     `\nWEAK CANDIDATES:\n${candidateText || "(none)"}`,
     `\nRESUME:\n${cv}`,
@@ -2643,8 +2645,9 @@ const roleProfile = buildRoleProfileWithOverride({
       optimized_ats_score: mergedBaseScore,
     };
 
-    if (isPreview) {
+        if (isPreview) {
       return res.status(200).json(buildPreviewResponse({ normalized, hasJD, roleProfile }));
+    }
 
     let bulletUpgrades = [];
     if (normalized.weak_sentences.length > 0) {
