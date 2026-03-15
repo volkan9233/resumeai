@@ -4478,7 +4478,7 @@ export default async function handler(req, res) {
     const fullModel =
       process.env.OPENAI_MODEL_FULL ||
       process.env.OPENAI_MODEL ||
-      "gpt-5-mini";
+      "gpt-5.1";
 
     const model = isPreview ? previewModel : fullModel;
 
