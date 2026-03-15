@@ -5243,7 +5243,7 @@ const bulletDecisionItems = actionableDecisionItems
           }),
           isPreview,
           passType: "weak_multi_summary",
-          maxCompletionTokens: isPreview ? 1400 : 2200,
+          maxCompletionTokens: isPreview ? 1200 : 1800,
         });
 
         const acceptedSummary = selectAcceptedWeakRewritesFromCandidateItems(
@@ -5289,7 +5289,7 @@ const bulletDecisionItems = actionableDecisionItems
           }),
           isPreview,
           passType: "weak_multi_bullet",
-          maxCompletionTokens: isPreview ? 1600 : 2400,
+          maxCompletionTokens: isPreview ? 1400 : 2100,
         });
 
         const acceptedBullets = selectAcceptedWeakRewritesFromCandidateItems(
@@ -5519,12 +5519,12 @@ const bulletDecisionItems = actionableDecisionItems
           currentOptimized = forceSafeResume(cv, repaired.optimized_cv.trim(), outLang);
 
           if (bulletUpgrades.length) {
-            currentOptimized = applyBulletUpgradesToCv(
-              cv,
-              currentOptimized,
-              bulletUpgrades,
-              outLang
-            );
+            currentOptimized = applyBulletUpgradesToCvSafely(
+        cv,
+        currentOptimized,    
+        bulletUpgrades,
+        outLang
+      );
           }
 
           unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
