@@ -1890,9 +1890,15 @@ function buildRoleProfileWithOverride({
   const forcedGroups = ROLE_OVERRIDE_MAP[key];
   const packs = forcedGroups.map((group) => ROLE_TAXONOMY[group]).filter(Boolean);
 
-  const domainSignals = uniqueTrimmedStrings(
+  const allowedTitles = uniqueTrimmedStrings(
+    packs.flatMap((role) => role.titles || [])
+  );
+
+  const allowedSignals = uniqueTrimmedStrings(
     packs.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])])
-  )
+  );
+
+  const domainSignals = allowedSignals
     .filter((term) => containsCanonicalTermInText(`${cv}\n${jd}`, term))
     .slice(0, 18);
 
@@ -1900,11 +1906,46 @@ function buildRoleProfileWithOverride({
     ...inferred,
     roleGroups: forcedGroups,
     primaryRole: forcedGroups[0] || inferred.primaryRole,
-    secondaryRoles: forcedGroups.slice(1),
+    secondaryRoles: [],
     domainSignals: domainSignals.length ? domainSignals : inferred.domainSignals,
     userSelectedRole: targetRole,
     roleLocked: true,
+    roleLockMeta: {
+      allowedTitles,
+      allowedSignals,
+    },
   };
+}
+  function getStrictLockedRoleKeywords(roleInput, cv = "", jd = "") {
+  const profile = ensureRoleProfile(roleInput, cv, jd);
+  const packs = getRolePacks(profile, cv, jd);
+
+  let pool = uniqueTrimmedStrings(
+    packs.flatMap((role) => [
+      ...(role.keywords || []),
+      ...(role.signals || []),
+    ])
+  );
+
+  if (profile?.roleLocked) {
+    pool = pool.filter((term) => {
+      if (containsCanonicalTermInText(cv, term)) return true;
+      if (containsCanonicalTermInText(jd, term)) return true;
+
+      const wc = countWords(term);
+      const branded = isBrandedOrVendorSpecific(term);
+      const toolish = looksLikeToolOrMethod(term, profile, cv, jd);
+
+      if (branded) return false;
+      if (toolish && !containsCanonicalTermInText(cv, term) && !containsCanonicalTermInText(jd, term)) {
+        return false;
+      }
+
+      return wc >= 2 && wc <= 4;
+    });
+  }
+
+  return uniqueTrimmedStrings(pool);
 }
 
 function buildRoleLockBlock(roleProfile) {
