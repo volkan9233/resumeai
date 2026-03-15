@@ -102,6 +102,25 @@ const WEAK_TO_WEAK_REWRITE_BLACKLIST = [
   [/\bgeneral support\b/i, /\boperational support\b/i],
 ];
 
+const UNSUPPORTED_PROFESSIONAL_EXPANSION_TERMS = [
+  "stakeholder communication",
+  "stakeholder alignment",
+  "cross-functional collaboration",
+  "cross-functional coordination",
+  "process improvement",
+  "workflow optimization",
+  "strategic planning",
+  "executive reporting",
+  "decision-making",
+  "business impact",
+  "operational excellence",
+  "senior leadership",
+  "manager-ready",
+  "stakeholder-ready",
+  "key variances",
+  "actionable insights",
+];
+
 const ROLE_TAXONOMY = {
   software_engineering: {
     titles: [
@@ -2642,6 +2661,80 @@ function finalizeMissingKeywords(
   return finalFiltered.map((item) => item.term).slice(0, limit);
 }
 
+function detectSentenceSourceType(sentence = "", cv = "") {
+  const target = canonicalizeTerm(sentence);
+  const pools = extractWeakCandidatePools(cv);
+
+  if (pools.summaryLines.some((line) => canonicalizeTerm(line) === target)) {
+    return "summary_line";
+  }
+  if (pools.experienceBullets.some((line) => canonicalizeTerm(line) === target)) {
+    return "experience_bullet";
+  }
+  if (pools.otherBullets.some((line) => canonicalizeTerm(line) === target)) {
+    return "other_bullet";
+  }
+  return "experience_bullet";
+}
+
+function hasUnsupportedProfessionalExpansion(
+  source = "",
+  rewrite = "",
+  envelope = {},
+  cv = "",
+  jd = ""
+) {
+  const supportText = `${source}\n${cv}\n${jd}\n${(envelope?.nearbyContext || []).join(" ")}`;
+  const supportNorm = canonicalizeTerm(supportText);
+  const rewriteNorm = canonicalizeTerm(rewrite);
+
+  return UNSUPPORTED_PROFESSIONAL_EXPANSION_TERMS.some((term) => {
+    const canon = canonicalizeTerm(term);
+    const inRewrite = containsCanonicalTermInText(rewriteNorm, canon);
+    const inSupport = containsCanonicalTermInText(supportNorm, canon);
+    if (!inRewrite || inSupport) return false;
+
+    if (
+      (envelope?.allowedFacts || []).some((x) => canonicalizeTerm(x) === canon) ||
+      (envelope?.allowedNearbyTools || []).some((x) => canonicalizeTerm(x) === canon)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function scoreMergedWeakSentenceItem(item = {}, roleInput, cv = "", jd = "") {
+  const sentence = String(item?.sentence || "").trim();
+  const rewrite = String(item?.rewrite || "").trim();
+  if (!sentence || !rewrite) return -999999;
+
+  const sourceType = detectSentenceSourceType(sentence, cv);
+  const envelope = buildEvidenceEnvelope(sentence, sourceType, roleInput, cv, jd);
+  const validation = validateWeakRewriteCandidate(
+    sentence,
+    rewrite,
+    envelope,
+    roleInput,
+    cv,
+    jd
+  );
+
+  if (!validation.valid) return -999999;
+
+  const sourceProfile = getSentenceSignalProfile(sentence, roleInput, cv, jd);
+  const decisionBoost =
+    envelope.decision === "rewrite" ? 25 : envelope.decision === "tighten" ? 10 : 0;
+
+  return (
+    validation.score +
+    sourceProfile.improvementPotential * 3 +
+    sourceProfile.weakScore * 2 +
+    decisionBoost
+  );
+}
+
 function getSentenceSignalProfile(sentence = "", roleInput, cv = "", jd = "") {
   const s = String(sentence || "").trim();
   const profile = ensureRoleProfile(roleInput, cv, jd);
@@ -2943,18 +3036,12 @@ function buildEvidenceEnvelope(sentence = "", sourceType = "", roleInput, cv = "
 // PART 3/5
 function serializeEvidenceEnvelope(envelope = {}, idx = 0) {
   return [
-    `${idx + 1}.`,
-    `source_type: ${envelope.sourceType || "unknown"}`,
-    `sentence: ${envelope.sentence || ""}`,
-    `archetype: ${envelope.archetype || "unknown"}`,
-    `decision: ${envelope.decision || "keep"}`,
-    `support_level: ${envelope.supportLevel || "operational"}`,
-    `allowed_facts: ${(envelope.allowedFacts || []).join(", ") || "(none)"}`,
-    `allowed_nearby_tools: ${(envelope.allowedNearbyTools || []).join(", ") || "(none)"}`,
+    `${idx + 1}. sentence: ${envelope.sentence || ""}`,
+    `type: ${envelope.sourceType || "unknown"} | archetype: ${envelope.archetype || "unknown"} | decision: ${envelope.decision || "keep"}`,
+    `facts: ${(envelope.allowedFacts || []).join(", ") || "(none)"}`,
+    `nearby_terms: ${(envelope.allowedNearbyTools || []).join(", ") || "(none)"}`,
     `safe_verbs: ${(envelope.safeVerbs || []).join(", ") || "(none)"}`,
-    `rewrite_goal: ${envelope.rewriteGoal || "Tighten wording without changing scope."}`,
-    `forbidden_additions: ${(envelope.forbiddenAdditions || []).join(", ") || "(none)"}`,
-    `nearby_context: ${(envelope.nearbyContext || []).join(" | ") || "(none)"}`,
+    `goal: ${envelope.rewriteGoal || "Tighten wording without changing scope."}`,
   ].join("\n");
 }
 
@@ -3267,19 +3354,25 @@ function validateWeakRewriteCandidate(
   const rewriteProfile = getSentenceSignalProfile(rewrite, roleInput, cv, jd);
   const improvements = countMeaningfulRewriteImprovements(source, rewrite, roleInput, cv, jd);
   const sim = jaccardSimilarity(source, rewrite);
+  const minImprovements = envelope?.decision === "tighten" ? 2 : 3;
+  const maxWordGrowth = envelope?.decision === "tighten" ? 4 : 8;
 
   if (!rewrite || !String(rewrite).trim()) reasons.push("empty");
   if (canonicalizeTerm(source) === canonicalizeTerm(rewrite)) reasons.push("trivial_change");
   if (!preservesCoreMeaning(source, rewrite)) reasons.push("core_meaning_loss");
-  if (sim >= 0.92) reasons.push("trivial_change");
+  if (sim >= (envelope?.decision === "tighten" ? 0.95 : 0.92)) reasons.push("trivial_change");
   if (hasUnsupportedSpecificityInWeakRewrite(source, rewrite, cv, jd)) reasons.push("unsupported_term");
   if (hasFakeToolInsertion(source, rewrite, envelope)) reasons.push("fake_tool_insertion");
   if (hasFakeOwnershipExpansion(source, rewrite, envelope)) reasons.push("fake_ownership");
   if (hasFakeKpiOrImpactInsertion(source, rewrite)) reasons.push("fake_kpi_or_impact");
   if (hasFakeScopeExpansion(source, rewrite, envelope)) reasons.push("fake_scope_expansion");
+  if (hasUnsupportedProfessionalExpansion(source, rewrite, envelope, cv, jd)) {
+    reasons.push("fake_professional_expansion");
+  }
   if (rewriteStillFeelsWeak(rewrite, roleInput, cv, jd)) reasons.push("still_weak");
-  if (improvements < 3) reasons.push("trivial_change");
-  if (sourceProfile.wordCount <= 5 && rewriteProfile.wordCount > sourceProfile.wordCount + 8) {
+  if (improvements < minImprovements) reasons.push("trivial_change");
+
+  if (countWords(rewrite) > Math.max(26, countWords(source) + maxWordGrowth)) {
     reasons.push("too_long");
   }
 
@@ -3457,17 +3550,13 @@ function mergeWeakSentenceSets(
     ...(Array.isArray(primary) ? primary : []),
     ...(Array.isArray(secondary) ? secondary : []),
   ];
-  const seen = new Set();
-  const out = [];
+
+  const bestBySentence = new Map();
 
   for (const item of combined) {
     const sentence = String(item?.sentence || "").trim();
     const rewrite = String(item?.rewrite || "").trim();
     if (!sentence || !rewrite) continue;
-
-    const key = canonicalizeTerm(sentence);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
 
     const filtered = filterWeakSentences([{ sentence, rewrite }], {
       outLang,
@@ -3476,11 +3565,26 @@ function mergeWeakSentenceSets(
       jd,
     });
 
-    if (filtered.length) out.push(filtered[0]);
-    if (out.length >= maxCount) break;
+    if (!filtered.length) continue;
+
+    const accepted = filtered[0];
+    const key = canonicalizeTerm(accepted.sentence);
+    const nextScore = scoreMergedWeakSentenceItem(accepted, roleInput, cv, jd);
+    if (nextScore <= -999999) continue;
+
+    const prev = bestBySentence.get(key);
+    if (!prev || nextScore > prev._score) {
+      bestBySentence.set(key, {
+        ...accepted,
+        _score: nextScore,
+      });
+    }
   }
 
-  return out;
+  return Array.from(bestBySentence.values())
+    .sort((a, b) => b._score - a._score)
+    .slice(0, maxCount)
+    .map(({ sentence, rewrite }) => ({ sentence, rewrite }));
 }
 
 function pickRoleAwareRewriteVerb(sentence = "", roleInput, cv = "", jd = "") {
@@ -3967,6 +4071,28 @@ function applyBulletUpgradesToCv(
   if (!base) return "";
   if (!Array.isArray(bulletUpgrades) || !bulletUpgrades.length) return base;
   return forceSafeResume(originalCv, applyBulletUpgradesToText(base, bulletUpgrades), outLang);
+}
+  function applyBulletUpgradesToCvSafely(
+  originalCv = "",
+  optimizedCv = "",
+  bulletUpgrades = [],
+  outLang = "English"
+) {
+  const optimizedBullets = getBulletLines(optimizedCv).map(canonicalizeTerm);
+  const safeUpgrades = (Array.isArray(bulletUpgrades) ? bulletUpgrades : []).filter((item) => {
+    const source = canonicalizeTerm(item?.source || "");
+    return source && optimizedBullets.includes(source);
+  });
+
+  if (!safeUpgrades.length) {
+    return forceSafeResume(originalCv, optimizedCv, outLang);
+  }
+
+  return forceSafeResume(
+    originalCv,
+    applyBulletUpgradesToText(optimizedCv, safeUpgrades),
+    outLang
+  );
 }
 
 function getDesiredWeakCount(hasJD = false, candidateCount = 0) {
@@ -5065,13 +5191,21 @@ export default async function handler(req, res) {
     );
 
     const decisionPipeline = buildWeakDecisionPipeline(cv, roleProfile, jd, 24);
-    const rewriteDecisionItems = decisionPipeline.filter((item) => item.decision === "rewrite");
-    const summaryDecisionItems = rewriteDecisionItems
-      .filter((item) => item.sourceType === "summary_line")
-      .slice(0, 4);
-    const bulletDecisionItems = rewriteDecisionItems
-      .filter((item) => item.sourceType !== "summary_line")
-      .slice(0, 10);
+    const actionableDecisionItems = decisionPipeline.filter(
+  (item) => item.decision === "rewrite" || item.decision === "tighten"
+);
+
+const rewriteDecisionItems = actionableDecisionItems.filter(
+  (item) => item.decision === "rewrite"
+);
+
+const summaryDecisionItems = actionableDecisionItems
+  .filter((item) => item.sourceType === "summary_line")
+  .slice(0, 3);
+
+const bulletDecisionItems = actionableDecisionItems
+  .filter((item) => item.sourceType !== "summary_line")
+  .slice(0, 8);
 
     let weakSentences = selectAcceptedWeakRewritesFromCandidateItems(
       buildLegacyCandidateItemsFromWeakSentences(
@@ -5323,12 +5457,12 @@ export default async function handler(req, res) {
         currentOptimized = forceSafeResume(cv, optimizeData.optimized_cv.trim(), outLang);
 
         if (bulletUpgrades.length) {
-          currentOptimized = applyBulletUpgradesToCv(
-            cv,
-            currentOptimized,
-            bulletUpgrades,
-            outLang
-          );
+          currentOptimized = applyBulletUpgradesToCvSafely(
+  cv,
+  currentOptimized,
+  bulletUpgrades,
+  outLang
+);
         }
 
         unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
@@ -5340,8 +5474,8 @@ export default async function handler(req, res) {
 
     if (!currentOptimized) {
       currentOptimized = bulletUpgrades.length
-        ? applyBulletUpgradesToCv(cv, cv, bulletUpgrades, outLang)
-        : forceSafeResume(cv, cv, outLang);
+  ? applyBulletUpgradesToCvSafely(cv, cv, bulletUpgrades, outLang)
+  : forceSafeResume(cv, cv, outLang);
 
       unsupportedTerms = findUnsupportedTerms(cv, jd, currentOptimized);
     }
