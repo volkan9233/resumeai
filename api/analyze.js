@@ -1288,27 +1288,165 @@ const ALL_ROLE_TERMS = uniqueTrimmedStrings(
 );
 
 const ROLE_OVERRIDE_MAP = {
+  // software_engineering
+  "software engineer": ["software_engineering"],
+  "software developer": ["software_engineering"],
+  "backend engineer": ["software_engineering"],
+  "backend developer": ["software_engineering"],
+  "frontend engineer": ["software_engineering"],
+  "frontend developer": ["software_engineering"],
+  "full stack developer": ["software_engineering"],
+  "full-stack developer": ["software_engineering"],
+  "web developer": ["software_engineering"],
+  "application developer": ["software_engineering"],
+  "mobile developer": ["software_engineering"],
+  "ios developer": ["software_engineering"],
+  "android developer": ["software_engineering"],
+  "devops engineer": ["software_engineering"],
+  "site reliability engineer": ["software_engineering"],
+  "systems engineer": ["software_engineering"],
+
+  // qa
+  "qa engineer": ["qa"],
+  "quality assurance engineer": ["qa"],
+  "software tester": ["qa"],
+  "test engineer": ["qa"],
+  "qa analyst": ["qa"],
+  "automation tester": ["qa"],
+  "manual tester": ["qa"],
+
+  // data_analytics
+  "data analyst": ["data_analytics"],
+  "business intelligence analyst": ["data_analytics"],
+  "bi analyst": ["data_analytics"],
+  "analytics specialist": ["data_analytics"],
+  "reporting analyst": ["data_analytics"],
+  "data specialist": ["data_analytics"],
+
+  // product_project
+  "product manager": ["product_project"],
+  "product owner": ["product_project"],
+  "associate product manager": ["product_project"],
+  "technical product manager": ["product_project"],
+  "project manager": ["product_project"],
+  "project coordinator": ["product_project"],
+  "program manager": ["product_project"],
+
+  // sales
+  "sales specialist": ["sales"],
+  "sales executive": ["sales"],
+  "account executive": ["sales"],
+  "sales coordinator": ["sales"],
+  "business development executive": ["sales"],
+  "account manager": ["sales"],
+
+  // marketing
+  "digital marketing specialist": ["marketing"],
+  "marketing specialist": ["marketing"],
+  "performance marketing specialist": ["marketing"],
+  "marketing executive": ["marketing"],
+  "growth marketer": ["marketing"],
+  "content specialist": ["marketing"],
+
+  // finance_accounting
+  "accountant": ["finance_accounting"],
+  "financial analyst": ["finance_accounting"],
+  "finance specialist": ["finance_accounting"],
+  "accounts payable specialist": ["finance_accounting"],
+  "accounts receivable specialist": ["finance_accounting"],
+  "bookkeeper": ["finance_accounting"],
+  "finance assistant": ["finance_accounting"],
+
+  // hr_recruiting
+  "hr specialist": ["hr_recruiting"],
+  "human resources specialist": ["hr_recruiting"],
+  "recruiter": ["hr_recruiting"],
+  "talent acquisition specialist": ["hr_recruiting"],
+  "hr coordinator": ["hr_recruiting"],
+  "people operations specialist": ["hr_recruiting"],
+
+  // operations
+  "operations manager": ["operations"],
+  "operations specialist": ["operations"],
+  "operations coordinator": ["operations"],
+  "operations analyst": ["operations"],
+  "office manager": ["operations"],
+
+  // warehouse_operations
   "warehouse assistant": ["warehouse_operations"],
   "warehouse worker": ["warehouse_operations"],
   "warehouse operative": ["warehouse_operations"],
   "storekeeper": ["warehouse_operations"],
   "picker packer": ["warehouse_operations"],
   "inventory clerk": ["warehouse_operations"],
+  "warehouse staff": ["warehouse_operations"],
   "warehouse operations": ["warehouse_operations"],
 
+  // procurement_supply_chain
   "procurement specialist": ["procurement_supply_chain"],
+  "purchasing specialist": ["procurement_supply_chain"],
+  "buyer": ["procurement_supply_chain"],
+  "sourcing specialist": ["procurement_supply_chain"],
+  "logistics specialist": ["procurement_supply_chain"],
   "logistics coordinator": ["procurement_supply_chain"],
+  "inventory specialist": ["procurement_supply_chain"],
+  "warehouse coordinator": ["procurement_supply_chain"],
 
+  // customer_support
   "customer support specialist": ["customer_support"],
   "customer service representative": ["customer_support"],
+  "support specialist": ["customer_support"],
+  "technical support specialist": ["customer_support"],
+  "help desk specialist": ["customer_support"],
+  "customer success specialist": ["customer_support"],
+  "customer success manager": ["customer_support"],
 
-  "backend engineer": ["software_engineering"],
-  "backend developer": ["software_engineering"],
-  "software engineer": ["software_engineering"],
+  // administration
+  "executive assistant": ["administration"],
+  "personal assistant": ["administration"],
+  "administrative assistant": ["administration"],
+  "office assistant": ["administration"],
+  "admin assistant": ["administration"],
+  "executive coordinator": ["administration"],
 
-  "data analyst": ["data_analytics"],
-  "graphic designer": ["design"],
+  // education
+  "teacher": ["education"],
+  "instructor": ["education"],
+  "lecturer": ["education"],
+  "teaching assistant": ["education"],
+  "english teacher": ["education"],
+  "math teacher": ["education"],
+
+  // healthcare_administration
   "healthcare administrator": ["healthcare_administration"],
+  "medical secretary": ["healthcare_administration"],
+  "medical office assistant": ["healthcare_administration"],
+  "patient coordinator": ["healthcare_administration"],
+  "clinic coordinator": ["healthcare_administration"],
+
+  // design
+  "designer": ["design"],
+  "graphic designer": ["design"],
+  "ui designer": ["design"],
+  "ux designer": ["design"],
+  "product designer": ["design"],
+  "visual designer": ["design"],
+
+  // engineering_construction
+  "civil engineer": ["engineering_construction"],
+  "site engineer": ["engineering_construction"],
+  "construction engineer": ["engineering_construction"],
+  "mechanical engineer": ["engineering_construction"],
+  "design engineer": ["engineering_construction"],
+  "maintenance engineer": ["engineering_construction"],
+  "production engineer": ["engineering_construction"],
+  "industrial engineer": ["engineering_construction"],
+
+  // legal_support
+  "legal assistant": ["legal_support"],
+  "paralegal": ["legal_support"],
+  "legal secretary": ["legal_support"],
+  "compliance assistant": ["legal_support"],
 };
 const ROLE_NEGATIVE_EVIDENCE = {
   warehouse_operations: [
