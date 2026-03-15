@@ -1466,21 +1466,6 @@ const ROLE_NEGATIVE_EVIDENCE = {
     "putaway",
     "goods handling",
   ],
-  customer_support: [
-    "renewal strategy",
-    "qbr ownership",
-    "expansion revenue",
-    "upsell pipeline",
-    "sales quota",
-  ],
-  design: [
-    "user research",
-    "usability testing",
-    "design systems",
-    "wireframing",
-    "prototyping",
-    "user flows",
-  ],
   healthcare_administration: [
     "travel coordination",
     "executive calendar",
