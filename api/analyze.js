@@ -1963,29 +1963,78 @@ function buildRoleLockBlock(roleProfile) {
 
 function getRoleSuggestedKeywords(roleInput, cv = "", jd = "") {
   const profile = ensureRoleProfile(roleInput, cv, jd);
-  const packs = getRolePacks(profile);
-  let out = uniqueTrimmedStrings(packs.flatMap((role) => role.keywords || []));
 
-  if (profile.seniority === "manager_or_lead" || profile.seniority === "leadership") {
-    out = uniqueTrimmedStrings([
-      "stakeholder communication",
-      "cross-functional collaboration",
-      "process improvement",
-      ...out,
-    ]);
-  }
+  let out = profile?.roleLocked
+    ? getStrictLockedRoleKeywords(profile, cv, jd)
+    : uniqueTrimmedStrings(
+        getRolePacks(profile).flatMap((role) => role.keywords || [])
+      );
 
-  if (profile.seniority === "junior") {
-    out = uniqueTrimmedStrings([
-      ...out,
-      "documentation",
-      "process adherence",
-      "task coordination",
-      "quality checks",
-    ]);
+  if (!profile?.roleLocked) {
+    if (profile.seniority === "manager_or_lead" || profile.seniority === "leadership") {
+      out = uniqueTrimmedStrings([
+        "stakeholder communication",
+        "cross-functional collaboration",
+        "process improvement",
+        ...out,
+      ]);
+    }
+
+    if (profile.seniority === "junior") {
+      out = uniqueTrimmedStrings([
+        ...out,
+        "documentation",
+        "process adherence",
+        "task coordination",
+        "quality checks",
+      ]);
+    }
   }
 
   return out;
+}
+
+function hasStrongResumeEvidenceForTerm(term = "", roleInput, cv = "") {
+  const profile = ensureRoleProfile(roleInput, cv, "");
+  const norm = canonicalizeTerm(term);
+  const rolePacks = getRolePacks(profile, cv, "");
+
+  if (!norm) return false;
+  if (containsCanonicalTermInText(cv, term)) return true;
+
+  const skillLines = getSkillsLines(cv);
+  const summaryLines = extractSummaryLines(cv);
+  const bullets = getBulletLines(cv);
+
+  const rolePool = uniqueTrimmedStrings(
+    rolePacks.flatMap((role) => [...(role.signals || []), ...(role.keywords || [])])
+  );
+
+  let evidence = 0;
+
+  if (skillLines.some((line) => jaccardSimilarity(line, term) >= 0.5)) evidence += 3;
+  if (summaryLines.some((line) => jaccardSimilarity(line, term) >= 0.42)) evidence += 2;
+  if (bullets.some((line) => jaccardSimilarity(line, term) >= 0.42)) evidence += 2;
+  if (rolePool.some((item) => canonicalizeTerm(item) === norm)) evidence += 1;
+
+  return evidence >= 3;
+}
+
+function isTooSpeculativeForCvOnly(term = "", roleInput, cv = "") {
+  const profile = ensureRoleProfile(roleInput, cv, "");
+  const norm = canonicalizeTerm(term);
+
+  if (!norm) return true;
+  if (containsCanonicalTermInText(cv, term)) return false;
+  if (looksLikeCertification(term)) return !hasStrongResumeEvidenceForTerm(term, profile, cv);
+  if (isBrandedOrVendorSpecific(term)) return true;
+  if (looksLikeToolOrMethod(term, profile, cv, "")) return !hasStrongResumeEvidenceForTerm(term, profile, cv);
+
+  const wc = countWords(term);
+  if (wc <= 1) return true;
+  if (wc > 4) return true;
+
+  return !hasStrongResumeEvidenceForTerm(term, profile, cv);
 }
 
 function buildRoleContextText(roleInput, cv = "", jd = "") {
@@ -2046,8 +2095,10 @@ function isSafeCvOnlySuggestedTerm(term = "", roleInput, cv = "") {
   if (!norm || isLowValueKeyword(term)) return false;
   if (containsCanonicalTermInText(cv, norm)) return false;
   if (isBrandedOrVendorSpecific(term)) return false;
+  if (isTooSpeculativeForCvOnly(term, profile, cv)) return false;
 
   const roleThemes = getRoleSuggestedKeywords(profile, cv, "");
+
   return (
     roleThemes.some(
       (item) =>
